@@ -11,7 +11,13 @@ This is very early work on an FPGA core for the 3DO console.
 
 The Zap CPU has started booting some BIOS code, but it's not getting very far yet before crashing.
 
-fixel and Trapexit have been helping me a lot (on the 3DO Commui
+'fixel' and 'trapexit' have been helping me a lot (on The 3DO Community Discord).
+
+fixel helped patch the Zap core, to handle byte reads/writes properly.
+(the ARM60 used on the 3DO is set to Big Endian mode, via a pin tied High on the motherboard. The Zap core originally only supported little endian.)
+
+trapexit helped me get the Opera 3DO emulator compiling under MSVC, so I can compare trace logs to the Verilator sim version.
+(I might make a new repo for the Opera MSVC project, but there are tons of files, and it will take some time to figure out.)
 
 
 Everything else (registers, DRAM, VRAM) is all emulated in C right now.
