@@ -1166,6 +1166,7 @@ int main(int argc, char** argv, char** env) {
 	fread(ram_ptr, 1, ram_size, ramfile);	// Read the whole RAM file into RAM.
 	*/
 
+	/*
 	FILE *vramfile;
 	//vramfile = fopen("3do_vram.bin", "rb");
 	vramfile = fopen("3do_vram_smol.bin", "rb");
@@ -1173,6 +1174,7 @@ int main(int argc, char** argv, char** env) {
 	file_size = ftell(vramfile);
 	fseek(vramfile, 0L, SEEK_SET);
 	fread(vram_ptr, 1, vram_size, vramfile);	// Read the whole RAM file into RAM.
+	*/
 
 	top->core_3do__DOT__matrix_inst__DOT__MI00_in = 0x8002aabb;
 	top->core_3do__DOT__matrix_inst__DOT__MI01_in = 0xf00cc243;
