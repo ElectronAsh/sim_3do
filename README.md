@@ -21,7 +21,7 @@ I used Microsoft Visual Studio 2019, version 16.4.5 (the free version), to build
 This is very early work on an FPGA core for the 3DO console.
 The Zap CPU has started booting some BIOS code, but it's not getting very far yet before crashing.
 
-'fixel' and 'trapexit' have been helping me a lot (on The 3DO Community Discord).
+:+1:'fixel' and 'trapexit' have been helping me a lot (on The 3DO Community Discord).
 
 fixel helped patch the Zap core, to handle byte reads/writes properly.
 (the ARM60 used on the 3DO is set to Big Endian mode, via a pin tied High on the motherboard. The Zap core originally only supported little endian, IIRC)
