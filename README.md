@@ -31,6 +31,7 @@ trapexit helped me get the Opera 3DO emulator compiling under MSVC, so I can com
 
 
 Everything else (registers, DRAM, VRAM, framebuffer) are all still emulated in C right now.
+(I've started moving the registers from C to Verilog now. Still some logic done in C, plus the BIOS, DRAM, VRAM etc.)
 
 I was able to display the 3DO logo by parsing the CLUT (Color Look-Up Table), but only by using a VRAM dump from the MAME debugger (ie. "cheating")
 But that was enough to confirm that I could decode the logo image correctly...

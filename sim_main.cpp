@@ -620,7 +620,7 @@ void process_logo() {
 		rgb[0] = clut[ (pixel & 0x7C00)>>10 ] >> 16;
 		rgb[1] = clut[ (pixel & 0x03E0)>>5 ] >> 8;
 		rgb[2] = clut[ (pixel & 0x001F)<<0 ] >> 0;
-		disp_ptr[ i+(my_line*320) ] = 0xff<<24 | rgb[2]<<16 | rgb[1]<<8 | rgb[0];	// Our debugger framebuffer is in the 32-bit ABGR format.
+		disp_ptr[ i+(my_line*320) ] = 0xff<<24 | rgb[2]<<16 | rgb[1]<<8 | rgb[0];		// Our debugger framebuffer is in the 32-bit ABGR format.
 
 		pixel = vram_byteswapped & 0xFFFF;
 		rgb[0] = clut[ (pixel & 0x7C00)>>10 ] >> 16;
@@ -1509,21 +1509,8 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("              NZCVQIIJ    GGGGIIIIIIEAIFTMMMMM", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr);
 		ImGui::Text("                   TT     EEEETTTTTT          ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr);
 		ImGui::Separator();
-		ImGui::Text("        irq0: 0x%08X", irq0);
-		ImGui::Text("       mask0: 0x%08X", mask0);
-		ImGui::Separator();
-		ImGui::Text("        irq1: 0x%08X", irq1);
-		ImGui::Text("       mask1: 0x%08X", mask1);
-		ImGui::Separator();
-		ImGui::Text("   vint0_reg: 0x%08X", vint0_reg);
-		ImGui::Text("   vint1_reg: 0x%08X", vint1_reg);
-		ImGui::Separator();
-		ImGui::Text("    mctl_reg: 0x%08X", mctl_reg);
-		ImGui::Text("vdl_addr_reg: 0x%08X", vdl_addr_reg);
-		ImGui::Text("  sltime_reg: 0x%08X", sltime_reg);
-		ImGui::Text("   cstat_reg: 0x%08X", cstat_reg);
 		ImGui::End();
-
+	
 		ImGui::Begin("ARM Secondary regs");
 		ImGui::Text("        RAZ?: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r16);
 		ImGui::Text("  FIQ CPSR??: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r17);
@@ -1558,6 +1545,25 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Separator();
 		ImGui::End();
 		
+		ImGui::Begin("CLIO Registers");
+		ImGui::Text("        irq0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0);
+		ImGui::Text(" irq0_enable: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0_enable);
+		ImGui::Separator();
+		ImGui::Text("        irq1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1);
+		ImGui::Text(" irq1_enable: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1_enable);
+		ImGui::Separator();
+		ImGui::Text("       vint0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__vint0);
+		ImGui::Text("       vint1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__vint1);
+		ImGui::Separator();
+		ImGui::Text("   cstatbits: 0x%08X", top->core_3do__DOT__clio_inst__DOT__cstatbits);
+		ImGui::End();
+
+		ImGui::Begin("MADAM Registers");
+		ImGui::Text("        mctl: 0x%08X", top->core_3do__DOT__madam_inst__DOT__mctl);
+		ImGui::Text("      sltime: 0x%08X", top->core_3do__DOT__madam_inst__DOT__sltime);
+		//ImGui::Text("vdl_addr_reg: 0x%08X", vdl_addr_reg);
+		ImGui::End();
+
 		/*
 		ImGui::Begin("Matrix Engine");
 		ImGui::Text("   MI00: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI00);
