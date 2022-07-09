@@ -1,7 +1,9 @@
 # sim_3do
 
 :+1:Zap ARMv5T core by Revanth Kamaraj, from opencores.com
+
 :+1:Verilator by Wilson Snyder.
+
 :+1:Dear Imgui library by Omar (ocornut).
 
 
