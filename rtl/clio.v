@@ -15,14 +15,13 @@ module clio (			// IC140 on FZ1.
 	output amyctl,			// Color Encoder (DAC) control signal.
 	output tmuxsel,			// Pixel clock to DAC? 12.2727 MHz.
 	output blank_n,			// Blanking FROM DAC?
-	inout wdres_n,			// Reset thingy? Connected. Driven via a diode on adbio3.
 	input vsync_n,			// FROM the DAC.
 	input hsync_n,			// FROM the DAC.
 	
 	//input wdin,			// Watchdog Timer C/R input. (analog stuffs. Not needed).
 	output wdres_n,			// Watchdog Timer Reset output.
 	
-	input [7:0] ed_out,		// Expansion Bus Data input. CD-ROM Gate Array access.
+	input [7:0] ed_in,		// Expansion Bus Data input. CD-ROM Gate Array access.
 	output [7:0] ed_out,	// Expansion Bus Data output.
 	output estr_n,			// Expansion Bus Strobe signal.
 	output ewrt_n,			// Expansion Bus Write signal.
@@ -56,7 +55,7 @@ module clio (			// IC140 on FZ1.
 	output [31:0] s_dout,	// S-Bus to VRAM.
 	
 	input [31:0] cpu_din,
-	output [31:0] cpu_dout,
+	output reg [31:0] cpu_dout,
 	
 	input [15:02] cpu_addr,	// CLIO does NOT have a full connection to the CPU Addr bus.
 	
@@ -78,7 +77,6 @@ module clio (			// IC140 on FZ1.
 	inout uncackw,			// Video DMA Write Acknowledge. FMV? UN - Uncle Chip.
 	inout uncackr			// Video DMA Read Acknowledge. FMV? UN - Uncle Chip.
 );
-
 
 
 wire read_en  = hcount>=11 && hcount<=1292;
@@ -121,7 +119,7 @@ reg [31:0] irq1_enable;	// 0x68/0x6c - Writing to 0x68 SETs irq1 ENABLE mask bit
 
 // hdelay / adbio stuff...
 reg [31:0] hdelay;		// 0x80
-reg [31:0] adbio;		// 0x84
+reg [31:0] adbio_reg;	// 0x84
 reg [31:0] adbctl;		// 0x88
 
 
@@ -220,7 +218,7 @@ reg [31:0] poll_15;	// 0x57c
 
 
 // DSP...
-reg [31:0] semaphore;	// 0x17d0. DSP/ARM Semaphore.
+reg [31:0] sema;		// 0x17d0. DSP/ARM Semaphore. (can't call it "semaphore", because Verilog / Verilator).
 reg [31:0] semaack;		// 0x17d4. Semaphore Acknowledge.
 reg [31:0] dspdma;		// 0x17e0.
 reg [31:0] dspprst0;	// 0x17e4. Write triggers DSP reset 0?
@@ -258,7 +256,7 @@ always @(*) begin
 	16'h0028: cpu_dout = cstatbits;	// 0x28
 	16'h002c: cpu_dout = wdog;		// 0x2c
 	16'h0030: cpu_dout = hcnt;		// 0x30 / hpos when read?
-	16'h0034: cpu_dout = vcnt;		// 0x34 / vpos when read?
+	16'h0034: cpu_dout = (field<<11) | vcnt;		// 0x34 / vpos when read?
 	16'h0038: cpu_dout = seed;		// 0x38
 	16'h003c: cpu_dout = random;	// 0x3c - read only?
 
@@ -278,7 +276,7 @@ always @(*) begin
 
 // hdelay / adbio stuff...
 	16'h0080: cpu_dout = hdelay;		// 0x80
-	16'h0084: cpu_dout = adbio;			// 0x84
+	16'h0084: cpu_dout = adbio_reg;		// 0x84
 	16'h0088: cpu_dout = adbctl;		// 0x88
 
 
@@ -322,7 +320,7 @@ always @(*) begin
 // Writing to 0x20c CLEARs the UPPER 32-bits of timer_ctrl.
 	16'h0200: cpu_dout = timer_ctrl;		// 0x200,0x204,0x208,0x20c. 64-bits wide?? TODO: How to handle READS of the 64-bit reg?
 
-	16'h0220: cpu_dout = lack;				// 0x220. Only the lower 10 bits get written?
+	16'h0220: cpu_dout = slack;				// 0x220. Only the lower 10 bits get written?
 
 // 0x304 DMA starter thingy.
 	//16'h0304: TODO
@@ -377,7 +375,7 @@ always @(*) begin
 
 
 // DSP...
-	16'h17d0: cpu_dout = semaphore;	// 0x17d0. DSP/ARM Semaphore.
+	16'h17d0: cpu_dout = sema;		// 0x17d0. DSP/ARM Semaphore. (can't call it "semaphore", because Verilog / Verilator).
 	16'h17d4: cpu_dout = semaack;	// 0x17d4. Semaphore Acknowledge.
 	16'h17e0: cpu_dout = dspdma;	// 0x17e0.
 	16'h17e4: cpu_dout = dspprst0;	// 0x17e4. Write triggers DSP reset 0?
@@ -407,20 +405,44 @@ end
 wire wdgrst = 0;
 wire dipir = 0;
 
+wire [31:0] hcnt_max = 32'd1800;
+wire [31:0] vcnt_max = 32'd280;
+reg field;
+
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera return 0x02020000. MAME returns 0x01020000.
 	cstatbits[0] <= 1'b1;			// Set bit 0 (POR).
 	expctl <= 32'h00000080;
+	field <= 1'b1;
+	hcnt <= 32'd0;
+	vcnt <= 32'd0;
 end
 else begin
+
+	if (hcnt==hcnt_max) begin
+		hcnt <= 32'd0;
+		if (vcnt==vcnt_max) begin
+			vcnt <= 32'd0;
+			field <= !field;
+		end
+		else begin
+			vcnt <= vcnt + 1'd1;
+			//if ( vcnt==(vint0_reg&0x7FF) ) irq0 |= 1;
+			//if ( vcnt==(vint1_reg&0x7FF) ) irq0 |= 2;
+		end
+	end
+	else begin
+		hcnt <= hcnt + 1'd1;
+	end
+
 	if (wdgrst) cstatbits[1] <= 1'b1;		// Set bit 1 (WDT).
 	else if (dipir) cstatbits[6] <= 1'b1;	// Set bit 6 (DIPIR).
 	
 	// Handle CLIO register WRITES...
 	if (cpu_wr) begin
 		case ({cpu_addr,2'b00})
-		16'h0000: //revision <= cpu_din;	// 0x00 - CLIO version if High byte. Feature flags in the rest. Opera return 0x02020000. MAME returns 0x01020000.
+		//16'h0000: revision <= cpu_din;	// 0x00 - READ ONLY? CLIO version in High byte. Feature flags in the rest. Opera return 0x02020000. MAME returns 0x01020000.
 		16'h0004: csysbits <= cpu_din;	// 0x04
 		16'h0008: vint0 <= cpu_din;		// 0x08
 		16'h000c: vint1 <= cpu_din;		// 0x0C
@@ -456,7 +478,7 @@ else begin
 
 		// hdelay / adbio stuff...
 		16'h0080: hdelay <= cpu_din;		// 0x80
-		16'h0084: adbio  <= cpu_din;		// 0x84
+		16'h0084: adbio_reg  <= cpu_din;	// 0x84
 		16'h0088: adbctl <= cpu_din;		// 0x88
 
 		// Timers...
@@ -499,7 +521,7 @@ else begin
 		16'h0208: timer_ctrl[63:32] <= (timer_ctrl[63:32] | cpu_din);	// Writing to 0x208 SETs the UPPER 32-bits of timer_ctrl.
 		16'h020c: timer_ctrl[63:32] <= (timer_ctrl[63:32] & ~cpu_din);	// Writing to 0x20c CLEARs the UPPER 32-bits of timer_ctrl.
 		
-		16'h0220: lack <= cpu_din;				// 0x220. Only the lower 10 bits get written?
+		16'h0220: slack <= cpu_din;				// 0x220. Only the lower 10 bits get written?
 
 		// 0x304 DMA starter thingy.
 		//16'h0304: TODO
@@ -554,7 +576,7 @@ else begin
 		// 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
 
 		// DSP...
-		16'h17d0: semaphore <= cpu_din;	// 0x17d0. DSP/ARM Semaphore.
+		16'h17d0: sema <= cpu_din;		// 0x17d0. DSP/ARM Semaphore. (can't call it "semaphore", because Verilog / Verilator).
 		16'h17d4: semaack <= cpu_din;	// 0x17d4. Semaphore Acknowledge.
 		16'h17e0: dspdma <= cpu_din;	// 0x17e0.
 		16'h17e4: dspprst0 <= cpu_din;	// 0x17e4. Write triggers DSP reset 0?
@@ -578,9 +600,7 @@ else begin
 		
 		default: ;
 		endcase
-	
-	
-
+	end
 end
 
 endmodule

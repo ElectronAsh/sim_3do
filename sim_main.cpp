@@ -75,8 +75,8 @@ uint32_t vdl_addr_reg = 0x0000000;
 //uint32_t sltime_reg = 0x00178906;
 uint32_t sltime_reg = 0x00000000;
 
-//uint32_t cstat_reg = 0x00000001;	// POR bit (0) set! fixel said this is what the starting value should be.
-uint32_t cstat_reg = 0x00000040;	// DIPIR (Disc Inserted Provide Interrupt Response) bit (6) set! Opera does this, but fixel suggests Opera has other patches to make this work!
+uint32_t cstat_reg = 0x00000001;	// POR bit (0) set! fixel said this is what the starting value should be.
+//uint32_t cstat_reg = 0x00000040;	// DIPIR (Disc Inserted Provide Interrupt Response) bit (6) set! Opera does this, but fixel suggests Opera has other patches to make this work!
 
 char my_string[1024];
 
@@ -707,6 +707,7 @@ int verilate() {
 			if (top->o_wb_stb) {
 				top->i_wb_ack = 1;
 
+				/*
 				if (trace) {
 					//if ((cur_pc>(old_pc+8)) || (cur_pc<(old_pc-8))) {
 					if (cur_pc!=old_pc) {
@@ -714,6 +715,7 @@ int verilate() {
 						old_pc = cur_pc;
 					}
 				}
+				*/
 
 				//if (top->o_wb_adr==0x03400084) trace = 1;
 				//if (trace) fprintf(logfile, "PC: 0x%08X \n", cur_pc);
@@ -903,6 +905,7 @@ int verilate() {
 			old_pc = cur_pc;
 			*/
 
+			/*
 			if (line_count==vcnt_max) {
 				line_count=0;
 				field = !field;
@@ -914,8 +917,9 @@ int verilate() {
 				if ( line_count==(vint0_reg&0x7FF) ) irq0 |= 1;
 				if ( line_count==(vint1_reg&0x7FF) ) irq0 |= 2;
 			}
+			*/
 
-			top->i_firq = (irq0&2) && (mask0&2);
+			//top->i_firq = (irq0&2) && (mask0&2);
 
 			// bit 00 - VINT0
 			// bit 01 - VINT1 (VSyncTimerFirq, ControlPort, SPORTfirq, GraphicsFirq is hung here)
@@ -1325,7 +1329,8 @@ int main(int argc, char** argv, char** env) {
 			memset(vram_ptr, 0x00000000, vram_size);	// Clear VRAM.
 		}
 		ImGui::Text("main_time %d", main_time);
-		ImGui::Text("field: %d  frame_count: %d  line_count: %d", field, frame_count, line_count);
+		//ImGui::Text("field: %d  frame_count: %d  line_count: %d", field, frame_count, line_count);
+		ImGui::Text("frame_count: %d  field: %d hcnt: %d  vcnt: %d", frame_count, top->core_3do__DOT__clio_inst__DOT__field, top->core_3do__DOT__clio_inst__DOT__hcnt, top->core_3do__DOT__clio_inst__DOT__vcnt); 
 
 		/*
 		ImGui::Text("Addr:   0x%08X", top->mem_addr << 2);
@@ -1447,22 +1452,21 @@ int main(int argc, char** argv, char** env) {
 		else ImGui::Text("    Unknown    ");
 
 		//ImGui::Text("          PC: 0x%08X", top->core_3do__DOT__a23_core_inst__DOT__u_execute__DOT__u_register_bank__DOT__o_pc);
-		ImGui::Text("    o_wb_adr: 0x%08X", top->o_wb_adr);
-		//ImGui::Text("        bios: 0x%08X", rom_byteswapped);
-		ImGui::Text("    i_wb_dat: 0x%08X", top->i_wb_dat);
+		ImGui::Text("    o_wb_adr: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_adr);
+		ImGui::Text("    i_wb_dat: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__i_wb_dat);
 		ImGui::Separator();
-		ImGui::Text("    o_wb_dat: 0x%08X", top->o_wb_dat);
-		ImGui::Text("     o_wb_we: %d", top->o_wb_we); ImGui::SameLine(); if (!top->o_wb_we) ImGui::Text(" Read"); else ImGui::Text(" Write");
-		ImGui::Text("    o_wb_sel: 0x%01X", top->o_wb_sel);
-		ImGui::Text("    o_wb_cyc: %d", top->o_wb_cyc);
-		ImGui::Text("    o_wb_stb: %d", top->o_wb_stb);
-		ImGui::Text("    i_wb_ack: %d", top->i_wb_ack);
+		ImGui::Text("    o_wb_dat: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_dat);
+		ImGui::Text("     o_wb_we: %d", top->core_3do__DOT__zap_top_inst__DOT__o_wb_we); ImGui::SameLine(); if (!top->o_wb_we) ImGui::Text(" Read"); else ImGui::Text(" Write");
+		ImGui::Text("    o_wb_sel: 0x%01X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_sel);
+		ImGui::Text("    o_wb_cyc: %d", top->core_3do__DOT__zap_top_inst__DOT__o_wb_cyc);
+		ImGui::Text("    o_wb_stb: %d", top->core_3do__DOT__zap_top_inst__DOT__o_wb_stb);
+		ImGui::Text("    i_wb_ack: %d", top->core_3do__DOT__zap_top_inst__DOT__i_wb_ack);
 		ImGui::Separator();
-		ImGui::Text("      i_firq: %d", top->i_firq);
+		ImGui::Text("      i_firq: %d", top->core_3do__DOT__zap_top_inst__DOT__i_fiq); 
 		ImGui::Separator();
 		ImGui::Text("    Zap...");
-		ImGui::Text("    o_wb_cti: 0x%01X", top->o_wb_cti);
-		ImGui::Text("    o_wb_bte: 0x%01X", top->o_wb_bte);
+		ImGui::Text("    o_wb_cti: 0x%01X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_cti);
+		ImGui::Text("    o_wb_bte: 0x%01X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_bte);
 		ImGui::Text("  i_mem_addr: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__i_mem_address_ff2);
 		/*
 		ImGui::Text("       sbyte: %d", top->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__sbyte);

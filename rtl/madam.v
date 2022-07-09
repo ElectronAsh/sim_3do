@@ -11,9 +11,10 @@ module madam (
 	input [31:0] cpu_addr,
 	
 	input [31:0] cpu_din,
-	input cpu_wen,
+	input cpu_rd,
+	input cpu_wr,
 	
-	output [31:0] cpu_dout,
+	output reg [31:0] cpu_dout,
 	
 	output [22:0] ram_addr,	
 	input [31:0] ram_din,
@@ -175,6 +176,103 @@ reg [21:0] dmac_nextlen;	// 0x4CC. CPU RAM to DSP DMA Group 0xC: next length.
 
 // 0x0600 to 0x069C = Hardware Multiplier (Matrix Engine).
 //
+
+// MADAM register READ driver...
+always @(*) begin
+	case (cpu_addr[15:0])
+		//reg [7:0] debug_print;		// 0x0000. Revision when read. BIOS Serial debug when written.
+		//16'h0004: cpu_dout = msysbits;	// 0x0004. Memory Configuration. 0x29 = 2MB DRAM, 1MB VRAM.
+		16'h0004: cpu_dout = 32'h00000029;	// 0x0004. Memory Configuration. 0x29 = 2MB DRAM, 1MB VRAM.
+		16'h00: cpu_dout = mctl;		// 0x0008. DMA channel enables. bit16 = Player Bus. bit20 = Spryte control.
+		16'h00: cpu_dout = sltime;		// 0x000C ? Unsure. “testbin” sets it to 0x00178906.
+										// 0x000D to 0x001C ??
+		16'h00: cpu_dout = abortbits;	// 0x0020 ? Contains a bitmask of reasons for an abort signal MADAM sent to the CPU.
+		16'h00: cpu_dout = privbits;	// 0x0024 ? DMA privilage violation bits.
+		16'h00: cpu_dout = statbits;	// 0x0028 ? Spryte rendering engine status register. Details found in US patent 5,572,235. See Table 1.8.
+		16'h00: cpu_dout = msb_check;	// 0x002C. (arbitrary name). Write a value and when read it will return the number of the most significantly set bit.
+										// example: Write 0x8400_0000 and a read will return 31. Write 0x0000_0000 and the return will be 0xFFFF_FFFF;
+
+		16'h00: cpu_dout = diag;		// 0x0040 ? MAME forces this to 1 when written to?
+
+		// CEL control regs...
+		// 03300100 - SPRSTRT - Start the CEL engine (W)
+		// 03300104 - SPRSTOP - Stop the CEL engine (W)
+		// 03300108 - SPRCNTU - Continue the CEL engine (W)
+		// 0330010c - SPRPAUS - Pause the CEL engine (W)
+		16'h00: cpu_dout = ccobctl0;	// 03300110 - CCOBCTL0 - CCoB control (RW). struct Bitmap→bm_CEControl. General spryte rendering engine control word
+		16'h00: cpu_dout = ppmpc;		// 03300129 - PPMPC (RW) (note: comment in MAME said 0x0120, case was 0x0129 ?!
+
+		// More MADAM regs...
+		16'h00: cpu_dout = regctl0;		// 0x0130. struct Bitmap→bm_REGCTL0.
+		16'h00: cpu_dout = regctl1;		// 0x0134. struct Bitmap→bm_REGCTL1.
+		16'h00: cpu_dout = regctl2;		// 0x0138. struct Bitmap→bm_REGCTL2.
+		16'h00: cpu_dout = regctl3;		// 0x013C. struct Bitmap→bm_REGCTL3.
+		16'h00: cpu_dout = xyposh;		// 0x0140.
+		16'h00: cpu_dout = xyposl;		// 0x0144.
+		16'h00: cpu_dout = linedxyh;	// 0x0148.
+		16'h00: cpu_dout = linedxyl;	// 0x014C.
+		16'h00: cpu_dout = dxyh;		// 0x0150.
+		16'h00: cpu_dout = dxyl;		// 0x0154.
+		16'h00: cpu_dout = ddxyh;		// 0x0158.
+		16'h00: cpu_dout = ddxyl;		// 0x015C.
+
+		// 0x0180 to 0x01F8 = PIP! MAME has 0x0180-0x01BC for writes, but 0x0180-0x01F8 for reads?
+		// MAME splits each 32-bit reg into separate 16-bit reads?
+
+		// 0x0200 to 0x023C = Fence! MAME has 0x0200-0x023C for writes, but 0x0200-0x0278 for reads?
+		// MAME splits each 32-bit reg into separate 16-bit reads?
+		16'h00: cpu_dout = fence_0l;
+		16'h00: cpu_dout = fence_0r;
+		16'h00: cpu_dout = fence_1l;
+		16'h00: cpu_dout = fence_1r;
+		16'h00: cpu_dout = fence_2l;
+		16'h00: cpu_dout = fence_2r;
+		16'h00: cpu_dout = fence_3l;
+		16'h00: cpu_dout = fence_3r;
+
+		// 0x0300 to 0x03FC = MMU! ?? 
+
+		// 0x0400 to 0x05FC = DMA. See US patent WO09410641A1 page 46 line 25 for details.
+		// Most of the DMA addr regs are probably 22-bits wide, as suggested in the patent.
+		// (ie. each can address a 4MB memory range.)
+		16'h00: cpu_dout = dma0_curaddr;	// 0x400. CPU RAM to DSP DMA Group 0x0: current address.
+		16'h00: cpu_dout = dma0_curlen;		// 0x404. CPU RAM to DSP DMA Group 0x0: current length.
+		16'h00: cpu_dout = dma0_nextaddr;	// 0x408. CPU RAM to DSP DMA Group 0x0: next address.
+		16'h00: cpu_dout = dma0_nextlen;	// 0x40C. CPU RAM to DSP DMA Group 0x0: next length.
+
+		// TODO - There are actually around 128 DMA registers!
+		// This should all be put into its own Verilog module.
+		// Some specs say "36 Separate DMA Channels".
+
+		16'h00: cpu_dout = dmac_curaddr;	// 0x4C0. CPU RAM to DSP DMA Group 0xC: current address.
+		16'h00: cpu_dout = dmac_curlen;		// 0x4C4. CPU RAM to DSP DMA Group 0xC: current length.
+		16'h00: cpu_dout = dmac_nextaddr;	// 0x4C8. CPU RAM to DSP DMA Group 0xC: next address.
+		16'h00: cpu_dout = dmac_nextlen;	// 0x4CC. CPU RAM to DSP DMA Group 0xC: next length.
+
+		// 0x04D0 = FMV DMA Group 1?
+		// 0x04D3 = FMV DMA Group 1?
+		// 0x04E0 = FMV DMA Group 1?
+		// 0x04E4 = FMV DMA Group 1?
+
+		// 0x0540 = XBUS DMA: Source / Dest Address.
+		// 0x0544 = XBUX DMA: Length.
+
+		// 0x0550 = FMV DMA Group 2?
+		// 0x0554 = FMV DMA Group 2?
+		// 0x0560 = FMV DMA Group 2?
+		// 0x0564 = FMV DMA Group 2?
+
+		// 0x0570 = Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
+		// 0x0574 = Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
+		// 0x0578 = Player Bus DMA: Source Address.
+
+		// 0x0600 to 0x069C = Hardware Multiplier (Matrix Engine).
+		default: cpu_dout = 32'hBADACCE5;
+	endcase
+end
+
+
+
 // MAME has varius regs for this, but not sure if MAME has the actual Matrix engine FSM?
 //
 // 4DO has this Matrix engine code...
@@ -254,7 +352,7 @@ reg [63:0] rez2t;	// Result reg?
 reg [63:0] rez3t;	// Result reg?
 
 // Matix engine from 4DO...
-//
+/*
 	case 0x7fc:
 		mregs[0x7fc]=0; // Ours matrix engine already ready
 
@@ -358,7 +456,6 @@ reg [63:0] rez3t;	// Result reg?
 		break;
 	}
 }
-
-
+*/
 
 endmodule
