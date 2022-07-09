@@ -155,9 +155,13 @@ wire [31:0] clio_dout;
 
 wire madam_cs = (o_wb_adr>=32'h03300000 && o_wb_adr<=32'h0330FFFF);
 wire clio_cs  = (o_wb_adr>=32'h03400000 && o_wb_adr<=32'h0340FFFF);
+wire svf_cs   = (o_wb_adr==32'h03206100 || o_wb_adr==32'h03206900);
+wire svf2_cs  = o_wb_adr==32'h032002B4;
 
 assign zap_din = (madam_cs) ? madam_dout :
 				 (clio_cs)  ? clio_dout :
+				 (svf_cs)   ? 32'hBADACCE5 :
+				 (svf2_cs)  ? 32'h00000000 :
 								i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM etc.)
 
 matrix_engine matrix_inst (
