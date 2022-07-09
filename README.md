@@ -1,8 +1,8 @@
 # sim_3do
 
--Zap ARMv5T core by Revanth Kamaraj, from opencores.com
--Verilator by Wilson Snyder.
--Dear Imgui library by Omar (ocornut).
+:+1:Zap ARMv5T core by Revanth Kamaraj, from opencores.com
+:+1:Verilator by Wilson Snyder.
+:+1:Dear Imgui library by Omar (ocornut).
 
 
 I run Verilator from within WSL2 / Ubuntu, to "compile" the Verilog into the C/C++ sim model.
