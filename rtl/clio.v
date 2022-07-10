@@ -237,7 +237,7 @@ reg [31:0] dsppclkreload;	// 0x39dc.
 
 // UNCLE...
 reg [31:0] unclerev;		// 0xc000. Opera returns 0x03800000.
-reg [31:0] uncle_soft_rev;	// 0xc004
+reg [31:0] unc_soft_rev;	// 0xc004
 reg [31:0] uncle_addr;		// 0xc008
 reg [31:0] uncle_rom;		// 0xc00c
 
@@ -394,7 +394,7 @@ always @(*) begin
 
 // UNCLE...
 	16'hc000: cpu_dout = unclerev;		// 0xc000. Opera returns 0x03800000.
-	16'hc004: cpu_dout = uncle_soft_rev;// 0xc004
+	16'hc004: cpu_dout = unc_soft_rev;	// 0xc004
 	16'hc008: cpu_dout = uncle_addr;	// 0xc008
 	16'hc00c: cpu_dout = uncle_rom;		// 0xc00c
 	
@@ -595,7 +595,7 @@ else begin
 
 		// UNCLE...
 		16'hc000: unclerev <= cpu_din;		// 0xc000. Opera returns 0x03800000.
-		16'hc004: uncle_soft_rev <= cpu_din;// 0xc004
+		16'hc004: unc_soft_rev <= cpu_din;// 0xc004
 		16'hc008: uncle_addr <= cpu_din;	// 0xc008
 		16'hc00c: uncle_rom <= cpu_din;		// 0xc00c
 		

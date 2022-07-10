@@ -9,7 +9,7 @@
 
 I run Verilator from within WSL2 / Ubuntu, to "compile" the Verilog into the C/C++ sim model.
 
-You version of Verilator needs to be the same (or close) version to what I used.
+Your version of Verilator needs to be the same (or close) version to what I used.
 I'm currently using v4.204, installed by compiling the Verilator source, then sudo make install, etc.
 
 Every time a change is made to the Verilog, verilator needs to be run again, before running the sim from MSVC.

@@ -699,15 +699,18 @@ int verilate() {
 			//cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff;
 			//cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__i_pc_ff;
 
-			cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_pc;
+			//cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_pc;
 			//cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff;
 
-			trace = 1;
+			cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff;
+
+			//trace = 1;
 
 			if (top->o_wb_stb) {
 				top->i_wb_ack = 1;
 
-				/*
+				if (cur_pc==0x03000EF4) trace = 1;
+
 				if (trace) {
 					//if ((cur_pc>(old_pc+8)) || (cur_pc<(old_pc-8))) {
 					if (cur_pc!=old_pc) {
@@ -715,7 +718,6 @@ int verilate() {
 						old_pc = cur_pc;
 					}
 				}
-				*/
 
 				//if (top->o_wb_adr==0x03400084) trace = 1;
 				//if (trace) fprintf(logfile, "PC: 0x%08X \n", cur_pc);
@@ -737,8 +739,10 @@ int verilate() {
 				else if (top->o_wb_adr>=0x00200000 && top->o_wb_adr<=0x002FFFFF) { /*fprintf(logfile, "VRAM            ");*/ top->i_wb_dat = vram_ptr[word_addr&0x3FFFF]; /*if (top->o_wb_we) vram_ptr[word_addr&0x7FFFF] = top->o_wb_dat;*/ }
 				
 				// BIOS reads...
-				else if (top->o_wb_adr>=0x03000510 && top->o_wb_adr<=0x03000510) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
-				else if (top->o_wb_adr>=0x03000504 && top->o_wb_adr<=0x0300050C) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
+				//else if (top->o_wb_adr>=0x03000218 && top->o_wb_adr<=0x03000220) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip mem test and beeps. TESTING!
+
+				//else if (top->o_wb_adr>=0x03000510 && top->o_wb_adr<=0x03000510) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
+				//else if (top->o_wb_adr>=0x03000504 && top->o_wb_adr<=0x0300050C) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
 				//else if (top->o_wb_adr>=0x03000340 && top->o_wb_adr<=0x03000340) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip endless loop on mem size check fail.
 				//else if (top->o_wb_adr>=0x030008E0 && top->o_wb_adr<=0x03000944) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0)
 				//else if (top->o_wb_adr>=0x0300056C && top->o_wb_adr<=0x0300056C) top->i_wb_dat = 0xE888001F;	// STM fix. TESTING !!
@@ -821,6 +825,17 @@ int verilate() {
 				else if (top->o_wb_adr==0x03400414) { fprintf(logfile, "CLIO dipir2     "); /*top->i_wb_dat = 0x00004000;*/ }
 				else if (top->o_wb_adr>=0x03400500 && top->o_wb_adr<=0x0340053f) { fprintf(logfile, "CLIO sel        "); /*top->i_wb_dat = 0x00000000;*/ }
 				else if (top->o_wb_adr>=0x03400540 && top->o_wb_adr<=0x0340057f) { fprintf(logfile, "CLIO poll       "); /*top->i_wb_dat = 0x00000000;*/ }
+
+				else if (top->o_wb_adr>=0x034017d0 && top->o_wb_adr<=0x034017d0) { fprintf(logfile, "CLIO sema       "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr>=0x034017d4 && top->o_wb_adr<=0x034017d4) { fprintf(logfile, "CLIO semaack    "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr>=0x034017e0 && top->o_wb_adr<=0x034017e0) { fprintf(logfile, "CLIO dspdma     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr>=0x034017e4 && top->o_wb_adr<=0x034017e4) { fprintf(logfile, "CLIO dspprst0   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr>=0x034017e8 && top->o_wb_adr<=0x034017e8) { fprintf(logfile, "CLIO dspprst1   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr>=0x034017f4 && top->o_wb_adr<=0x034017f4) { fprintf(logfile, "CLIO dspppc     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr>=0x034017f8 && top->o_wb_adr<=0x034017f8) { fprintf(logfile, "CLIO dsppnr     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr>=0x034017fc && top->o_wb_adr<=0x034017fc) { fprintf(logfile, "CLIO dsppgw     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr>=0x034039dc && top->o_wb_adr<=0x034039dc) { fprintf(logfile, "CLIO dsppclkreload"); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+
 				else if (top->o_wb_adr>=0x03401800 && top->o_wb_adr<=0x03401fff) { fprintf(logfile, "CLIO DSPP  N 32 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
 				else if (top->o_wb_adr>=0x03402000 && top->o_wb_adr<=0x03402fff) { fprintf(logfile, "CLIO DSPP  N 16 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
 				else if (top->o_wb_adr>=0x03403000 && top->o_wb_adr<=0x034031ff) { fprintf(logfile, "CLIO DSPP EI 32 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
@@ -832,13 +847,13 @@ int verilate() {
 				else if (top->o_wb_adr>=0x03400000 && top->o_wb_adr<=0x034FFFFF) { fprintf(logfile, "CLIO            "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
 				else /*top->i_wb_dat = 0xBADACCE5*/;	// Dummy reads for now.
 
+				if (top->o_wb_sel != 0xF) fprintf(logfile, "BYTE! ");
 
 				if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/ ) {
 					//if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)  o_wb_sel: 0x%01X  o_wb_bte: 0x%01X\n", top->i_wb_dat, cur_pc, top->o_wb_sel, top->o_wb_bte);
 					if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->core_3do__DOT__zap_top_inst__DOT__o_wb_dat, cur_pc);	// Disabling BE bit printf for now. (sync with Opera).
 					else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->core_3do__DOT__zap_top_inst__DOT__i_wb_dat, cur_pc);
 				}
-
 
 				bool is_bios = top->o_wb_adr>=0x03000000 && top->o_wb_adr<=0x030FFFFF;
 				bool is_ram  = top->o_wb_adr>=0x00000000 && top->o_wb_adr<=0x001FFFFF;
@@ -1556,6 +1571,124 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("       vint1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__vint1);
 		ImGui::Separator();
 		ImGui::Text("   cstatbits: 0x%08X", top->core_3do__DOT__clio_inst__DOT__cstatbits);
+		ImGui::Text("        wdog: 0x%08X", top->core_3do__DOT__clio_inst__DOT__wdog);			// 0x2c
+		ImGui::Text("        hcnt: 0x%08X", top->core_3do__DOT__clio_inst__DOT__hcnt);			// 0x30 / hpos when read?
+		ImGui::Text("        vcnt: 0x%08X", top->core_3do__DOT__clio_inst__DOT__vcnt);			// 0x34 / vpos when read?
+		ImGui::Text("        seed: 0x%08X", top->core_3do__DOT__clio_inst__DOT__seed);			// 0x38
+		ImGui::Text("      random: 0x%08X", top->core_3do__DOT__clio_inst__DOT__random);		// 0x3c - read only?
+		ImGui::Separator();
+		ImGui::Text("        irq0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0);			// 0x40/0x44.
+		ImGui::Text(" irq0_enable: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0_enable);	// 0x48/0x4c.
+		ImGui::Text("        mode: 0x%08X", top->core_3do__DOT__clio_inst__DOT__mode);			// 0x50/0x54.
+		ImGui::Text("     badbits: 0x%08X", top->core_3do__DOT__clio_inst__DOT__badbits);		// 0x58 - for reading things like DMA fail reasons?
+		ImGui::Text("       spare: 0x%08X", top->core_3do__DOT__clio_inst__DOT__spare);			// 0x5c - ?
+		ImGui::Text("        irq1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1);			// 0x60/0x64.
+		ImGui::Text(" irq1_enable: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1_enable);	// 0x68/0x6c.
+		ImGui::Separator();
+		ImGui::Text("      hdelay: 0x%08X", top->core_3do__DOT__clio_inst__DOT__hdelay);		// 0x80
+		ImGui::Text("   adbio_reg: 0x%08X", top->core_3do__DOT__clio_inst__DOT__adbio_reg);		// 0x84
+		ImGui::Text("      adbctl: 0x%08X", top->core_3do__DOT__clio_inst__DOT__adbctl);		// 0x88
+		ImGui::Separator();
+		ImGui::Text("       slack: 0x%08X", top->core_3do__DOT__clio_inst__DOT__slack);			// 0x220
+		ImGui::Text("   dmareqdis: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dmareqdis);		// 0x308
+		ImGui::Text("      expctl: 0x%08X", top->core_3do__DOT__clio_inst__DOT__expctl);		// 0x400
+		ImGui::Text("     type0_4: 0x%08X", top->core_3do__DOT__clio_inst__DOT__type0_4);		// 0x408
+		ImGui::Text("      dipir1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dipir1);		// 0x410
+		ImGui::Text("      dipir2: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dipir2);		// 0x414
+		ImGui::Separator();
+		ImGui::Text("    unclerev: 0x%08X", top->core_3do__DOT__clio_inst__DOT__unclerev);		// 0xc000
+		ImGui::Text("unc_soft_rev: 0x%08X", top->core_3do__DOT__clio_inst__DOT__unc_soft_rev);	// 0xc004
+		ImGui::Text("  uncle_addr: 0x%08X", top->core_3do__DOT__clio_inst__DOT__uncle_addr);	// 0xc008
+		ImGui::Text("   uncle_rom: 0x%08X", top->core_3do__DOT__clio_inst__DOT__uncle_rom);		// 0xc00c
+		ImGui::End();
+
+		ImGui::Begin("CLIO Timers");
+		ImGui::Text("  timer_count_0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_0);		// 0x100
+		ImGui::Text(" timer_backup_0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_0);		// 0x104
+		ImGui::Text("  timer_count_1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_1);		// 0x108
+		ImGui::Text(" timer_backup_1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_1);		// 0x10c
+		ImGui::Text("  timer_count_2: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_2);		// 0x110
+		ImGui::Text(" timer_backup_2: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_2);		// 0x114
+		ImGui::Text("  timer_count_3: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_3);		// 0x118
+		ImGui::Text(" timer_backup_3: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_3);		// 0x11c
+		ImGui::Text("  timer_count_4: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_4);		// 0x120
+		ImGui::Text(" timer_backup_4: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_4);		// 0x124
+		ImGui::Text("  timer_count_5: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_5);		// 0x128
+		ImGui::Text(" timer_backup_5: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_5);		// 0x12c
+		ImGui::Text("  timer_count_6: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_6);		// 0x130
+		ImGui::Text(" timer_backup_6: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_6);		// 0x134
+		ImGui::Text("  timer_count_7: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_7);		// 0x138
+		ImGui::Text(" timer_backup_7: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_7);		// 0x13c
+		ImGui::Text("  timer_count_8: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_8);		// 0x140
+		ImGui::Text(" timer_backup_8: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_8);		// 0x144
+		ImGui::Text("  timer_count_9: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_9);		// 0x148
+		ImGui::Text(" timer_backup_9: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_9);		// 0x14c
+		ImGui::Text(" timer_count_10: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_10);		// 0x150
+		ImGui::Text("timer_backup_10: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_10);	// 0x154
+		ImGui::Text(" timer_count_11: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_11);		// 0x158
+		ImGui::Text("timer_backup_11: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_11);	// 0x15c
+		ImGui::Text(" timer_count_12: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_12);		// 0x160
+		ImGui::Text("timer_backup_12: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_12);	// 0x164
+		ImGui::Text(" timer_count_13: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_13);		// 0x168
+		ImGui::Text("timer_backup_13: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_13);	// 0x16c
+		ImGui::Text(" timer_count_14: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_14);		// 0x170
+		ImGui::Text("timer_backup_14: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_14);	// 0x174
+		ImGui::Text(" timer_count_15: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_15);		// 0x178
+		ImGui::Text("timer_backup_15: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_15);	// 0x17c
+		ImGui::Separator();
+		ImGui::Text("     timer_ctrl: 0x%016X", top->core_3do__DOT__clio_inst__DOT__timer_ctrl);		// 0x200,0x204,0x208,0x20c. 64-bits wide?? TODO: How to handle READS of the 64-bit reg?
+		ImGui::End();
+
+		ImGui::Begin("CLIO sel regs");
+		ImGui::Text(" sel_0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_0);		// 0x500
+		ImGui::Text(" sel_1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_1);		// 0x504
+		ImGui::Text(" sel_2: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_2);		// 0x508
+		ImGui::Text(" sel_3: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_3);		// 0x50c
+		ImGui::Text(" sel_4: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_4);		// 0x510
+		ImGui::Text(" sel_5: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_5);		// 0x514
+		ImGui::Text(" sel_6: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_6);		// 0x518
+		ImGui::Text(" sel_7: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_7);		// 0x51c
+		ImGui::Text(" sel_8: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_8);		// 0x520
+		ImGui::Text(" sel_9: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_9);		// 0x524
+		ImGui::Text("sel_10: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_10);		// 0x528
+		ImGui::Text("sel_11: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_11);		// 0x52c
+		ImGui::Text("sel_12: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_12);		// 0x530
+		ImGui::Text("sel_13: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_13);		// 0x534
+		ImGui::Text("sel_14: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_14);		// 0x538
+		ImGui::Text("sel_15: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_15);		// 0x53c
+		ImGui::End();
+
+		ImGui::Begin("CLIO poll regs");
+		ImGui::Text(" poll_0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_0);		// 0x540
+		ImGui::Text(" poll_1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_1);		// 0x544
+		ImGui::Text(" poll_2: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_2);		// 0x548
+		ImGui::Text(" poll_3: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_3);		// 0x54c
+		ImGui::Text(" poll_4: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_4);		// 0x550
+		ImGui::Text(" poll_5: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_5);		// 0x554
+		ImGui::Text(" poll_6: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_6);		// 0x558
+		ImGui::Text(" poll_7: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_7);		// 0x55c
+		ImGui::Text(" poll_8: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_8);		// 0x560
+		ImGui::Text(" poll_9: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_9);		// 0x564
+		ImGui::Text("poll_10: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_10);	// 0x568
+		ImGui::Text("poll_11: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_11);	// 0x56c
+		ImGui::Text("poll_12: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_12);	// 0x570
+		ImGui::Text("poll_13: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_13);	// 0x574
+		ImGui::Text("poll_14: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_14);	// 0x578
+		ImGui::Text("poll_15: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_15);	// 0x57c
+		ImGui::End();
+
+		ImGui::Begin("CLIO DSP regs");
+		ImGui::Text("     sema: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sema);		// 0x17d0
+		ImGui::Text("  semaack: 0x%08X", top->core_3do__DOT__clio_inst__DOT__semaack);	// 0x17d4
+		ImGui::Separator();
+		ImGui::Text("   dspdma: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dspdma);	// 0x17e0
+		ImGui::Text(" dspprst0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dspprst0);	// 0x17e4
+		ImGui::Text(" dspprst1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dspprst1);	// 0x17e8
+		ImGui::Text("   dspppc: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dspppc);	// 0x17f4
+		ImGui::Text("   dsppnr: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dsppnr);	// 0x17f8
+		ImGui::Text("   dsppgw: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dsppgw);	// 0x17fc
+		ImGui::Separator();
+		ImGui::Text("dsppclkreload: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dsppclkreload);// 0x39dc ?
 		ImGui::End();
 
 		ImGui::Begin("MADAM Registers");
