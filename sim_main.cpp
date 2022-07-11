@@ -583,18 +583,15 @@ void process_logo() {
 	clut[0x18] = 0xC5C5C5; clut[0x19] = 0xCECECE; clut[0x1A] = 0xD6D6D6; clut[0x1B] = 0xDEDEDE; clut[0x1C] = 0xE6E6E6; clut[0x1D] = 0xEFEFEF; clut[0x1E] = 0xF8F8F8; clut[0x1F] = 0xFFFFFF;
 	*/
 
+	uint32_t offset = 0xB0000;
+
 	// Read the VDL / CLUT from vram_ptr...
 	for (int i=0; i<=35; i++) {
-		uint32_t vram_byteswapped = (vram_ptr[i]&0xFF000000)>>24 | 
-									(vram_ptr[i]&0x00FF0000)>>8 | 
-									(vram_ptr[i]&0x0000FF00)<<8 | 
-									(vram_ptr[i]&0x000000FF)<<24;	// WORD address!
-
-		if (i==0) vdl_ctl = vram_byteswapped;
-		else if (i==1) vdl_curr = vram_byteswapped;
-		else if (i==2) vdl_prev = vram_byteswapped;
-		else if (i==3) vdl_next = vram_byteswapped;
-		else clut[i-4] = vram_byteswapped;
+		if (i==0) vdl_ctl = vram_ptr[ (offset>>2)+i ];
+		else if (i==1) vdl_curr = vram_ptr[ (offset>>2)+i ];
+		else if (i==2) vdl_prev = vram_ptr[ (offset>>2)+i ];
+		else if (i==3) vdl_next = vram_ptr[ (offset>>2)+i ];
+		else if (i>=4) clut[i-4] = vram_ptr[ (offset>>2)+i ];
 	}
 
 	// Copy the VRAM pixels into disp_ptr...
@@ -604,25 +601,21 @@ void process_logo() {
 	// vram_size = 1MB, so needs to be divided by 4 if used as an index.
 	//
 	uint32_t my_line = 0;
-	uint32_t offset = 0x4000;
 
-	for (int i=0; i<(vram_size/8); i++) {
+	offset = 0xC0000;
+
+	for (int i=0; i<(vram_size/16); i++) {
 		uint16_t pixel;
-
-		uint32_t vram_byteswapped = (vram_ptr[i+offset]&0xFF000000)>>24 | 
-									(vram_ptr[i+offset]&0x00FF0000)>>8 | 
-									(vram_ptr[i+offset]&0x0000FF00)<<8 | 
-									(vram_ptr[i+offset]&0x000000FF)<<24;	// WORD address!
 
 		if ( (i%320)==0 ) my_line++;
 
-		pixel = vram_byteswapped >> 16;
+		pixel = vram_ptr[ (offset>>2)+i ] >> 16;
 		rgb[0] = clut[ (pixel & 0x7C00)>>10 ] >> 16;
 		rgb[1] = clut[ (pixel & 0x03E0)>>5 ] >> 8;
 		rgb[2] = clut[ (pixel & 0x001F)<<0 ] >> 0;
 		disp_ptr[ i+(my_line*320) ] = 0xff<<24 | rgb[2]<<16 | rgb[1]<<8 | rgb[0];		// Our debugger framebuffer is in the 32-bit ABGR format.
 
-		pixel = vram_byteswapped & 0xFFFF;
+		pixel = vram_ptr[ (offset>>2)+i ] & 0xFFFF;
 		rgb[0] = clut[ (pixel & 0x7C00)>>10 ] >> 16;
 		rgb[1] = clut[ (pixel & 0x03E0)>>5 ] >> 8;
 		rgb[2] = clut[ (pixel & 0x001F)<<0 ] >> 0;
@@ -648,7 +641,6 @@ int verilate() {
 			pix_count++;
 
 			uint32_t ram_temp;
-			uint32_t vram_temp;
 
 			uint32_t word_addr = (top->o_wb_adr)>>2;
 
@@ -656,26 +648,26 @@ int verilate() {
 			if (top->o_wb_adr>=0x00000000 && top->o_wb_adr<=0x001FFFFF && top->o_wb_stb && top->o_wb_we) {		// 2MB masked.
 				//printf("Main RAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
 				ram_temp = ram_ptr[word_addr&0x7FFFF];
-				if ( (top->o_wb_sel)&8 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0x00FFFFFF | top->o_wb_dat&0xFF000000;	// MSB byte.
+				if ( top->o_wb_sel&8 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0x00FFFFFF | top->o_wb_dat&0xFF000000;	// MSB byte.
 				ram_temp = ram_ptr[word_addr&0x7FFFF];
-				if ( (top->o_wb_sel)&4 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0xFF00FFFF | top->o_wb_dat&0x00FF0000;
+				if ( top->o_wb_sel&4 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0xFF00FFFF | top->o_wb_dat&0x00FF0000;
 				ram_temp = ram_ptr[word_addr&0x7FFFF];
-				if ( (top->o_wb_sel)&2 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0xFFFF00FF | top->o_wb_dat&0x0000FF00;
+				if ( top->o_wb_sel&2 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0xFFFF00FF | top->o_wb_dat&0x0000FF00;
 				ram_temp = ram_ptr[word_addr&0x7FFFF];
-				if ( (top->o_wb_sel)&1 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0xFFFFFF00 | top->o_wb_dat&0x000000FF;	// LSB byte.
+				if ( top->o_wb_sel&1 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0xFFFFFF00 | top->o_wb_dat&0x000000FF;	// LSB byte.
 			}
 
 			// Handle writes to VRAM, with byte masking...
 			if (top->o_wb_adr>=0x00200000 && top->o_wb_adr<=0x002FFFFF && top->o_wb_stb && top->o_wb_we) {		// 1MB Masked.
 				//printf("VRAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
-				vram_temp = vram_ptr[word_addr&0x3FFFF];
-				if ( (top->o_wb_sel)&8 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0x00FFFFFF | top->o_wb_dat&0xFF000000;	// MSB byte.
-				vram_temp = vram_ptr[word_addr&0x3FFFF];
-				if ( (top->o_wb_sel)&4 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0xFF00FFFF | top->o_wb_dat&0x00FF0000;
-				vram_temp = vram_ptr[word_addr&0x3FFFF];
-				if ( (top->o_wb_sel)&2 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0xFFFF00FF | top->o_wb_dat&0x0000FF00;
-				vram_temp = vram_ptr[word_addr&0x3FFFF];
-				if ( (top->o_wb_sel)&1 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0xFFFFFF00 | top->o_wb_dat&0x000000FF;	// LSB byte.
+				ram_temp = vram_ptr[word_addr&0x3FFFF];
+				if ( top->o_wb_sel&8 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0x00FFFFFF | top->o_wb_dat&0xFF000000;	// MSB byte.
+				ram_temp = vram_ptr[word_addr&0x3FFFF];
+				if ( top->o_wb_sel&4 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0xFF00FFFF | top->o_wb_dat&0x00FF0000;
+				ram_temp = vram_ptr[word_addr&0x3FFFF];
+				if ( top->o_wb_sel&2 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0xFFFF00FF | top->o_wb_dat&0x0000FF00;
+				ram_temp = vram_ptr[word_addr&0x3FFFF];
+				if ( top->o_wb_sel&1 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0xFFFFFF00 | top->o_wb_dat&0x000000FF;	// LSB byte.
 			}
 
 			rom_byteswapped = (rom_ptr[word_addr&0x3FFFF]&0xFF000000)>>24 | 
@@ -688,10 +680,12 @@ int verilate() {
 							  (rom2_ptr[word_addr&0x3FFFF]&0x0000FF00)<<8 | 
 							  (rom2_ptr[word_addr&0x3FFFF]&0x000000FF)<<24;
 
+			/*
 			ram_byteswapped = (ram_ptr[word_addr&0x7FFFF]&0xFF000000)>>24 | 
 							  (ram_ptr[word_addr&0x7FFFF]&0x00FF0000)>>8 | 
 							  (ram_ptr[word_addr&0x7FFFF]&0x0000FF00)<<8 | 
 							  (ram_ptr[word_addr&0x7FFFF]&0x000000FF)<<24;
+			*/
 
 			top->i_wb_ack = 0;
 			
@@ -709,7 +703,7 @@ int verilate() {
 			if (top->o_wb_stb) {
 				top->i_wb_ack = 1;
 
-				if (cur_pc==0x03000EF4) trace = 1;
+				//if (cur_pc==0x03000EF4) trace = 1;
 
 				if (trace) {
 					//if ((cur_pc>(old_pc+8)) || (cur_pc<(old_pc-8))) {
@@ -739,11 +733,12 @@ int verilate() {
 				else if (top->o_wb_adr>=0x00200000 && top->o_wb_adr<=0x002FFFFF) { /*fprintf(logfile, "VRAM            ");*/ top->i_wb_dat = vram_ptr[word_addr&0x3FFFF]; /*if (top->o_wb_we) vram_ptr[word_addr&0x7FFFF] = top->o_wb_dat;*/ }
 				
 				// BIOS reads...
-				//else if (top->o_wb_adr>=0x03000218 && top->o_wb_adr<=0x03000220) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip mem test and beeps. TESTING!
+				//else if (top->o_wb_adr>=0x03000218 && top->o_wb_adr<=0x03000220) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip t2_testmemory and BeepsAndHold. TESTING!
 
-				//else if (top->o_wb_adr>=0x03000510 && top->o_wb_adr<=0x03000510) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
-				//else if (top->o_wb_adr>=0x03000504 && top->o_wb_adr<=0x0300050C) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
-				//else if (top->o_wb_adr>=0x03000340 && top->o_wb_adr<=0x03000340) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip endless loop on mem size check fail.
+				else if (top->o_wb_adr>=0x03000510 && top->o_wb_adr<=0x03000510) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
+				else if (top->o_wb_adr>=0x03000504 && top->o_wb_adr<=0x0300050C) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
+				else if (top->o_wb_adr>=0x03000340 && top->o_wb_adr<=0x03000340) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip endless loop on mem size check fail.
+				else if (top->o_wb_adr>=0x030006a8 && top->o_wb_adr<=0x030006b0) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip test_vram_svf. TESTING !!
 				//else if (top->o_wb_adr>=0x030008E0 && top->o_wb_adr<=0x03000944) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0)
 				//else if (top->o_wb_adr>=0x0300056C && top->o_wb_adr<=0x0300056C) top->i_wb_dat = 0xE888001F;	// STM fix. TESTING !!
 				else if (top->o_wb_adr>=0x03000000 && top->o_wb_adr<=0x030FFFFF) { /*fprintf(logfile, "BIOS            ");*/ top->i_wb_dat = rom_byteswapped; }
@@ -918,6 +913,12 @@ int verilate() {
 			}
 			old_pc = cur_pc;
 			*/
+
+
+			if (top->core_3do__DOT__clio_inst__DOT__vcnt==vcnt_max && top->core_3do__DOT__clio_inst__DOT__hcnt==0) {
+				frame_count++;
+				process_logo();
+			}
 
 			/*
 			if (line_count==vcnt_max) {
@@ -1157,8 +1158,8 @@ int main(int argc, char** argv, char** env) {
 	//romfile = fopen("panafz10-norsa.bin", "rb");
 	//romfile = fopen("sanyotry.bin", "rb");
 	//romfile = fopen("goldstar.bin", "rb");
-	//if (romfile != NULL) { sprintf(my_string, "\nNinja Gaiden 68K ROM file loaded OK.\n");  MyAddLog(my_string); }
-	//else { sprintf(my_string, "\nNinja Gaiden 68K ROM file not found!\n\n"); MyAddLog(my_string); return 0; }
+	//if (romfile != NULL) { sprintf(my_string, "\nBIOS file loaded OK.\n");  MyAddLog(my_string); }
+	//else { sprintf(my_string, "\nBIOS file not found!\n\n"); MyAddLog(my_string); return 0; }
 	//unsigned int file_size;
 	fseek(romfile, 0L, SEEK_END);
 	file_size = ftell(romfile);
@@ -1167,8 +1168,8 @@ int main(int argc, char** argv, char** env) {
 	
 	FILE *rom2file;
 	rom2file = fopen("panafz1-kanji.bin", "rb");
-	//if (romfile != NULL) { sprintf(my_string, "\nNinja Gaiden 68K ROM file loaded OK.\n");  MyAddLog(my_string); }
-	//else { sprintf(my_string, "\nNinja Gaiden 68K ROM file not found!\n\n"); MyAddLog(my_string); return 0; }
+	//if (rom2file != NULL) { sprintf(my_string, "\nBIOS file loaded OK.\n");  MyAddLog(my_string); }
+	//else { sprintf(my_string, "\nBIOS file not found!\n\n"); MyAddLog(my_string); return 0; }
 	//unsigned int file_size;
 	fseek(rom2file, 0L, SEEK_END);
 	file_size = ftell(rom2file);
@@ -1344,7 +1345,7 @@ int main(int argc, char** argv, char** env) {
 		}
 		ImGui::Text("main_time %d", main_time);
 		//ImGui::Text("field: %d  frame_count: %d  line_count: %d", field, frame_count, line_count);
-		ImGui::Text("frame_count: %d  field: %d hcnt: %d  vcnt: %d", frame_count, top->core_3do__DOT__clio_inst__DOT__field, top->core_3do__DOT__clio_inst__DOT__hcnt, top->core_3do__DOT__clio_inst__DOT__vcnt); 
+		ImGui::Text("frame_count: %d  field: %d hcnt: %d  vcnt: %d", frame_count, top->core_3do__DOT__clio_inst__DOT__field, top->core_3do__DOT__clio_inst__DOT__hcnt, top->core_3do__DOT__clio_inst__DOT__vcnt);
 
 		/*
 		ImGui::Text("Addr:   0x%08X", top->mem_addr << 2);
@@ -1370,7 +1371,7 @@ int main(int argc, char** argv, char** env) {
 
 		if (dump_ram) {
 			FILE *ramdump;
-			ramdump = fopen("ramdump.bin", "wb");
+			ramdump = fopen("dramdump.bin", "wb");
 			fwrite(ram_ptr, 1, ram_size, ramdump);	// Dump main RAM to a file.
 			fclose(ramdump);
 		}
@@ -1425,6 +1426,12 @@ int main(int argc, char** argv, char** env) {
 
 		if (run_enable) for (int step = 0; step < 2048; step++) {
 			verilate();	// Simulates MUCH faster if it's done in batches.
+			
+			//if (cur_pc==0x000002b8) { run_enable=0; break; }
+
+			//if (top->o_wb_adr==0x03000244) { run_enable=0; break; }
+			//if (top->o_wb_adr==0x00200000 && top->o_wb_we && top->o_wb_stb) { run_enable=0; break; }	// TESTING - Stop sim on first VRAM access.
+
 			//if (top->o_wb_adr==0x032FFFEC) { run_enable = 0; break; }
 			//if (top->o_wb_adr==0x00000114 && top->o_wb_stb && !top->o_wb_we) { run_enable = 0; break; }
 			//if (top->o_wb_adr==0x00000038 && !top->o_wb_we) { run_enable = 0; break; }
