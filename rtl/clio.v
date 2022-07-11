@@ -1,7 +1,7 @@
 //
 // 3DO CLIO chip implementation / notes. ElectronAsh, Jan 2022.
 //
-// CLIO contains the CLUTs, VDL reading, Pixel/line interpolation. DAC control/Pixel output. Audio DSP, Audio output, Expansion Bus (CDROM GA) control, FMV DMA signals?
+// CLIO contains the CLUTs, VDL parsing, Pixel/line interpolation. DAC control/Pixel output. Audio DSP, Audio output, Expansion Bus (CDROM GA) control, FMV DMA signals?
 //
 //
 module clio (			// IC140 on FZ1.
@@ -78,6 +78,15 @@ module clio (			// IC140 on FZ1.
 	inout uncackr			// Video DMA Read Acknowledge. FMV? UN - Uncle Chip.
 );
 
+wire any_irq1 = irq1_pend;	// Are any irq1_pend bits set?
+
+wire irq0_trig = (irq0_pend[0] & irq0_enable[0]) | (irq0_pend[1] & irq0_enable[1]);
+//wire irq0_trig = {any_irq1,irq0_pend[30:0]} & irq0_enable;	// MSB bit of irq0_pend denotes one or more irq1_pend bits are set. Don't know if irq0_enable[31] can mask that bit?
+//wire irq0_trig = (irq0_pend & irq0_enable);	// Doesn't seem to work? Possibly Verilator issue, or me being dumb? ElectronAsh.
+wire irq1_trig = (irq1_pend & irq1_enable);
+
+assign firq_n = !(irq0_trig | irq1_trig);
+
 
 wire read_en  = hcount>=11 && hcount<=1292;
 wire write_en = hcount>=1293 && hcount<=1339;
@@ -105,7 +114,7 @@ reg [31:0] random;		// 0x3c - read only?
 
 // IRQs...
 						// FIQ will be triggered if PENDING and corresponding MASK bits are both SET.
-reg [31:0] irq0;		// 0x40/0x44 - Writing to 0x40 SETs irq0 bits. Writing to 0x44 CLEARs irq0 bits. Reading = PENDING irq0 bits.
+reg [31:0] irq0_pend;	// 0x40/0x44 - Writing to 0x40 SETs irq0_pend bits. Writing to 0x44 CLEARs irq0_pend bits. Reading = PENDING irq0_pend bits.
 reg [31:0] irq0_enable;	// 0x48/0x4c - Writing to 0x48 SETs irq0 ENABLE mask bits. Writing to 0x4c CLEARSs irq0 ENABLE mask bits. Reading = irq0 ENABLE mask.
 
 reg [31:0] mode;		// 0x50/0x54 - Writing to 0x50 SETs mode bits. Writing to 0x54 CLEARs mode bits. Reading = ?
@@ -113,7 +122,7 @@ reg [31:0] badbits;		// 0x58 - for reading things like DMA fail reasons?
 reg [31:0] spare;		// 0x5c - ?
 
 						// FIQ will be triggered if PENDING and corresponding MASK bits are both SET.
-reg [31:0] irq1;		// 0x60/0x64 - Writing to 0x60 SETs irq1 bits. Writing to 0x64 CLEARs irq1 bits. Reading = PENDING irq0 bits.
+reg [31:0] irq1_pend;	// 0x60/0x64 - Writing to 0x60 SETs irq1_pend bits. Writing to 0x64 CLEARs irq1_pend bits. Reading = PENDING irq1_pend bits.
 reg [31:0] irq1_enable;	// 0x68/0x6c - Writing to 0x68 SETs irq1 ENABLE mask bits. Writing to 0x6c CLEARSs irq1 ENABLE mask bits. Reading = irq1 ENABLE mask.
 
 
@@ -261,17 +270,17 @@ always @(*) begin
 	16'h003c: cpu_dout = random;	// 0x3c - read only?
 
 // IRQs...
-												// FIQ will be triggered if PENDING and corresponding MASK bits are both SET.
-	16'h0040,16'h0044: cpu_dout = irq0;			// 0x40/0x44 - Writing to 0x40 SETs irq0 bits. Writing to 0x44 CLEARs irq0 bits. Reading = PENDING irq0 bits.
-	16'h0048,16'h004c: cpu_dout = irq0_enable;	// 0x48/0x4c - Writing to 0x48 SETs irq0 ENABLE mask bits. Writing to 0x4c CLEARSs irq0 ENABLE mask bits.
+												// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.
+	16'h0040,16'h0044: cpu_dout = irq0_pend;	// 0x40/0x44 - Writing to 0x40 SETs irq0_pend bits. Writing to 0x44 CLEARs irq0_pend bits. Reading = PENDING irq0_pend bits.
+	16'h0048,16'h004c: cpu_dout = irq0_enable;	// 0x48/0x4c - Writing to 0x48 SETs irq0_enable bits. Writing to 0x4c CLEARSs irq0_enable bits.
 
 	16'h0050,16'h0054: cpu_dout = mode;			// 0x50/0x54 - Writing to 0x50 SETs mode bits. Writing to 0x54 CLEARs mode bits. Reading = ?
 	16'h0058: cpu_dout = badbits;				// 0x58 - for reading things like DMA fail reasons?
 	16'h005c: cpu_dout = spare;					// 0x5c - ?
 
-												// FIQ will be triggered if PENDING and corresponding MASK bits are both SET.
-	16'h0060,16'h0064: cpu_dout = irq1;			// 0x60/0x64 - Writing to 0x60 SETs irq1 bits. Writing to 0x64 CLEARs irq1 bits. Reading = PENDING irq0 bits.
-	16'h0068,16'h006c: cpu_dout = irq1_enable;	// 0x68/0x6c - Writing to 0x68 SETs irq1 ENABLE mask bits. Writing to 0x6c CLEARSs irq1 ENABLE mask bits.
+												// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.
+	16'h0060,16'h0064: cpu_dout = irq1_pend;	// 0x60/0x64 - Writing to 0x60 SETs irq1_pend bits. Writing to 0x64 CLEARs irq1_pend bits. Reading = PENDING irq1_pend bits.
+	16'h0068,16'h006c: cpu_dout = irq1_enable;	// 0x68/0x6c - Writing to 0x68 SETs irq1_enable bits. Writing to 0x6c CLEARSs irq1_enable bits.
 
 
 // hdelay / adbio stuff...
@@ -373,7 +382,6 @@ always @(*) begin
 // 0x580 - 0x5bf. In Opera, on a write, this calls "opera_xbus_fifo_set_cmd(val_)".
 // 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
 
-
 // DSP...
 	16'h17d0: cpu_dout = sema;		// 0x17d0. DSP/ARM Semaphore. (can't call it "semaphore", because Verilog / Verilator).
 	16'h17d4: cpu_dout = semaack;	// 0x17d4. Semaphore Acknowledge.
@@ -405,32 +413,41 @@ end
 wire wdgrst = 0;
 wire dipir = 0;
 
-wire [31:0] hcnt_max = 32'd1800;
-wire [31:0] vcnt_max = 32'd280;
+wire [31:0] hcnt_max = 32'd1600;
+wire [31:0] vcnt_max = 32'd262;
 reg field;
 
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
-	revision <= 32'h02020000;		// Opera return 0x02020000. MAME returns 0x01020000.
+	revision <= 32'h02020000;		// Opera returns 0x02020000. MAME returns 0x01020000.
 	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
 	//cstatbits[6] <= 1'b1;			// Set bit 0 (DIPIR). TESTING !!
 	expctl <= 32'h00000080;
 	field <= 1'b1;
 	hcnt <= 32'd0;
 	vcnt <= 32'd0;
+	
+	irq0_pend <= 32'h00000000;
+	irq0_enable <= 32'h00000000;
+	irq1_pend <= 32'h00000000;
+	irq1_enable <= 32'h00000000;
 end
 else begin
+	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF) ) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
+	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF) ) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
 
 	if (hcnt==hcnt_max) begin
 		hcnt <= 32'd0;
+		
+		//if ( irq0_enable[0] && vcnt==(vint0&32'h000007FF) ) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
+		//if ( irq0_enable[1] && vcnt==(vint1&32'h000007FF) ) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
+
 		if (vcnt==vcnt_max) begin
 			vcnt <= 32'd0;
 			field <= !field;
 		end
 		else begin
 			vcnt <= vcnt + 1'd1;
-			//if ( vcnt==(vint0_reg&0x7FF) ) irq0 |= 1;
-			//if ( vcnt==(vint1_reg&0x7FF) ) irq0 |= 2;
 		end
 	end
 	else begin
@@ -458,24 +475,24 @@ else begin
 
 		// IRQs. (FIQ on ARM will be triggered if PENDING and corresponding MASK bits are both SET.)
 															
-		16'h0040: irq0 <= (irq0 |  cpu_din);				// 0x40. Writing to 0x40 SETs irq0 bits. 
-		16'h0044: irq0 <= (irq0 & ~cpu_din);				// 0x44. Writing to 0x44 CLEARs irq0 bits.
+		16'h0040: irq0_pend <= irq0_pend |  cpu_din;				// 0x40. Writing to 0x40 SETs irq0_pend bits. 
+		16'h0044: irq0_pend <= irq0_pend & ~cpu_din;				// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
 		
-		16'h0048: irq0_enable <= (irq0_enable |  cpu_din);	// 0x48. Writing to 0x48 SETs irq0 ENABLE mask bits.
-		16'h004c: irq0_enable <= (irq0_enable & ~cpu_din);	// 0x4c. Writing to 0x4c CLEARSs irq0 ENABLE mask bits.
+		16'h0048: irq0_enable <= irq0_enable |  cpu_din;	// 0x48. Writing to 0x48 SETs irq0_enable bits.
+		16'h004c: irq0_enable <= irq0_enable & ~cpu_din;	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
 
-		16'h0050: mode <= (mode |  cpu_din);		// 0x50. Writing to 0x50 SETs mode bits.
-		16'h0054: mode <= (mode & ~cpu_din);		// 0x54. Writing to 0x54 CLEARs mode bits.
+		16'h0050: mode <= mode |  cpu_din;		// 0x50. Writing to 0x50 SETs mode bits.
+		16'h0054: mode <= mode & ~cpu_din;		// 0x54. Writing to 0x54 CLEARs mode bits.
 		
 		//16'h0058: badbits <= cpu_din;				// 0x58. for reading things like DMA fail reasons?
 		16'h005c: spare <= cpu_din;					// 0x5c. ?
 
-													// FIQ will be triggered if PENDING and corresponding MASK bits are both SET.
-		16'h0060: irq1 <= (irq1 |  cpu_din);		// 0x60. Writing to 0x60 SETs irq1 bits.
-		16'h0064: irq1 <= (irq1 & ~cpu_din);		// 0x64. Writing to 0x64 CLEARs irq1 bits.
+															// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.
+		16'h0060: irq1_pend <= irq1_pend |  cpu_din;		// 0x60. Writing to 0x60 SETs irq1_pend bits.
+		16'h0064: irq1_pend <= irq1_pend & ~cpu_din;		// 0x64. Writing to 0x64 CLEARs irq1_pend bits.
 		
-		16'h0068: irq1_enable <= (irq1_enable |  cpu_din);	// 0x68. Writing to 0x68 SETs irq1 ENABLE mask bits.
-		16'h006c: irq1_enable <= (irq1_enable & ~cpu_din);	// 0x6c. Writing to 0x6c CLEARSs irq1 ENABLE mask bits.
+		16'h0068: irq1_enable <= irq1_enable |  cpu_din;	// 0x68. Writing to 0x68 SETs irq1_enable bits.
+		16'h006c: irq1_enable <= irq1_enable & ~cpu_din;	// 0x6c. Writing to 0x6c CLEARSs irq1_enable bits.
 
 		// hdelay / adbio stuff...
 		16'h0080: hdelay <= cpu_din;		// 0x80
@@ -572,7 +589,7 @@ else begin
 		16'h0574: poll_13 <= cpu_din;	// 0x574
 		16'h0578: poll_14 <= cpu_din;	// 0x578
 		16'h057c: poll_15 <= cpu_din;	// 0x57c
-
+		
 		// 0x580 - 0x5bf. In Opera, on a write, this calls "opera_xbus_fifo_set_cmd(val_)".
 		// 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
 

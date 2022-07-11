@@ -14,9 +14,6 @@ module core_3do (
 	
 	input [31:0] i_wb_dat,
 	input i_wb_ack,
-	
-//	input i_irq,
-//	input i_firq,
 
 	// Zap...
 	output o_wb_stb_nxt,
@@ -34,7 +31,7 @@ zap_top zap_top_inst (
 	.i_reset( !reset_n ),			// input Active HIGH.
 
 	.i_irq( 1'b0 ),					// Active HIGH. (not used on 3DO).
-	.i_fiq( i_firq ),				// Active HIGH.
+	.i_fiq( !firq_n ),				// Active HIGH.
 
 	.o_wb_cyc( o_wb_cyc ),			// output
 	.o_wb_stb( o_wb_stb ),			// output
@@ -116,7 +113,7 @@ clio clio_inst (
 	//.dmareq(  ),			// To MADAM?
 	
 	//.pdint_n(  ),			// Labelled "UNCINT#" on the FZ1 schematic. Slow Bus Interrupt?
-	.firq_n( i_firq ),		// To the ARM CPU.
+	.firq_n( firq_n ),		// To the ARM CPU.
 	
 	//.clc( clc ),			// output [2:0] CLIO Opera Device bits? Tech guide calls this "Control Code". Probably works like the RGA bus on the Amiga?
 	//.cready_n( cready_n ),// inout. Tech guide calls this "Hand shake control for devices".

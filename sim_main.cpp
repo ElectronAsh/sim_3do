@@ -70,7 +70,7 @@ uint32_t mctl_reg = 0x00000000;
 //uint32_t msys_reg = 0x00000029;
 //uint32_t msys_reg = 0x00000051;
 uint32_t msys_reg = 0x00000000;
-uint32_t vdl_addr_reg = 0x0000000;
+//uint32_t vdl_addr_reg = 0x0000000;
 
 //uint32_t sltime_reg = 0x00178906;
 uint32_t sltime_reg = 0x00000000;
@@ -86,7 +86,6 @@ int pix_count = 0;
 
 uint32_t clio_vcnt = 0;
 //int vcnt_max = 262;
-int vcnt_max = 280;
 bool field = 1;
 uint32_t vint0_reg;
 uint32_t vint1_reg;
@@ -568,14 +567,14 @@ static void ShowMyExampleAppConsole(bool* p_open)
 	console.Draw("Debug Log", p_open);
 }
 
-void process_logo() {
-	uint32_t vdl_ctl;
-	uint32_t vdl_curr;
-	uint32_t vdl_prev;
-	uint32_t vdl_next;
+uint32_t vdl_ctl;
+uint32_t vdl_curr;
+uint32_t vdl_prev;
+uint32_t vdl_next;
 
-	uint32_t clut [32];
-	
+uint32_t clut [32];
+
+void process_logo() {
 	/*
 	clut[0x00] = 0x000000; clut[0x01] = 0x080808; clut[0x02] = 0x101010; clut[0x03] = 0x191919; clut[0x04] = 0x212121; clut[0x05] = 0x292929; clut[0x06] = 0x313131; clut[0x07] = 0x3A3A3A;
 	clut[0x08] = 0x424242; clut[0x09] = 0x4A4A4A; clut[0x0A] = 0x525252; clut[0x0B] = 0x5A5A5A; clut[0x0C] = 0x636363; clut[0x0D] = 0x6B6B6B; clut[0x0E] = 0x737373; clut[0x0F] = 0x7B7B7B;
@@ -583,7 +582,7 @@ void process_logo() {
 	clut[0x18] = 0xC5C5C5; clut[0x19] = 0xCECECE; clut[0x1A] = 0xD6D6D6; clut[0x1B] = 0xDEDEDE; clut[0x1C] = 0xE6E6E6; clut[0x1D] = 0xEFEFEF; clut[0x1E] = 0xF8F8F8; clut[0x1F] = 0xFFFFFF;
 	*/
 
-	uint32_t offset = 0xB0000;
+	uint32_t offset = top->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xFFFFF;;
 
 	// Read the VDL / CLUT from vram_ptr...
 	for (int i=0; i<=35; i++) {
@@ -640,34 +639,34 @@ int verilate() {
 
 			pix_count++;
 
-			uint32_t ram_temp;
+			uint32_t temp_word;
 
 			uint32_t word_addr = (top->o_wb_adr)>>2;
 
 			// Handle writes to Main RAM, with byte masking...
 			if (top->o_wb_adr>=0x00000000 && top->o_wb_adr<=0x001FFFFF && top->o_wb_stb && top->o_wb_we) {		// 2MB masked.
 				//printf("Main RAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
-				ram_temp = ram_ptr[word_addr&0x7FFFF];
-				if ( top->o_wb_sel&8 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0x00FFFFFF | top->o_wb_dat&0xFF000000;	// MSB byte.
-				ram_temp = ram_ptr[word_addr&0x7FFFF];
-				if ( top->o_wb_sel&4 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0xFF00FFFF | top->o_wb_dat&0x00FF0000;
-				ram_temp = ram_ptr[word_addr&0x7FFFF];
-				if ( top->o_wb_sel&2 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0xFFFF00FF | top->o_wb_dat&0x0000FF00;
-				ram_temp = ram_ptr[word_addr&0x7FFFF];
-				if ( top->o_wb_sel&1 ) ram_ptr[word_addr&0x7FFFF] = ram_temp&0xFFFFFF00 | top->o_wb_dat&0x000000FF;	// LSB byte.
+				temp_word = ram_ptr[word_addr&0x7FFFF];
+				if ( top->o_wb_sel&8 ) ram_ptr[word_addr&0x7FFFF] = temp_word&0x00FFFFFF | top->o_wb_dat&0xFF000000;	// MSB byte.
+				temp_word = ram_ptr[word_addr&0x7FFFF];
+				if ( top->o_wb_sel&4 ) ram_ptr[word_addr&0x7FFFF] = temp_word&0xFF00FFFF | top->o_wb_dat&0x00FF0000;
+				temp_word = ram_ptr[word_addr&0x7FFFF];
+				if ( top->o_wb_sel&2 ) ram_ptr[word_addr&0x7FFFF] = temp_word&0xFFFF00FF | top->o_wb_dat&0x0000FF00;
+				temp_word = ram_ptr[word_addr&0x7FFFF];
+				if ( top->o_wb_sel&1 ) ram_ptr[word_addr&0x7FFFF] = temp_word&0xFFFFFF00 | top->o_wb_dat&0x000000FF;	// LSB byte.
 			}
 
 			// Handle writes to VRAM, with byte masking...
 			if (top->o_wb_adr>=0x00200000 && top->o_wb_adr<=0x002FFFFF && top->o_wb_stb && top->o_wb_we) {		// 1MB Masked.
 				//printf("VRAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
-				ram_temp = vram_ptr[word_addr&0x3FFFF];
-				if ( top->o_wb_sel&8 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0x00FFFFFF | top->o_wb_dat&0xFF000000;	// MSB byte.
-				ram_temp = vram_ptr[word_addr&0x3FFFF];
-				if ( top->o_wb_sel&4 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0xFF00FFFF | top->o_wb_dat&0x00FF0000;
-				ram_temp = vram_ptr[word_addr&0x3FFFF];
-				if ( top->o_wb_sel&2 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0xFFFF00FF | top->o_wb_dat&0x0000FF00;
-				ram_temp = vram_ptr[word_addr&0x3FFFF];
-				if ( top->o_wb_sel&1 ) vram_ptr[word_addr&0x3FFFF] = ram_temp&0xFFFFFF00 | top->o_wb_dat&0x000000FF;	// LSB byte.
+				temp_word = vram_ptr[word_addr&0x3FFFF];
+				if ( top->o_wb_sel&8 ) vram_ptr[word_addr&0x3FFFF] = temp_word&0x00FFFFFF | top->o_wb_dat&0xFF000000;	// MSB byte.
+				temp_word = vram_ptr[word_addr&0x3FFFF];
+				if ( top->o_wb_sel&4 ) vram_ptr[word_addr&0x3FFFF] = temp_word&0xFF00FFFF | top->o_wb_dat&0x00FF0000;
+				temp_word = vram_ptr[word_addr&0x3FFFF];
+				if ( top->o_wb_sel&2 ) vram_ptr[word_addr&0x3FFFF] = temp_word&0xFFFF00FF | top->o_wb_dat&0x0000FF00;
+				temp_word = vram_ptr[word_addr&0x3FFFF];
+				if ( top->o_wb_sel&1 ) vram_ptr[word_addr&0x3FFFF] = temp_word&0xFFFFFF00 | top->o_wb_dat&0x000000FF;	// LSB byte.
 			}
 
 			rom_byteswapped = (rom_ptr[word_addr&0x3FFFF]&0xFF000000)>>24 | 
@@ -734,10 +733,10 @@ int verilate() {
 				
 				// BIOS reads...
 				//else if (top->o_wb_adr>=0x03000218 && top->o_wb_adr<=0x03000220) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip t2_testmemory and BeepsAndHold. TESTING!
-
+				
 				else if (top->o_wb_adr>=0x03000510 && top->o_wb_adr<=0x03000510) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
 				else if (top->o_wb_adr>=0x03000504 && top->o_wb_adr<=0x0300050C) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
-				else if (top->o_wb_adr>=0x03000340 && top->o_wb_adr<=0x03000340) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip endless loop on mem size check fail.
+				//else if (top->o_wb_adr>=0x03000340 && top->o_wb_adr<=0x03000340) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip endless loop on mem size check fail.
 				else if (top->o_wb_adr>=0x030006a8 && top->o_wb_adr<=0x030006b0) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip test_vram_svf. TESTING !!
 				//else if (top->o_wb_adr>=0x030008E0 && top->o_wb_adr<=0x03000944) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0)
 				//else if (top->o_wb_adr>=0x0300056C && top->o_wb_adr<=0x0300056C) top->i_wb_dat = 0xE888001F;	// STM fix. TESTING !!
@@ -748,15 +747,15 @@ int verilate() {
 
 				else if (top->o_wb_adr>=0x03140000 && top->o_wb_adr<=0x0315FFFF) { fprintf(logfile, "NVRAM           "); }
 				else if (top->o_wb_adr==0x03180000 && top->o_wb_we) {  fprintf(logfile, "DiagPort        "); shift_reg = 0x2000; }
-				else if (top->o_wb_adr==0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); /*top->i_wb_dat = (shift_reg&0x8000)>>15; shift_reg=shift_reg<<1;*/ top->i_wb_dat = 0x00000000; }
-				//else if (top->o_wb_adr==0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = 0x00000000; }
+				else if (top->o_wb_adr==0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = 0x00000000; }
+				//else if (top->o_wb_adr==0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = (shift_reg&0x8000)>>15; shift_reg=shift_reg<<1; }
 				else if (top->o_wb_adr>=0x03180004 && top->o_wb_adr<=0x031BFFFF) { fprintf(logfile, "Slow Bus        "); }
 				else if (top->o_wb_adr>=0x03200000 && top->o_wb_adr<=0x0320FFFF) { fprintf(logfile, "VRAM SVF        "); top->i_wb_dat = 0xBADACCE5; }	// Dummy reads for now.
 				else if (top->o_wb_adr>=0x032F0000 && top->o_wb_adr<=0x032FFFFF) { fprintf(logfile, "Unknown         "); top->i_wb_dat = 0xBADACCE5; }	// Dummy reads for now.
-
+				
 				// MADAM...
 				else if (top->o_wb_adr==0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); /*top->i_wb_dat = 0x01020000;*/ }
-				else if (top->o_wb_adr==0x03300000 && top->o_wb_we)  { fprintf(logfile, "MADAM Print     "); MyAddLog("%c", top->o_wb_dat&0xFF); }
+				else if (top->o_wb_adr==0x03300000 && top->o_wb_we)  { fprintf(logfile, "MADAM Print     "); MyAddLog("%c", top->o_wb_dat&0xFF); printf("%c", top->o_wb_dat&0xff); }
 				
 				else if (top->o_wb_adr==0x03300004 && top->o_wb_we)  { fprintf(logfile, "MADAM msysbits  "); /*msys_reg = top->o_wb_dat;*/ }
 				//else if (top->o_wb_adr==0x03300004 && !top->o_wb_we) { fprintf(logfile, "MADAM msysbits  "); top->i_wb_dat = msys_reg; }
@@ -842,7 +841,7 @@ int verilate() {
 				else if (top->o_wb_adr>=0x03400000 && top->o_wb_adr<=0x034FFFFF) { fprintf(logfile, "CLIO            "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
 				else /*top->i_wb_dat = 0xBADACCE5*/;	// Dummy reads for now.
 
-				if (top->o_wb_sel != 0xF) fprintf(logfile, "BYTE! ");
+				//if (top->o_wb_sel != 0xF) fprintf(logfile, "BYTE! ");
 
 				if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/ ) {
 					//if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)  o_wb_sel: 0x%01X  o_wb_bte: 0x%01X\n", top->i_wb_dat, cur_pc, top->o_wb_sel, top->o_wb_bte);
@@ -914,8 +913,7 @@ int verilate() {
 			old_pc = cur_pc;
 			*/
 
-
-			if (top->core_3do__DOT__clio_inst__DOT__vcnt==vcnt_max && top->core_3do__DOT__clio_inst__DOT__hcnt==0) {
+			if (top->core_3do__DOT__clio_inst__DOT__vcnt==top->core_3do__DOT__clio_inst__DOT__vcnt_max && top->core_3do__DOT__clio_inst__DOT__hcnt==0) {
 				frame_count++;
 				process_logo();
 			}
@@ -1338,7 +1336,6 @@ int main(int argc, char** argv, char** env) {
 			frame_count = 0;
 			line_count = 0;
 			//vcnt_max = 262;
-			vcnt_max = 280;
 			memset(disp_ptr, 0xff444444, disp_size);	// Clear the DISPLAY buffer.
 			memset(ram_ptr, 0x00000000, ram_size);		// Clear Main RAM.
 			memset(vram_ptr, 0x00000000, vram_size);	// Clear VRAM.
@@ -1393,8 +1390,8 @@ int main(int argc, char** argv, char** env) {
 		//bool irq_button_pressed = ImGui::Button("Tickle IRQ");
 		//if (trig_irq==0 && irq_button_pressed) trig_irq = 1;
 
-		bool firq_button_pressed = ImGui::Button("Tickle FIRQ");
-		if (trig_fiq==0 && firq_button_pressed) trig_fiq = 1;
+		//bool firq_button_pressed = ImGui::Button("Tickle FIRQ");
+		//if (trig_fiq==0 && firq_button_pressed) trig_fiq = 1;
 
 
 		ImGui::Image(my_tex_id, ImVec2(width*2, height*2), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
@@ -1427,9 +1424,12 @@ int main(int argc, char** argv, char** env) {
 		if (run_enable) for (int step = 0; step < 2048; step++) {
 			verilate();	// Simulates MUCH faster if it's done in batches.
 			
+			//if (top->core_3do__DOT__zap_top_inst__DOT__i_fiq) { run_enable=0; break; }
+
 			//if (cur_pc==0x000002b8) { run_enable=0; break; }
 
-			//if (top->o_wb_adr==0x03000244) { run_enable=0; break; }
+			//if (top->o_wb_adr==0x03300580) { run_enable=0; break; }
+
 			//if (top->o_wb_adr==0x00200000 && top->o_wb_we && top->o_wb_stb) { run_enable=0; break; }	// TESTING - Stop sim on first VRAM access.
 
 			//if (top->o_wb_adr==0x032FFFEC) { run_enable = 0; break; }
@@ -1483,7 +1483,7 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("    o_wb_stb: %d", top->core_3do__DOT__zap_top_inst__DOT__o_wb_stb);
 		ImGui::Text("    i_wb_ack: %d", top->core_3do__DOT__zap_top_inst__DOT__i_wb_ack);
 		ImGui::Separator();
-		ImGui::Text("      i_firq: %d", top->core_3do__DOT__zap_top_inst__DOT__i_fiq); 
+		ImGui::Text("       i_fiq: %d", top->core_3do__DOT__zap_top_inst__DOT__i_fiq); 
 		ImGui::Separator();
 		ImGui::Text("    Zap...");
 		ImGui::Text("    o_wb_cti: 0x%01X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_cti);
@@ -1568,12 +1568,6 @@ int main(int argc, char** argv, char** env) {
 		ImGui::End();
 		
 		ImGui::Begin("CLIO Registers");
-		ImGui::Text("        irq0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0);
-		ImGui::Text(" irq0_enable: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0_enable);
-		ImGui::Separator();
-		ImGui::Text("        irq1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1);
-		ImGui::Text(" irq1_enable: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1_enable);
-		ImGui::Separator();
 		ImGui::Text("       vint0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__vint0);
 		ImGui::Text("       vint1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__vint1);
 		ImGui::Separator();
@@ -1584,13 +1578,15 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("        seed: 0x%08X", top->core_3do__DOT__clio_inst__DOT__seed);			// 0x38
 		ImGui::Text("      random: 0x%08X", top->core_3do__DOT__clio_inst__DOT__random);		// 0x3c - read only?
 		ImGui::Separator();
-		ImGui::Text("        irq0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0);			// 0x40/0x44.
+		ImGui::Text("   irq0_pend: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0_pend);		// 0x40/0x44.
 		ImGui::Text(" irq0_enable: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0_enable);	// 0x48/0x4c.
+		ImGui::Text("   irq0_trig: %d", top->core_3do__DOT__clio_inst__DOT__irq0_trig);
 		ImGui::Text("        mode: 0x%08X", top->core_3do__DOT__clio_inst__DOT__mode);			// 0x50/0x54.
 		ImGui::Text("     badbits: 0x%08X", top->core_3do__DOT__clio_inst__DOT__badbits);		// 0x58 - for reading things like DMA fail reasons?
 		ImGui::Text("       spare: 0x%08X", top->core_3do__DOT__clio_inst__DOT__spare);			// 0x5c - ?
-		ImGui::Text("        irq1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1);			// 0x60/0x64.
+		ImGui::Text("   irq1_pend: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1_pend);		// 0x60/0x64.
 		ImGui::Text(" irq1_enable: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1_enable);	// 0x68/0x6c.
+		ImGui::Text("   irq1_trig: %d", top->core_3do__DOT__clio_inst__DOT__irq1_trig);
 		ImGui::Separator();
 		ImGui::Text("      hdelay: 0x%08X", top->core_3do__DOT__clio_inst__DOT__hdelay);		// 0x80
 		ImGui::Text("   adbio_reg: 0x%08X", top->core_3do__DOT__clio_inst__DOT__adbio_reg);		// 0x84
@@ -1701,7 +1697,14 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Begin("MADAM Registers");
 		ImGui::Text("        mctl: 0x%08X", top->core_3do__DOT__madam_inst__DOT__mctl);
 		ImGui::Text("      sltime: 0x%08X", top->core_3do__DOT__madam_inst__DOT__sltime);
-		//ImGui::Text("vdl_addr_reg: 0x%08X", vdl_addr_reg);
+		ImGui::Separator();
+		ImGui::Text("    vdl_addr: 0x%08X", top->core_3do__DOT__madam_inst__DOT__vdl_addr);		// 0x580
+		ImGui::Separator();
+		ImGui::Text(" VDL still in C...");
+		ImGui::Text("    vdl_ctl: 0x%08X", vdl_ctl);
+		ImGui::Text("   vdl_curr: 0x%08X", vdl_curr);
+		ImGui::Text("   vdl_prev: 0x%08X", vdl_prev);
+		ImGui::Text("   vdl_next: 0x%08X", vdl_next);
 		ImGui::End();
 
 		/*

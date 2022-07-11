@@ -174,6 +174,8 @@ reg [21:0] dmac_nextlen;	// 0x4CC. CPU RAM to DSP DMA Group 0xC: next length.
 // 0x0574 = Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
 // 0x0578 = Player Bus DMA: Source Address.
 
+reg [31:0] vdl_addr;// 0x580
+
 // 0x0600 to 0x069C = Hardware Multiplier (Matrix Engine).
 //
 
@@ -269,14 +271,31 @@ always @(*) begin
 		// 0x0570 = Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
 		// 0x0574 = Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
 		// 0x0578 = Player Bus DMA: Source Address.
+		
+		16'h0580: cpu_dout = vdl_addr;	// 0x580
 
 		// 0x0600 to 0x069C = Hardware Multiplier (Matrix Engine).
 		default: cpu_dout = 32'hBADACCE5;
 	endcase
 end
 
+always @(posedge clk_25m or negedge reset_n)
+if (!reset_n) begin
 
-
+end
+else begin
+	// Handle MADAM register WRITES...
+	if (cpu_wr) begin
+		case (cpu_addr[15:0])
+			//16'h0000: revision <= cpu_din;	// 0x00
+			16'h0580: vdl_addr <= cpu_din;	// 0x580
+			default: ;
+		endcase
+	end
+end
+		
+	
+	
 // MAME has varius regs for this, but not sure if MAME has the actual Matrix engine FSM?
 //
 // 4DO has this Matrix engine code...
