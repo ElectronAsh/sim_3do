@@ -35,9 +35,9 @@ zap_top zap_top_inst (
 
 	.o_wb_cyc( o_wb_cyc ),			// output
 	.o_wb_stb( o_wb_stb ),			// output
-	.o_wb_stb_nxt( o_wb_stb_nxt ),	// output	not used atm.
-	.o_wb_cyc_nxt( o_wb_cyc_nxt ),	// output	not used atm.
-	.o_wb_adr_nxt( o_wb_adr_nxt ),	// output [31:0]  not used atm.
+	//.o_wb_stb_nxt( o_wb_stb_nxt ),	// output	not used atm.
+	//.o_wb_cyc_nxt( o_wb_cyc_nxt ),	// output	not used atm.
+	//.o_wb_adr_nxt( o_wb_adr_nxt ),	// output [31:0]  not used atm.
 	.o_wb_adr( o_wb_adr ),			// output [31:0]
 	.o_wb_we( o_wb_we ),			// output
 	.o_wb_dat( o_wb_dat ),			// output [31:0]
@@ -159,7 +159,7 @@ assign zap_din = (madam_cs) ? madam_dout :
 				 (clio_cs)  ? clio_dout :
 				 (svf_cs)   ? 32'hBADACCE5 :
 				 (svf2_cs)  ? 32'h00000000 :
-								i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM etc.)
+								i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM etc.)
 
 matrix_engine matrix_inst (
 	.clock(sys_clk)

@@ -179,6 +179,7 @@
     <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__Slow.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do__1.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do__1__Slow.cpp" />
+    <ClCompile Include="..\..\out\Vcore_3do__2.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do__Slow.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do__Syms.cpp" />
     <ClCompile Include="..\..\sim_main.cpp" />

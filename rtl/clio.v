@@ -75,25 +75,30 @@ module clio (			// IC140 on FZ1.
 	inout uncreqw,			// Video DMA Write request. FMV? UN - Uncle Chip.
 	inout uncreqr,			// Video DMA Read request. FMV? UN - Uncle Chip.
 	inout uncackw,			// Video DMA Write Acknowledge. FMV? UN - Uncle Chip.
-	inout uncackr			// Video DMA Read Acknowledge. FMV? UN - Uncle Chip.
+	inout uncackr,			// Video DMA Read Acknowledge. FMV? UN - Uncle Chip.
+	
+	output [21:00] vram_addr,
+	output vram_rd,
+	output vram_wr,
+	output [31:0] vram_w_dat,
+	input [31:0] vram_r_dat,
+	
+	input vram_busy
 );
 
-wire any_irq1 = irq1_pend;	// Are any irq1_pend bits set?
 
-wire irq0_trig = (irq0_pend[0] & irq0_enable[0]) | (irq0_pend[1] & irq0_enable[1]);
-//wire irq0_trig = {any_irq1,irq0_pend[30:0]} & irq0_enable;	// MSB bit of irq0_pend denotes one or more irq1_pend bits are set. Don't know if irq0_enable[31] can mask that bit?
-//wire irq0_trig = (irq0_pend & irq0_enable);	// Doesn't seem to work? Possibly Verilator issue, or me being dumb? ElectronAsh.
-wire irq1_trig = (irq1_pend & irq1_enable);
+wire irq0_trig = |({any_irq1,irq0_pend[30:0]} & irq0_enable);	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set. I think irq0_enable[31] can mask that bit?
+
+wire irq1_trig = |(irq1_pend & irq1_enable);
+wire any_irq1 = |irq1_pend;	// Are any irq1_pend bits set?
 
 assign firq_n = !(irq0_trig | irq1_trig);
 
 
-wire read_en  = hcount>=11 && hcount<=1292;
-wire write_en = hcount>=1293 && hcount<=1339;
-wire copy_en  = hcount>=1340 && hcount<=1399;
-wire hsync_window = hcount>=1400 && hcount<=1799;
-
-reg [11:0] hcount;
+wire read_en  = hcnt>=11 && hcnt<=1292;
+wire write_en = hcnt>=1293 && hcnt<=1339;
+wire copy_en  = hcnt>=1340 && hcnt<=1399;
+wire hsync_window = hcnt>=1400 && hcnt<=1799;
 
 reg [23:0] clut_prev [0:32];
 reg [23:0] clut_curr [0:32];
@@ -265,7 +270,7 @@ always @(*) begin
 	16'h0028: cpu_dout = cstatbits;	// 0x28
 	16'h002c: cpu_dout = wdog;		// 0x2c
 	16'h0030: cpu_dout = hcnt;		// 0x30 / hpos when read?
-	16'h0034: cpu_dout = (field<<11) | vcnt;		// 0x34 / vpos when read?
+	16'h0034: cpu_dout = (field<<11) | vcnt;	// 0x34 / vpos when read?
 	16'h0038: cpu_dout = seed;		// 0x38
 	16'h003c: cpu_dout = random;	// 0x3c - read only?
 
@@ -413,7 +418,7 @@ end
 wire wdgrst = 0;
 wire dipir = 0;
 
-wire [31:0] hcnt_max = 32'd1600;
+wire [31:0] hcnt_max = 32'd1590;
 wire [31:0] vcnt_max = 32'd262;
 reg field;
 
@@ -484,7 +489,8 @@ else begin
 		16'h0050: mode <= mode |  cpu_din;		// 0x50. Writing to 0x50 SETs mode bits.
 		16'h0054: mode <= mode & ~cpu_din;		// 0x54. Writing to 0x54 CLEARs mode bits.
 		
-		//16'h0058: badbits <= cpu_din;				// 0x58. for reading things like DMA fail reasons?
+		16'h0058: badbits <= cpu_din;				// 0x58. for reading things like DMA fail reasons?
+		
 		16'h005c: spare <= cpu_din;					// 0x5c. ?
 
 															// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.

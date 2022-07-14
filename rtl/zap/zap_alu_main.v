@@ -798,7 +798,8 @@ begin: blk2
         MVN: rd = ~rm;
         ORR: rd = rn | rm;
         TST: rd = rn & rm; // Target is not written.
-        TEQ: rd = rn ^ rn; // Target is not written.
+        //TEQ: rd = rn ^ rn; // Target is not written.
+        TEQ: rd = rn ^ rm; // Target is not written.	bug fix. ElectronAsh.
         default: 
         begin
                 rd = 0;
