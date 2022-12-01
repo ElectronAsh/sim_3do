@@ -84,7 +84,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\linux_temp\sim_3do-main\rtl\amber;C:\linux_temp\sim_3do-main\rtl;C:\linux_temp\imgui\backends;C:\linux_temp\imgui\examples;C:\linux_temp\imgui\misc;C:\linux_temp\imgui;C:\linux_temp\sim_3do-main\out;C:\linux_temp\sim_3do-main;C:\linux_temp\verilator\include\gtkwave;C:\linux_temp\verilator\include\vltstd;C:\linux_temp\verilator\src;C:\linux_temp\verilator\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\linux_temp\sim_3do\rtl\amber;C:\linux_temp\sim_3do\rtl;C:\linux_temp\imgui\backends;C:\linux_temp\imgui\examples;C:\linux_temp\imgui\misc;C:\linux_temp\imgui;C:\linux_temp\sim_3do\out;C:\linux_temp\sim_3do;C:\linux_temp\verilator\include\gtkwave;C:\linux_temp\verilator\include\vltstd;C:\linux_temp\verilator\src;C:\linux_temp\verilator\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
