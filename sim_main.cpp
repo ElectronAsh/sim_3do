@@ -9,6 +9,9 @@
 //#include <fstream>
 
 #include <verilated.h>
+
+
+#include "Vcore_3do___024root.h"
 #include "Vcore_3do.h"
 
 
@@ -585,7 +588,7 @@ void process_logo() {
 	clut[0x18] = 0xC5C5C5; clut[0x19] = 0xCECECE; clut[0x1A] = 0xD6D6D6; clut[0x1B] = 0xDEDEDE; clut[0x1C] = 0xE6E6E6; clut[0x1D] = 0xEFEFEF; clut[0x1E] = 0xF8F8F8; clut[0x1F] = 0xFFFFFF;
 	*/
 
-	uint32_t offset = top->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xFFFFF;;
+	uint32_t offset = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xFFFFF;
 
 	// Read the VDL / CLUT from vram_ptr...
 	for (int i=0; i<=35; i++) {
@@ -627,7 +630,7 @@ void process_logo() {
 
 int verilate() {
 	if (!Verilated::gotFinish()) {
-		//while ( top->FL_ADDR < 0x0100 ) {		// Only run for a short time.
+		//while ( top->rootp->FL_ADDR < 0x0100 ) {		// Only run for a short time.
 		if (main_time < 100) {
 			top->reset_n = 0;   	// Assert reset (active LOW)
 		}
@@ -635,10 +638,10 @@ int verilate() {
 			top->reset_n = 1;		// Deassert reset./
 		}
 		//if ((main_time & 1) == 1) {
-			//top->sys_clk = 1;       // Toggle clock
+			//top->rootp->sys_clk = 1;       // Toggle clock
 		//}
 		//if ((main_time & 1) == 0) {
-			//top->sys_clk = 0;
+			//top->rootp->sys_clk = 0;
 
 			pix_count++;
 
@@ -704,14 +707,16 @@ int verilate() {
 
 			top->i_wb_ack = 0;
 			
-			//cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_predecode__DOT__o_pc_ff;
-			//cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff;
-			//cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__i_pc_ff;
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_predecode__DOT__o_pc_ff;
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff;
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__i_pc_ff;
 
-			//cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_pc;
-			//cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff;
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_pc;
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff;
 
-			cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff;
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff;
+
+			cur_pc = 0x00000000;
 
 			//trace = 1;
 
@@ -863,8 +868,8 @@ int verilate() {
 
 				if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/ ) {
 					//if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)  o_wb_sel: 0x%01X  o_wb_bte: 0x%01X\n", top->i_wb_dat, cur_pc, top->o_wb_sel, top->o_wb_bte);
-					if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->core_3do__DOT__zap_top_inst__DOT__o_wb_dat, cur_pc);	// Disabling BE bit printf for now. (sync with Opera).
-					else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->core_3do__DOT__zap_top_inst__DOT__i_wb_dat, cur_pc);
+					if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);	// Disabling BE bit printf for now. (sync with Opera).
+					else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->i_wb_dat, cur_pc);
 				}
 
 				bool is_bios = top->o_wb_adr>=0x03000000 && top->o_wb_adr<=0x030FFFFF;
@@ -890,10 +895,10 @@ int verilate() {
 				else if ( (is_bios | is_ram) && !top->o_wb_we && top->i_wb_dat==0xE1A0F00E ) printf("Addr: 0x%08X RET!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
 				*/
 
-			}	//PC: 0x%08X\n", top->o_wb_adr, top->i_wb_dat, top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff);
+			}	//PC: 0x%08X\n", top->o_wb_adr, top->i_wb_dat, top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff);
 
 			/*
-			if (top->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__ubyte) {
+			if (top->rootp->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__ubyte) {
 				top->i_wb_dat = (top->i_wb_dat&0xFF000000)>>24 | 
 					(top->i_wb_dat&0x00FF0000)>>8 | 
 					(top->i_wb_dat&0x0000FF00)<<8 | 
@@ -901,13 +906,13 @@ int verilate() {
 			}
 			*/
 
-			//cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff;
-			cur_pc = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_pc;		// Seem to match more closely to the real PC, but still jumping around?
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff;
+			cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_pc;		// Seem to match more closely to the real PC, but still jumping around?
 
 			/*
 			if (old_pc != cur_pc) {
 				//printf("PC=0x%08X  ", cur_pc);
-				//printf("R15: 0x%08X \n", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__i_pc_ff);
+				//printf("R15: 0x%08X \n", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__i_pc_ff);
 				printf("PC: 0x%08X  o_wb_adr: 0x%08X\n", cur_pc, top->o_wb_adr);
 			}
 			old_pc = cur_pc;
@@ -916,22 +921,22 @@ int verilate() {
 			/*
 			if (old_pc != cur_pc) {
 				printf("PC: 0x%08X  i_wb_dat: 0x%08X\n", cur_pc, top->i_wb_dat);
-				printf("R0: 0x%08X ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r0);
-				printf("R1: 0x%08X ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r1);
-				printf("R2: 0x%08X ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r2);
-				printf("R3: 0x%08X ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r3);
-				printf("R4: 0x%08X ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r4);
-				printf("R5: 0x%08X ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r5);
-				printf("R6: 0x%08X ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r6);
-				printf("R7: 0x%08X ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r7);
-				printf("R8: 0x%08X ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r8);
-				printf("R9: 0x%08X ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r9);
-				printf("R10: 0x%08X \n\n", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r10);
+				printf("R0: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r0);
+				printf("R1: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r1);
+				printf("R2: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r2);
+				printf("R3: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r3);
+				printf("R4: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r4);
+				printf("R5: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r5);
+				printf("R6: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r6);
+				printf("R7: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r7);
+				printf("R8: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r8);
+				printf("R9: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r9);
+				printf("R10: 0x%08X \n\n", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r10);
 			}
 			old_pc = cur_pc;
 			*/
 
-			if (top->core_3do__DOT__clio_inst__DOT__vcnt==top->core_3do__DOT__clio_inst__DOT__vcnt_max && top->core_3do__DOT__clio_inst__DOT__hcnt==0) {
+			if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==top->rootp->core_3do__DOT__clio_inst__DOT__vcnt_max && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0) {
 				frame_count++;
 				process_logo();
 			}
@@ -1166,7 +1171,7 @@ int main(int argc, char** argv, char** env) {
 	
 	//memset(vga_ptr,  0xAA, vga_size);
 
-	logfile = fopen("C:\\sim_trace.txt", "w");
+	logfile = fopen("sim_trace.txt", "w");
 
 	FILE *romfile;
 	//romfile = fopen("panafz1.bin", "rb");
@@ -1211,21 +1216,21 @@ int main(int argc, char** argv, char** env) {
 	fread(vram_ptr, 1, vram_size, vramfile);	// Read the whole RAM file into RAM.
 	*/
 
-	top->core_3do__DOT__matrix_inst__DOT__MI00_in = 0x8002aabb;
-	top->core_3do__DOT__matrix_inst__DOT__MI01_in = 0xf00cc243;
-	top->core_3do__DOT__matrix_inst__DOT__MI02_in = 0x2222aabb;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MI00_in = 0x8002aabb;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MI01_in = 0xf00cc243;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MI02_in = 0x2222aabb;
 	
-	top->core_3do__DOT__matrix_inst__DOT__MI10_in = 0x44333333;
-	top->core_3do__DOT__matrix_inst__DOT__MI11_in = 0xF000aabb;
-	top->core_3do__DOT__matrix_inst__DOT__MI11_in = 0x00045226;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MI10_in = 0x44333333;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MI11_in = 0xF000aabb;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MI11_in = 0x00045226;
 
-	top->core_3do__DOT__matrix_inst__DOT__MI20_in = 0xc0084526;
-	top->core_3do__DOT__matrix_inst__DOT__MI21_in = 0x0000007e;
-	top->core_3do__DOT__matrix_inst__DOT__MI22_in = 0x000c000c;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MI20_in = 0xc0084526;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MI21_in = 0x0000007e;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MI22_in = 0x000c000c;
 
-	top->core_3do__DOT__matrix_inst__DOT__MV0_in  = 0x00000888;
-	top->core_3do__DOT__matrix_inst__DOT__MV1_in  = 0x44880000;
-	top->core_3do__DOT__matrix_inst__DOT__MV2_in  = 0x00444444;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MV0_in  = 0x00000888;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MV1_in  = 0x44880000;
+	top->rootp->core_3do__DOT__matrix_inst__DOT__MV2_in  = 0x00444444;
 
 	// Our state
 	bool show_demo_window = true;
@@ -1331,7 +1336,7 @@ int main(int argc, char** argv, char** env) {
 
 		ShowMyExampleAppConsole(&show_app_console);
 
-		//ImGui::Text("Verilator sim running... ROM_ADDR: 0x%05x", top->ROM_ADDR);               // Display some text (you can use a format strings too)
+		//ImGui::Text("Verilator sim running... ROM_ADDR: 0x%05x", top->rootp->ROM_ADDR);               // Display some text (you can use a format strings too)
 																							   //ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
 																							   //ImGui::Checkbox("Another Window", &show_another_window);
 
@@ -1362,25 +1367,25 @@ int main(int argc, char** argv, char** env) {
 		}
 		ImGui::Text("main_time %d", main_time);
 		//ImGui::Text("field: %d  frame_count: %d  line_count: %d", field, frame_count, line_count);
-		ImGui::Text("frame_count: %d  field: %d hcnt: %04d  vcnt: %d", frame_count, top->core_3do__DOT__clio_inst__DOT__field, top->core_3do__DOT__clio_inst__DOT__hcnt, top->core_3do__DOT__clio_inst__DOT__vcnt);
+		ImGui::Text("frame_count: %d  field: %d hcnt: %04d  vcnt: %d", frame_count, top->rootp->core_3do__DOT__clio_inst__DOT__field, top->rootp->core_3do__DOT__clio_inst__DOT__hcnt, top->rootp->core_3do__DOT__clio_inst__DOT__vcnt);
 
 		/*
-		ImGui::Text("Addr:   0x%08X", top->mem_addr << 2);
+		ImGui::Text("Addr:   0x%08X", top->rootp->mem_addr << 2);
 		
-		ImGui::Text("PC:     0x%08X", top->pc << 2);
-		if (top->system_top__DOT__core__DOT__PC__DOT__enable) {
-			ImGui::SameLine(150); ImGui::Text("<- WRITE 0x%08X", top->system_top__DOT__core__DOT__IF_PCIn);
+		ImGui::Text("PC:     0x%08X", top->rootp->pc << 2);
+		if (top->rootp->system_top__DOT__core__DOT__PC__DOT__enable) {
+			ImGui::SameLine(150); ImGui::Text("<- WRITE 0x%08X", top->rootp->system_top__DOT__core__DOT__IF_PCIn);
 		}
 
-		if (top->system_top__DOT__core__DOT__PC__DOT__exe_pc_write) {
-			ImGui::SameLine(150); ImGui::Text("<- EXE_PC WRITE 0x%08X", top->system_top__DOT__core__DOT__exe_pc);
+		if (top->rootp->system_top__DOT__core__DOT__PC__DOT__exe_pc_write) {
+			ImGui::SameLine(150); ImGui::Text("<- EXE_PC WRITE 0x%08X", top->rootp->system_top__DOT__core__DOT__exe_pc);
 		}
 	
-		ImGui::Text("Inst:   0x%08X", top->system_top__DOT__core__DOT__InstMem_In);
+		ImGui::Text("Inst:   0x%08X", top->rootp->system_top__DOT__core__DOT__InstMem_In);
 		*/
 
-		//if (ImGui::Button("Reset!")) top->KEY = 0;
-		//else top->KEY = 1;
+		//if (ImGui::Button("Reset!")) top->rootp->KEY = 0;
+		//else top->rootp->KEY = 1;
 
 		ImGui::Checkbox("RUN", &run_enable);
 
@@ -1419,7 +1424,7 @@ int main(int argc, char** argv, char** env) {
 
 		/*
 		ImGui::Checkbox("Follow Writes", &follow_writes);
-		if (follow_writes) write_address = top->sd_addr << 2;
+		if (follow_writes) write_address = top->rootp->sd_addr << 2;
 		*/
 
 		ImGui::Begin("3DO BIOS ROM Editor");
@@ -1436,45 +1441,45 @@ int main(int argc, char** argv, char** env) {
 
 		ImGui::Begin("ARM Registers");
 
-		ImGui::Text("     reset_n: %d", top->core_3do__DOT__reset_n);
+		ImGui::Text("     reset_n: %d", top->rootp->core_3do__DOT__reset_n);
 		ImGui::Separator();
 
-		//if ( (top->o_wb_cti!=7) || (top->o_wb_bte!=0) ) { run_enable=0; printf("cti / bte changed!!\n"); }
+		//if ( (top->rootp->o_wb_cti!=7) || (top->rootp->o_wb_bte!=0) ) { run_enable=0; printf("cti / bte changed!!\n"); }
 
 		if (run_enable) for (int step = 0; step < 2048; step++) {	// Simulates MUCH faster if it's done in batches.
 			verilate();
 
-			//if (top->o_wb_adr>=0x03400100 && top->o_wb_adr<=0x03400180 && top->o_wb_we && top->o_wb_stb) { run_enable=0; break; }	// Stop on CLIO timer access.
+			//if (top->rootp->o_wb_adr>=0x03400100 && top->rootp->o_wb_adr<=0x03400180 && top->rootp->o_wb_we && top->rootp->o_wb_stb) { run_enable=0; break; }	// Stop on CLIO timer access.
 			
 			if (cur_pc==0x0001162c) { run_enable=0; second_stop=1; break; }
 
 			//if (cur_pc==0x00011624) { run_enable=0; second_stop=1; break; }
-			//if (second_stop && top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r9==0) { run_enable=0; break; }
+			//if (second_stop && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r9==0) { run_enable=0; break; }
 
-			//if (top->core_3do__DOT__zap_top_inst__DOT__i_fiq) { run_enable=0; break; }
+			//if (top->rootp->core_3do__DOT__zap_top_inst__DOT__i_fiq) { run_enable=0; break; }
 
 			//if (cur_pc==0x000002b8) { run_enable=0; break; }
 
-			//if (top->o_wb_adr==0x03300580) { run_enable=0; break; }
+			//if (top->rootp->o_wb_adr==0x03300580) { run_enable=0; break; }
 
-			//if (top->core_3do__DOT__clio_inst__DOT__irq1_enable&0x100) { run_enable=0; break; }
+			//if (top->rootp->core_3do__DOT__clio_inst__DOT__irq1_enable&0x100) { run_enable=0; break; }
 
-			//if (top->o_wb_adr==0x00200000 && top->o_wb_we && top->o_wb_stb) { run_enable=0; break; }	// TESTING - Stop sim on first VRAM access.
+			//if (top->rootp->o_wb_adr==0x00200000 && top->rootp->o_wb_we && top->rootp->o_wb_stb) { run_enable=0; break; }	// TESTING - Stop sim on first VRAM access.
 
-			//if (top->o_wb_adr==0x032FFFEC) { run_enable = 0; break; }
-			//if (top->o_wb_adr==0x00000114 && top->o_wb_stb && !top->o_wb_we) { run_enable = 0; break; }
-			//if (top->o_wb_adr==0x00000038 && !top->o_wb_we) { run_enable = 0; break; }
-			//if (top->o_wb_adr==0x00000050 && !top->o_wb_we) { run_enable = 0; break; }
-			//if (top->o_wb_adr==0x00001600 && !top->o_wb_we) { run_enable = 0; break; }
-			//if (top->o_wb_adr==0x00100000 && top->o_wb_we) { run_enable = 0; break; }
-			//if (top->o_wb_adr==0x0000175C && top->o_wb_we) { run_enable = 0; break; }
-			//if (top->o_wb_adr==0x03000338) { run_enable = 0; break; }
+			//if (top->rootp->o_wb_adr==0x032FFFEC) { run_enable = 0; break; }
+			//if (top->rootp->o_wb_adr==0x00000114 && top->rootp->o_wb_stb && !top->rootp->o_wb_we) { run_enable = 0; break; }
+			//if (top->rootp->o_wb_adr==0x00000038 && !top->rootp->o_wb_we) { run_enable = 0; break; }
+			//if (top->rootp->o_wb_adr==0x00000050 && !top->rootp->o_wb_we) { run_enable = 0; break; }
+			//if (top->rootp->o_wb_adr==0x00001600 && !top->rootp->o_wb_we) { run_enable = 0; break; }
+			//if (top->rootp->o_wb_adr==0x00100000 && top->rootp->o_wb_we) { run_enable = 0; break; }
+			//if (top->rootp->o_wb_adr==0x0000175C && top->rootp->o_wb_we) { run_enable = 0; break; }
+			//if (top->rootp->o_wb_adr==0x03000338) { run_enable = 0; break; }
 			//if (cur_pc==0x03000330) { run_enable = 0; break; }
 			//if (cur_pc==0x00000178) { run_enable = 0; break; }
 			//if (cur_pc==0x00000120) { run_enable = 0; break; }
-			//if (top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r1==0x000019b1) { run_enable = 0; break; }
+			//if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r1==0x000019b1) { run_enable = 0; break; }
 			
-			//if (top->o_wb_adr>=0x1C && top->o_wb_adr<=0x1F && top->o_wb_we) { run_enable = 0; break; }	// Stop on writes to FIQ vector.
+			//if (top->rootp->o_wb_adr>=0x1C && top->rootp->o_wb_adr<=0x1F && top->rootp->o_wb_we) { run_enable = 0; break; }	// Stop on writes to FIQ vector.
 
 			//if (cur_pc==0x0000003c) { run_enable = 0; break; }
 			//if (cur_pc==0x00000050) { run_enable = 0; break; }
@@ -1482,265 +1487,265 @@ int main(int argc, char** argv, char** env) {
 			//if (cur_pc==0x00000960) { run_enable = 0; break; }
 			//if (cur_pc==0x03000EB8) { run_enable = 0; break; }
 
-			//if (top->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__ubyte) { run_enable = 0; break; }
+			//if (top->rootp->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__ubyte) { run_enable = 0; break; }
 		}
 		else {																// But, it will affect the update rate of the GUI.
 			if (single_step) verilate();
 			if (multi_step) for (int step = 0; step < multi_step_amount; step++) verilate();
 		}
 
-		if (top->o_wb_adr>=0x00000000 && top->o_wb_adr<=0x001FFFFF) { if (map_bios) ImGui::Text("    BIOS (mapped)"); else ImGui::Text("    Main RAM    "); }
-		else if (top->o_wb_adr>=0x00200000 && top->o_wb_adr<=0x003FFFFF) ImGui::Text("       VRAM      ");
-		else if (top->o_wb_adr>=0x03000000 && top->o_wb_adr<=0x030FFFFF) ImGui::Text("       BIOS      ");
-		else if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x0313FFFF) ImGui::Text("       Brooktree ");
-		else if (top->o_wb_adr>=0x03140000 && top->o_wb_adr<=0x0315FFFF) ImGui::Text("       NVRAM     ");
-		else if (top->o_wb_adr==0x03180000) ImGui::Text("       DiagPort  ");
-		else if (top->o_wb_adr>=0x03180004 && top->o_wb_adr<=0x031BFFFF) ImGui::Text("    Slow Bus     ");
-		else if (top->o_wb_adr>=0x03200000 && top->o_wb_adr<=0x0320FFFF) ImGui::Text("       VRAM SVF  ");
-		else if (top->o_wb_adr>=0x03300000 && top->o_wb_adr<=0x033FFFFF) ImGui::Text("       MADAM     ");
-		else if (top->o_wb_adr>=0x03400000 && top->o_wb_adr<=0x034FFFFF) ImGui::Text("       CLIO      ");
+		if (top->rootp->o_wb_adr>=0x00000000 && top->rootp->o_wb_adr<=0x001FFFFF) { if (map_bios) ImGui::Text("    BIOS (mapped)"); else ImGui::Text("    Main RAM    "); }
+		else if (top->rootp->o_wb_adr>=0x00200000 && top->rootp->o_wb_adr<=0x003FFFFF) ImGui::Text("       VRAM      ");
+		else if (top->rootp->o_wb_adr>=0x03000000 && top->rootp->o_wb_adr<=0x030FFFFF) ImGui::Text("       BIOS      ");
+		else if (top->rootp->o_wb_adr>=0x03100000 && top->rootp->o_wb_adr<=0x0313FFFF) ImGui::Text("       Brooktree ");
+		else if (top->rootp->o_wb_adr>=0x03140000 && top->rootp->o_wb_adr<=0x0315FFFF) ImGui::Text("       NVRAM     ");
+		else if (top->rootp->o_wb_adr==0x03180000) ImGui::Text("       DiagPort  ");
+		else if (top->rootp->o_wb_adr>=0x03180004 && top->rootp->o_wb_adr<=0x031BFFFF) ImGui::Text("    Slow Bus     ");
+		else if (top->rootp->o_wb_adr>=0x03200000 && top->rootp->o_wb_adr<=0x0320FFFF) ImGui::Text("       VRAM SVF  ");
+		else if (top->rootp->o_wb_adr>=0x03300000 && top->rootp->o_wb_adr<=0x033FFFFF) ImGui::Text("       MADAM     ");
+		else if (top->rootp->o_wb_adr>=0x03400000 && top->rootp->o_wb_adr<=0x034FFFFF) ImGui::Text("       CLIO      ");
 		else ImGui::Text("    Unknown    ");
 
-		//ImGui::Text("          PC: 0x%08X", top->core_3do__DOT__a23_core_inst__DOT__u_execute__DOT__u_register_bank__DOT__o_pc);
-		ImGui::Text("    o_wb_adr: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_adr);
-		ImGui::Text("    i_wb_dat: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__i_wb_dat);
+		//ImGui::Text("          PC: 0x%08X", top->rootp->core_3do__DOT__a23_core_inst__DOT__u_execute__DOT__u_register_bank__DOT__o_pc);
+		ImGui::Text("    o_wb_adr: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_adr);
+		ImGui::Text("    i_wb_dat: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat);
 		ImGui::Separator();
-		ImGui::Text("    o_wb_dat: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_dat);
-		ImGui::Text("     o_wb_we: %d", top->core_3do__DOT__zap_top_inst__DOT__o_wb_we); ImGui::SameLine(); if (!top->o_wb_we) ImGui::Text(" Read"); else ImGui::Text(" Write");
-		ImGui::Text("    o_wb_sel: 0x%01X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_sel);
-		ImGui::Text("    o_wb_cyc: %d", top->core_3do__DOT__zap_top_inst__DOT__o_wb_cyc);
-		ImGui::Text("    o_wb_stb: %d", top->core_3do__DOT__zap_top_inst__DOT__o_wb_stb);
-		ImGui::Text("    i_wb_ack: %d", top->core_3do__DOT__zap_top_inst__DOT__i_wb_ack);
+		ImGui::Text("    o_wb_dat: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_dat);
+		ImGui::Text("     o_wb_we: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_we); ImGui::SameLine(); if (!top->rootp->o_wb_we) ImGui::Text(" Read"); else ImGui::Text(" Write");
+		ImGui::Text("    o_wb_sel: 0x%01X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_sel);
+		ImGui::Text("    o_wb_cyc: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_cyc);
+		ImGui::Text("    o_wb_stb: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_stb);
+		ImGui::Text("    i_wb_ack: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_ack);
 		ImGui::Separator();
-		ImGui::Text("       i_fiq: %d", top->core_3do__DOT__zap_top_inst__DOT__i_fiq); 
+		ImGui::Text("       i_fiq: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_fiq); 
 		ImGui::Separator();
 		ImGui::Text("    Zap...");
-		ImGui::Text("    o_wb_cti: 0x%01X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_cti);
-		ImGui::Text("    o_wb_bte: 0x%01X", top->core_3do__DOT__zap_top_inst__DOT__o_wb_bte);
-		ImGui::Text("  i_mem_addr: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__i_mem_address_ff2);
+		ImGui::Text("    o_wb_cti: 0x%01X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_cti);
+		ImGui::Text("    o_wb_bte: 0x%01X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_bte);
+		ImGui::Text("  i_mem_addr: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__i_mem_address_ff2);
 		/*
-		ImGui::Text("       sbyte: %d", top->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__sbyte);
-		ImGui::Text("       ubyte: %d", top->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__ubyte);
-		ImGui::Text("       shalf: %d", top->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__shalf);
-		ImGui::Text("       uhalf: %d", top->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__uhalf);
-		ImGui::Text(" transform d: 0x%08X", top->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__transform_function__DOT__d);
+		ImGui::Text("       sbyte: %d", top->rootp->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__sbyte);
+		ImGui::Text("       ubyte: %d", top->rootp->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__ubyte);
+		ImGui::Text("       shalf: %d", top->rootp->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__shalf);
+		ImGui::Text("       uhalf: %d", top->rootp->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__uhalf);
+		ImGui::Text(" transform d: 0x%08X", top->rootp->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__transform_function__DOT__d);
 		*/
 
 		/*
-		//ImGui::Text("  %s", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__i_decompile);
+		//ImGui::Text("  %s", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__i_decompile);
 		for (int i=0; i<16; i++) {
-			//uint32_t my_word = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__i_decompile[i];
-			uint32_t my_word = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__decompile_tmp[i];
+			//uint32_t my_word = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__i_decompile[i];
+			uint32_t my_word = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__decompile_tmp[i];
 			ImGui::Text("%c%c%c%c", (my_word>>24)&0xFF, (my_word>>16)&0xFF, (my_word>>8)&0xFF, (my_word>>0)&0xFF);
 			ImGui::SameLine();
 		}
 		printf("\n");
 		*/
 
-		ImGui::Text("         op1: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__op1);
-		ImGui::Text("         op2: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__op2);
-		ImGui::Text("      opcode: 0x%01X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__opcode);
+		ImGui::Text("         op1: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__op1);
+		ImGui::Text("         op2: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__op2);
+		ImGui::Text("      opcode: 0x%01X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__opcode);
 
 		ImGui::Separator();
-		ImGui::Text("          PC: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);
-		ImGui::Text("          R0: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[0]);
-		ImGui::Text("          R1: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[1]);
-		ImGui::Text("          R2: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[2]);
-		ImGui::Text("          R3: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[3]);
-		ImGui::Text("          R4: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[4]);
-		ImGui::Text("          R5: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[5]);
-		ImGui::Text("          R6: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[6]);
-		ImGui::Text("          R7: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[7]);
-		ImGui::Text("          R8: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[8]);
-		ImGui::Text("          R9: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[9]);
-		ImGui::Text("         R10: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[10]);
-		ImGui::Text("         R11: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[11]);
-		ImGui::Text("         R12: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[12]);
-		ImGui::Text("         R13: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[13]);
-		ImGui::Text("         R14: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[14]);
-		ImGui::Text("      ?  R15: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[15]);
+		ImGui::Text("          PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);
+		ImGui::Text("          R0: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[0]);
+		ImGui::Text("          R1: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[1]);
+		ImGui::Text("          R2: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[2]);
+		ImGui::Text("          R3: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[3]);
+		ImGui::Text("          R4: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[4]);
+		ImGui::Text("          R5: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[5]);
+		ImGui::Text("          R6: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[6]);
+		ImGui::Text("          R7: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[7]);
+		ImGui::Text("          R8: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[8]);
+		ImGui::Text("          R9: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[9]);
+		ImGui::Text("         R10: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[10]);
+		ImGui::Text("         R11: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[11]);
+		ImGui::Text("         R12: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[12]);
+		ImGui::Text("         R13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[13]);
+		ImGui::Text("         R14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[14]);
+		ImGui::Text("      ?  R15: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[15]);
 		ImGui::Separator();
 
-		uint32_t cpsr = top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr;
+		uint32_t cpsr = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr;
 		
-		ImGui::Text("        CPSR: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr);
+		ImGui::Text("        CPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr);
 
 		ImGui::Text("        bits: %d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
 			(cpsr&0x80000000)>>31, (cpsr&0x40000000)>>30, (cpsr&0x20000000)>>29, (cpsr&0x10000000)>>28, (cpsr&0x08000000)>>27, (cpsr&0x04000000)>>26, (cpsr&0x02000000)>>25, (cpsr&0x01000000)>>24,
 			(cpsr&0x00800000)>>23, (cpsr&0x00400000)>>22, (cpsr&0x00200000)>>21, (cpsr&0x00100000)>>20, (cpsr&0x00080000)>>19, (cpsr&0x00040000)>>18, (cpsr&0x00020000)>>17, (cpsr&0x00010000)>>16,
 			(cpsr&0x00008000)>>15, (cpsr&0x00004000)>>14, (cpsr&0x00002000)>>13, (cpsr&0x00001000)>>12, (cpsr&0x00000800)>>11, (cpsr&0x00000400)>>10, (cpsr&0x00000200)>>9,  (cpsr&0x00000100)>>8,
 			(cpsr&0x00000080)>>7,  (cpsr&0x00000040)>>6,  (cpsr&0x00000020)>>5,  (cpsr&0x00000010)>>4,  (cpsr&0x00000008)>>3,  (cpsr&0x00000004)>>2,  (cpsr&0x00000002)>>1,  (cpsr&0x00000001)>>0 );
-		ImGui::Text("              NZCVQIIJ    GGGGIIIIIIEAIFTMMMMM", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr);
-		ImGui::Text("                   TT     EEEETTTTTT          ", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr);
+		ImGui::Text("              NZCVQIIJ    GGGGIIIIIIEAIFTMMMMM", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr);
+		ImGui::Text("                   TT     EEEETTTTTT          ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr);
 		ImGui::Separator();
 		ImGui::End();
 	
 		ImGui::Begin("ARM Secondary regs");
-		ImGui::Text("        RAZ?: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[16]);
-		ImGui::Text("  FIQ CPSR??: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[17]);
-		ImGui::Text("         FR8: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[18]);
-		ImGui::Text("         FR9: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[19]);
-		ImGui::Text("        FR10: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[20]);
-		ImGui::Text("        FR11: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[21]);
-		ImGui::Text("        FR12: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[22]);
-		ImGui::Text("        FR13: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[23]);
-		ImGui::Text("        FR14: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[24]);
+		ImGui::Text("        RAZ?: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[16]);
+		ImGui::Text("  FIQ CPSR??: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[17]);
+		ImGui::Text("         FR8: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[18]);
+		ImGui::Text("         FR9: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[19]);
+		ImGui::Text("        FR10: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[20]);
+		ImGui::Text("        FR11: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[21]);
+		ImGui::Text("        FR12: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[22]);
+		ImGui::Text("        FR13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[23]);
+		ImGui::Text("        FR14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[24]);
 		ImGui::Separator();
-		ImGui::Text("       IRQ13: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[25]);
-		ImGui::Text("       IRQ14: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[26]);
+		ImGui::Text("       IRQ13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[25]);
+		ImGui::Text("       IRQ14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[26]);
 		ImGui::Separator();
-		ImGui::Text("       SVC13: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[27]);
-		ImGui::Text("       SVC14: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[28]);
+		ImGui::Text("       SVC13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[27]);
+		ImGui::Text("       SVC14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[28]);
 		ImGui::Separator();
-		ImGui::Text("       UND13: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[29]);
-		ImGui::Text("       UND14: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[30]);
+		ImGui::Text("       UND13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[29]);
+		ImGui::Text("       UND14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[30]);
 		ImGui::Separator();
-		ImGui::Text("       ABT13: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[31]);
-		ImGui::Text("       ABT14: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[32]);
+		ImGui::Text("       ABT13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[31]);
+		ImGui::Text("       ABT14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[32]);
 		ImGui::Separator();
-		ImGui::Text("        DUM0: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[33]);
-		ImGui::Text("        DUM1: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[34]);
+		ImGui::Text("        DUM0: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[33]);
+		ImGui::Text("        DUM1: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[34]);
 		ImGui::Separator();
-		ImGui::Text("    FIQ_SPSR: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[35]);
-		ImGui::Text("    IRQ_SPSR: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[36]);
-		ImGui::Text("    SVC_SPSR: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[37]);
-		ImGui::Text("    UND_SPSR: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[38]);
-		ImGui::Text("    ABT_SPSR: 0x%08X", top->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[39]);
+		ImGui::Text("    FIQ_SPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[35]);
+		ImGui::Text("    IRQ_SPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[36]);
+		ImGui::Text("    SVC_SPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[37]);
+		ImGui::Text("    UND_SPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[38]);
+		ImGui::Text("    ABT_SPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[39]);
 		ImGui::Separator();
 		ImGui::End();
 
 		ImGui::Begin("CLIO Registers");
-		ImGui::Text("       vint0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__vint0);
-		ImGui::Text("       vint1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__vint1);
+		ImGui::Text("       vint0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__vint0);
+		ImGui::Text("       vint1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__vint1);
 		ImGui::Separator();
-		ImGui::Text("   cstatbits: 0x%08X", top->core_3do__DOT__clio_inst__DOT__cstatbits);
-		ImGui::Text("        wdog: 0x%08X", top->core_3do__DOT__clio_inst__DOT__wdog);			// 0x2c
-		ImGui::Text("        hcnt: 0x%08X", top->core_3do__DOT__clio_inst__DOT__hcnt);			// 0x30 / hpos when read?
-		ImGui::Text("        vcnt: 0x%08X", top->core_3do__DOT__clio_inst__DOT__vcnt);			// 0x34 / vpos when read?
-		ImGui::Text("        seed: 0x%08X", top->core_3do__DOT__clio_inst__DOT__seed);			// 0x38
-		ImGui::Text("      random: 0x%08X", top->core_3do__DOT__clio_inst__DOT__random);		// 0x3c - read only?
+		ImGui::Text("   cstatbits: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__cstatbits);
+		ImGui::Text("        wdog: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__wdog);			// 0x2c
+		ImGui::Text("        hcnt: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__hcnt);			// 0x30 / hpos when read?
+		ImGui::Text("        vcnt: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__vcnt);			// 0x34 / vpos when read?
+		ImGui::Text("        seed: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__seed);			// 0x38
+		ImGui::Text("      random: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__random);		// 0x3c - read only?
 		ImGui::Separator();
-		ImGui::Text("   irq0_pend: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0_pend);		// 0x40/0x44.
-		ImGui::Text(" irq0_enable: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq0_enable);	// 0x48/0x4c.
-		ImGui::Text("   irq0_trig: %d", top->core_3do__DOT__clio_inst__DOT__irq0_trig);
-		ImGui::Text("        mode: 0x%08X", top->core_3do__DOT__clio_inst__DOT__mode);			// 0x50/0x54.
-		ImGui::Text("     badbits: 0x%08X", top->core_3do__DOT__clio_inst__DOT__badbits);		// 0x58 - for reading things like DMA fail reasons?
-		ImGui::Text("       spare: 0x%08X", top->core_3do__DOT__clio_inst__DOT__spare);			// 0x5c - ?
-		ImGui::Text("   irq1_pend: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1_pend);		// 0x60/0x64.
-		ImGui::Text(" irq1_enable: 0x%08X", top->core_3do__DOT__clio_inst__DOT__irq1_enable);	// 0x68/0x6c.
-		ImGui::Text("   irq1_trig: %d", top->core_3do__DOT__clio_inst__DOT__irq1_trig);
+		ImGui::Text("   irq0_pend: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend);		// 0x40/0x44.
+		ImGui::Text(" irq0_enable: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__irq0_enable);	// 0x48/0x4c.
+		ImGui::Text("   irq0_trig: %d", top->rootp->core_3do__DOT__clio_inst__DOT__irq0_trig);
+		ImGui::Text("        mode: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__mode);			// 0x50/0x54.
+		ImGui::Text("     badbits: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__badbits);		// 0x58 - for reading things like DMA fail reasons?
+		ImGui::Text("       spare: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__spare);			// 0x5c - ?
+		ImGui::Text("   irq1_pend: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__irq1_pend);		// 0x60/0x64.
+		ImGui::Text(" irq1_enable: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__irq1_enable);	// 0x68/0x6c.
+		ImGui::Text("   irq1_trig: %d", top->rootp->core_3do__DOT__clio_inst__DOT__irq1_trig);
 		ImGui::Separator();
-		ImGui::Text("      hdelay: 0x%08X", top->core_3do__DOT__clio_inst__DOT__hdelay);		// 0x80
-		ImGui::Text("   adbio_reg: 0x%08X", top->core_3do__DOT__clio_inst__DOT__adbio_reg);		// 0x84
-		ImGui::Text("      adbctl: 0x%08X", top->core_3do__DOT__clio_inst__DOT__adbctl);		// 0x88
+		ImGui::Text("      hdelay: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__hdelay);		// 0x80
+		ImGui::Text("   adbio_reg: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg);		// 0x84
+		ImGui::Text("      adbctl: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__adbctl);		// 0x88
 		ImGui::Separator();
-		ImGui::Text("       slack: 0x%08X", top->core_3do__DOT__clio_inst__DOT__slack);			// 0x220
-		ImGui::Text("   dmareqdis: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dmareqdis);		// 0x308
-		ImGui::Text("      expctl: 0x%08X", top->core_3do__DOT__clio_inst__DOT__expctl);		// 0x400
-		ImGui::Text("     type0_4: 0x%08X", top->core_3do__DOT__clio_inst__DOT__type0_4);		// 0x408
-		ImGui::Text("      dipir1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dipir1);		// 0x410
-		ImGui::Text("      dipir2: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dipir2);		// 0x414
+		ImGui::Text("       slack: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__slack);			// 0x220
+		ImGui::Text("   dmareqdis: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dmareqdis);		// 0x308
+		ImGui::Text("      expctl: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__expctl);		// 0x400
+		ImGui::Text("     type0_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__type0_4);		// 0x408
+		ImGui::Text("      dipir1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dipir1);		// 0x410
+		ImGui::Text("      dipir2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dipir2);		// 0x414
 		ImGui::Separator();
-		ImGui::Text("    unclerev: 0x%08X", top->core_3do__DOT__clio_inst__DOT__unclerev);		// 0xc000
-		ImGui::Text("unc_soft_rev: 0x%08X", top->core_3do__DOT__clio_inst__DOT__unc_soft_rev);	// 0xc004
-		ImGui::Text("  uncle_addr: 0x%08X", top->core_3do__DOT__clio_inst__DOT__uncle_addr);	// 0xc008
-		ImGui::Text("   uncle_rom: 0x%08X", top->core_3do__DOT__clio_inst__DOT__uncle_rom);		// 0xc00c
+		ImGui::Text("    unclerev: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__unclerev);		// 0xc000
+		ImGui::Text("unc_soft_rev: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__unc_soft_rev);	// 0xc004
+		ImGui::Text("  uncle_addr: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__uncle_addr);	// 0xc008
+		ImGui::Text("   uncle_rom: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__uncle_rom);		// 0xc00c
 		ImGui::End();
 
 		ImGui::Begin("CLIO Timers");
-		ImGui::Text("  timer_count_0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_0);		// 0x100
-		ImGui::Text(" timer_backup_0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_0);		// 0x104
-		ImGui::Text("  timer_count_1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_1);		// 0x108
-		ImGui::Text(" timer_backup_1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_1);		// 0x10c
-		ImGui::Text("  timer_count_2: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_2);		// 0x110
-		ImGui::Text(" timer_backup_2: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_2);		// 0x114
-		ImGui::Text("  timer_count_3: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_3);		// 0x118
-		ImGui::Text(" timer_backup_3: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_3);		// 0x11c
-		ImGui::Text("  timer_count_4: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_4);		// 0x120
-		ImGui::Text(" timer_backup_4: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_4);		// 0x124
-		ImGui::Text("  timer_count_5: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_5);		// 0x128
-		ImGui::Text(" timer_backup_5: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_5);		// 0x12c
-		ImGui::Text("  timer_count_6: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_6);		// 0x130
-		ImGui::Text(" timer_backup_6: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_6);		// 0x134
-		ImGui::Text("  timer_count_7: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_7);		// 0x138
-		ImGui::Text(" timer_backup_7: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_7);		// 0x13c
-		ImGui::Text("  timer_count_8: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_8);		// 0x140
-		ImGui::Text(" timer_backup_8: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_8);		// 0x144
-		ImGui::Text("  timer_count_9: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_9);		// 0x148
-		ImGui::Text(" timer_backup_9: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_9);		// 0x14c
-		ImGui::Text(" timer_count_10: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_10);		// 0x150
-		ImGui::Text("timer_backup_10: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_10);	// 0x154
-		ImGui::Text(" timer_count_11: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_11);		// 0x158
-		ImGui::Text("timer_backup_11: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_11);	// 0x15c
-		ImGui::Text(" timer_count_12: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_12);		// 0x160
-		ImGui::Text("timer_backup_12: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_12);	// 0x164
-		ImGui::Text(" timer_count_13: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_13);		// 0x168
-		ImGui::Text("timer_backup_13: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_13);	// 0x16c
-		ImGui::Text(" timer_count_14: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_14);		// 0x170
-		ImGui::Text("timer_backup_14: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_14);	// 0x174
-		ImGui::Text(" timer_count_15: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_count_15);		// 0x178
-		ImGui::Text("timer_backup_15: 0x%08X", top->core_3do__DOT__clio_inst__DOT__timer_backup_15);	// 0x17c
+		ImGui::Text("  timer_count_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_0);		// 0x100
+		ImGui::Text(" timer_backup_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_0);		// 0x104
+		ImGui::Text("  timer_count_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_1);		// 0x108
+		ImGui::Text(" timer_backup_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_1);		// 0x10c
+		ImGui::Text("  timer_count_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_2);		// 0x110
+		ImGui::Text(" timer_backup_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_2);		// 0x114
+		ImGui::Text("  timer_count_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_3);		// 0x118
+		ImGui::Text(" timer_backup_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_3);		// 0x11c
+		ImGui::Text("  timer_count_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_4);		// 0x120
+		ImGui::Text(" timer_backup_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_4);		// 0x124
+		ImGui::Text("  timer_count_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_5);		// 0x128
+		ImGui::Text(" timer_backup_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_5);		// 0x12c
+		ImGui::Text("  timer_count_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_6);		// 0x130
+		ImGui::Text(" timer_backup_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_6);		// 0x134
+		ImGui::Text("  timer_count_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_7);		// 0x138
+		ImGui::Text(" timer_backup_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_7);		// 0x13c
+		ImGui::Text("  timer_count_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_8);		// 0x140
+		ImGui::Text(" timer_backup_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_8);		// 0x144
+		ImGui::Text("  timer_count_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_9);		// 0x148
+		ImGui::Text(" timer_backup_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_9);		// 0x14c
+		ImGui::Text(" timer_count_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_10);		// 0x150
+		ImGui::Text("timer_backup_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_10);	// 0x154
+		ImGui::Text(" timer_count_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_11);		// 0x158
+		ImGui::Text("timer_backup_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_11);	// 0x15c
+		ImGui::Text(" timer_count_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_12);		// 0x160
+		ImGui::Text("timer_backup_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_12);	// 0x164
+		ImGui::Text(" timer_count_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_13);		// 0x168
+		ImGui::Text("timer_backup_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_13);	// 0x16c
+		ImGui::Text(" timer_count_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_14);		// 0x170
+		ImGui::Text("timer_backup_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_14);	// 0x174
+		ImGui::Text(" timer_count_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_15);		// 0x178
+		ImGui::Text("timer_backup_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_15);	// 0x17c
 		ImGui::Separator();
-		ImGui::Text("     timer_ctrl: 0x%016X", top->core_3do__DOT__clio_inst__DOT__timer_ctrl);		// 0x200,0x204,0x208,0x20c. 64-bits wide?? TODO: How to handle READS of the 64-bit reg?
+		ImGui::Text("     timer_ctrl: 0x%016X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_ctrl);		// 0x200,0x204,0x208,0x20c. 64-bits wide?? TODO: How to handle READS of the 64-bit reg?
 		ImGui::End();
 
 		ImGui::Begin("CLIO sel regs");
-		ImGui::Text(" sel_0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_0);		// 0x500
-		ImGui::Text(" sel_1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_1);		// 0x504
-		ImGui::Text(" sel_2: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_2);		// 0x508
-		ImGui::Text(" sel_3: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_3);		// 0x50c
-		ImGui::Text(" sel_4: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_4);		// 0x510
-		ImGui::Text(" sel_5: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_5);		// 0x514
-		ImGui::Text(" sel_6: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_6);		// 0x518
-		ImGui::Text(" sel_7: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_7);		// 0x51c
-		ImGui::Text(" sel_8: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_8);		// 0x520
-		ImGui::Text(" sel_9: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_9);		// 0x524
-		ImGui::Text("sel_10: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_10);		// 0x528
-		ImGui::Text("sel_11: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_11);		// 0x52c
-		ImGui::Text("sel_12: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_12);		// 0x530
-		ImGui::Text("sel_13: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_13);		// 0x534
-		ImGui::Text("sel_14: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_14);		// 0x538
-		ImGui::Text("sel_15: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sel_15);		// 0x53c
+		ImGui::Text(" sel_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_0);		// 0x500
+		ImGui::Text(" sel_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_1);		// 0x504
+		ImGui::Text(" sel_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_2);		// 0x508
+		ImGui::Text(" sel_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_3);		// 0x50c
+		ImGui::Text(" sel_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_4);		// 0x510
+		ImGui::Text(" sel_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_5);		// 0x514
+		ImGui::Text(" sel_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_6);		// 0x518
+		ImGui::Text(" sel_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_7);		// 0x51c
+		ImGui::Text(" sel_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_8);		// 0x520
+		ImGui::Text(" sel_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_9);		// 0x524
+		ImGui::Text("sel_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_10);		// 0x528
+		ImGui::Text("sel_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_11);		// 0x52c
+		ImGui::Text("sel_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_12);		// 0x530
+		ImGui::Text("sel_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_13);		// 0x534
+		ImGui::Text("sel_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_14);		// 0x538
+		ImGui::Text("sel_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_15);		// 0x53c
 		ImGui::End();
 
 		ImGui::Begin("CLIO poll regs");
-		ImGui::Text(" poll_0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_0);		// 0x540
-		ImGui::Text(" poll_1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_1);		// 0x544
-		ImGui::Text(" poll_2: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_2);		// 0x548
-		ImGui::Text(" poll_3: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_3);		// 0x54c
-		ImGui::Text(" poll_4: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_4);		// 0x550
-		ImGui::Text(" poll_5: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_5);		// 0x554
-		ImGui::Text(" poll_6: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_6);		// 0x558
-		ImGui::Text(" poll_7: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_7);		// 0x55c
-		ImGui::Text(" poll_8: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_8);		// 0x560
-		ImGui::Text(" poll_9: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_9);		// 0x564
-		ImGui::Text("poll_10: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_10);	// 0x568
-		ImGui::Text("poll_11: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_11);	// 0x56c
-		ImGui::Text("poll_12: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_12);	// 0x570
-		ImGui::Text("poll_13: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_13);	// 0x574
-		ImGui::Text("poll_14: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_14);	// 0x578
-		ImGui::Text("poll_15: 0x%08X", top->core_3do__DOT__clio_inst__DOT__poll_15);	// 0x57c
+		ImGui::Text(" poll_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_0);		// 0x540
+		ImGui::Text(" poll_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_1);		// 0x544
+		ImGui::Text(" poll_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_2);		// 0x548
+		ImGui::Text(" poll_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_3);		// 0x54c
+		ImGui::Text(" poll_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_4);		// 0x550
+		ImGui::Text(" poll_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_5);		// 0x554
+		ImGui::Text(" poll_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_6);		// 0x558
+		ImGui::Text(" poll_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_7);		// 0x55c
+		ImGui::Text(" poll_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_8);		// 0x560
+		ImGui::Text(" poll_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_9);		// 0x564
+		ImGui::Text("poll_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_10);	// 0x568
+		ImGui::Text("poll_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_11);	// 0x56c
+		ImGui::Text("poll_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_12);	// 0x570
+		ImGui::Text("poll_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_13);	// 0x574
+		ImGui::Text("poll_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_14);	// 0x578
+		ImGui::Text("poll_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_15);	// 0x57c
 		ImGui::End();
 
 		ImGui::Begin("CLIO DSP regs");
-		ImGui::Text("     sema: 0x%08X", top->core_3do__DOT__clio_inst__DOT__sema);		// 0x17d0
-		ImGui::Text("  semaack: 0x%08X", top->core_3do__DOT__clio_inst__DOT__semaack);	// 0x17d4
+		ImGui::Text("     sema: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sema);		// 0x17d0
+		ImGui::Text("  semaack: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__semaack);	// 0x17d4
 		ImGui::Separator();
-		ImGui::Text("   dspdma: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dspdma);	// 0x17e0
-		ImGui::Text(" dspprst0: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dspprst0);	// 0x17e4
-		ImGui::Text(" dspprst1: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dspprst1);	// 0x17e8
-		ImGui::Text("   dspppc: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dspppc);	// 0x17f4
-		ImGui::Text("   dsppnr: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dsppnr);	// 0x17f8
-		ImGui::Text("   dsppgw: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dsppgw);	// 0x17fc
+		ImGui::Text("   dspdma: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dspdma);	// 0x17e0
+		ImGui::Text(" dspprst0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dspprst0);	// 0x17e4
+		ImGui::Text(" dspprst1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dspprst1);	// 0x17e8
+		ImGui::Text("   dspppc: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dspppc);	// 0x17f4
+		ImGui::Text("   dsppnr: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dsppnr);	// 0x17f8
+		ImGui::Text("   dsppgw: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dsppgw);	// 0x17fc
 		ImGui::Separator();
-		ImGui::Text("dsppclkreload: 0x%08X", top->core_3do__DOT__clio_inst__DOT__dsppclkreload);// 0x39dc ?
+		ImGui::Text("dsppclkreload: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dsppclkreload);// 0x39dc ?
 		ImGui::End();
 
 		ImGui::Begin("MADAM Registers");
-		ImGui::Text("        mctl: 0x%08X", top->core_3do__DOT__madam_inst__DOT__mctl);
-		ImGui::Text("      sltime: 0x%08X", top->core_3do__DOT__madam_inst__DOT__sltime);
+		ImGui::Text("        mctl: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__mctl);
+		ImGui::Text("      sltime: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__sltime);
 		ImGui::Separator();
-		ImGui::Text("    vdl_addr: 0x%08X", top->core_3do__DOT__madam_inst__DOT__vdl_addr);		// 0x580
+		ImGui::Text("    vdl_addr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr);		// 0x580
 		ImGui::Separator();
 		ImGui::Text(" VDL still in C...");
 		ImGui::Text("    vdl_ctl: 0x%08X", vdl_ctl);
@@ -1751,39 +1756,39 @@ int main(int argc, char** argv, char** env) {
 
 		/*
 		ImGui::Begin("Matrix Engine");
-		ImGui::Text("   MI00: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI00);
-		ImGui::Text("   MI01: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI01);
-		ImGui::Text("   MI02: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI02);
-		ImGui::Text("   MI03: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI03);
-		ImGui::Text("   MI10: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI10);
-		ImGui::Text("   MI11: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI11);
-		ImGui::Text("   MI12: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI12);
-		ImGui::Text("   MI13: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI13);
-		ImGui::Text("   MI20: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI20);
-		ImGui::Text("   MI21: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI21);
-		ImGui::Text("   MI22: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI22);
-		ImGui::Text("   MI23: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI23);
-		ImGui::Text("   MI30: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI30);
-		ImGui::Text("   MI31: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI31);
-		ImGui::Text("   MI32: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI32);
-		ImGui::Text("   MI33: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MI33);
+		ImGui::Text("   MI00: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI00);
+		ImGui::Text("   MI01: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI01);
+		ImGui::Text("   MI02: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI02);
+		ImGui::Text("   MI03: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI03);
+		ImGui::Text("   MI10: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI10);
+		ImGui::Text("   MI11: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI11);
+		ImGui::Text("   MI12: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI12);
+		ImGui::Text("   MI13: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI13);
+		ImGui::Text("   MI20: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI20);
+		ImGui::Text("   MI21: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI21);
+		ImGui::Text("   MI22: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI22);
+		ImGui::Text("   MI23: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI23);
+		ImGui::Text("   MI30: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI30);
+		ImGui::Text("   MI31: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI31);
+		ImGui::Text("   MI32: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI32);
+		ImGui::Text("   MI33: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI33);
 		ImGui::Separator();
-		ImGui::Text("    MV0: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MV0);
-		ImGui::Text("    MV1: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MV1);
-		ImGui::Text("    MV2: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MV2);
-		ImGui::Text("    MV3: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__MV3);
+		ImGui::Text("    MV0: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MV0);
+		ImGui::Text("    MV1: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MV1);
+		ImGui::Text("    MV2: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MV2);
+		ImGui::Text("    MV3: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MV3);
 		ImGui::Separator();
-		ImGui::Text(" tmpMO0: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__tmpMO0);
-		ImGui::Text(" tmpMO1: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__tmpMO1);
-		ImGui::Text(" tmpMO2: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__tmpMO2);
-		ImGui::Text(" tmpMO3: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__tmpMO3);
+		ImGui::Text(" tmpMO0: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__tmpMO0);
+		ImGui::Text(" tmpMO1: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__tmpMO1);
+		ImGui::Text(" tmpMO2: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__tmpMO2);
+		ImGui::Text(" tmpMO3: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__tmpMO3);
 		ImGui::Separator();
-		ImGui::Text("Nfrac16: 0x%016llX", top->core_3do__DOT__matrix_inst__DOT__Nfrac16);
+		ImGui::Text("Nfrac16: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__Nfrac16);
 		ImGui::Separator();
-		ImGui::Text("    MO0: 0x%08X", top->core_3do__DOT__matrix_inst__DOT__tmpMO3);
-		ImGui::Text("    MO1: 0x%08X", top->core_3do__DOT__matrix_inst__DOT__tmpMO3);
-		ImGui::Text("    MO2: 0x%08X", top->core_3do__DOT__matrix_inst__DOT__tmpMO3);
-		ImGui::Text("    MO3: 0x%08X", top->core_3do__DOT__matrix_inst__DOT__tmpMO3);
+		ImGui::Text("    MO0: 0x%08X", top->rootp->core_3do__DOT__matrix_inst__DOT__tmpMO3);
+		ImGui::Text("    MO1: 0x%08X", top->rootp->core_3do__DOT__matrix_inst__DOT__tmpMO3);
+		ImGui::Text("    MO2: 0x%08X", top->rootp->core_3do__DOT__matrix_inst__DOT__tmpMO3);
+		ImGui::Text("    MO3: 0x%08X", top->rootp->core_3do__DOT__matrix_inst__DOT__tmpMO3);
 		ImGui::End();
 		*/
 
