@@ -117,6 +117,9 @@ begin
                         T_MOD_SP                : decode_mod_sp;
                         default: 
                         begin
+                                `ifdef COMP_DEBUG
+                                $display($time, "%m: Not implemented in compressed decoder!!!");
+                                `endif
                                 o_und = 1; // Will take UND trap.
                         end
                 endcase 
@@ -357,7 +360,7 @@ begin:dcAluHi
         2: o_instruction[31:0] = {AL, 2'b00, 1'b0, MOV, 1'b0, rd, rd, 8'd0, rs}; // MOV Rd, Rs
         3:
         begin
-                $display($time, "%m: Error: This should never happen, should be taken by BX...!");
+                $display($time, "%m: This should never happen, should be taken by BX...!");
                 $finish;
         end
         endcase

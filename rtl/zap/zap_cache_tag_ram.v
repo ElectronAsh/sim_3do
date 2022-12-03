@@ -26,12 +26,11 @@
 // -- avoid translation during clean operations. The cache data RAM is also   --
 // -- present in this unit. This unit has a dedicated memory interface        -- 
 // -- because it can perform global clean and flush by itself without         --
-// -- depending on the cache controller. Only for FPGA.                       --
+// -- depending on the cache controller.                                      --
 // --                                                                         --
 // -----------------------------------------------------------------------------
 
 `default_nettype none
-
 `include "zap_defines.vh"
 
 module zap_cache_tag_ram #( 
@@ -266,6 +265,18 @@ begin
                         tag_ram_wr_en = 0;
                         blk_ctr_nxt = 0;
 
+                // assertions_start
+
+                        $display($time, " - %m :: Cache clean requested...");
+
+                        for(i=0;i<CACHE_SIZE/16;i=i+1)
+                        begin
+                                $display($time, " - %m :: Line %d : %x %d", i, dat_ram[i], dirty[i]);
+                        end
+
+                // assertions_end
+
+
                         state_nxt = CACHE_CLEAN_GET_ADDRESS;
                 end
                 else if ( i_cache_inv_req )
@@ -393,6 +404,8 @@ task  wb_prpr_read;
 input [31:0] i_address;
 input [2:0]  i_cti;
 begin
+        $display($time, " - %m :: Reading from address %x", i_address);
+
         o_wb_cyc_nxt = 1'd1;
         o_wb_stb_nxt = 1'd1;
         o_wb_wen_nxt = 1'd0;
@@ -449,10 +462,4 @@ end
 endfunction
 
 endmodule // zap_cache_tag_ram.v
-
 `default_nettype wire
-
-// ----------------------------------------------------------------------------
-// END OF FILE
-// ----------------------------------------------------------------------------
-

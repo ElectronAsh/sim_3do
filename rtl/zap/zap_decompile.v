@@ -59,7 +59,8 @@ always @*
 begin
                 if ( !i_dav ) 
                 begin
-                        o_decompile = "IGNORE";                                                        
+                        //o_decompile = "IGNORE";
+                        o_decompile = " ";
                 end
                 else if ( i_instruction[27:24] == 4'b1110 && i_instruction[4] ) 
                 begin
@@ -469,7 +470,3 @@ always @*
 endmodule // zap_decompile.v
 
 `default_nettype wire
-
-// ----------------------------------------------------------------------------
-// EOF
-// ----------------------------------------------------------------------------

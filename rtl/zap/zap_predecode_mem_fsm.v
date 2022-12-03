@@ -228,6 +228,8 @@ begin
                         // Immediate Offset.
                         if ( i_instruction[31:25] == BLX1[31:25] && i_instruction_valid ) 
                         begin
+                                $display($time, "%m: BLX1 detected!");
+
                                 // We must generate a SUBAL LR,PC,4 ROR 0
                                 // This makes LR have the value
                                 // PC+8-4=PC+4 which is the address of
@@ -245,6 +247,8 @@ begin
                         end
                         else if ( i_instruction[27:4] == BLX2[27:4] && i_instruction_valid ) // BLX2 detected. Register offset. CONDITIONAL.
                         begin
+                                $display($time, "%m: BLX2 detected!");
+
                                 // Write address of next instruction to LR. Now this
                                 // depends on the mode we're in. Mode in the sense
                                 // ARM/Thumb. We need to look at i_cpsr_t.
@@ -269,6 +273,10 @@ begin
                         begin
                                 // Backup base register.
                                 // MOV DUMMY0, Base
+`ifdef LDM_DEBUG
+                                $display($time, "%m: Load/Store Multiple detected!");
+`endif
+                                
                                 if ( up )
                                 begin
                                         o_instruction = {cc, 2'b00, 1'b0, MOV, 
@@ -306,6 +314,9 @@ begin
                                   i_instruction[11:4] == 4'b1001 && i_instruction_valid ) // SWAP
                         begin
                                 // Swap 
+`ifdef LDM_DEBUG                                
+                                $display($time, "%m: Detected SWAP instruction!");
+`endif
 
                                 o_irq = i_irq;
                                 o_fiq = i_fiq;

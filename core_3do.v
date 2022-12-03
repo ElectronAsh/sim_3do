@@ -28,6 +28,7 @@ module core_3do (
 
 zap_top zap_top_inst (
 	.i_clk( sys_clk ),				// input. Should probably be 12.5 MHz, but using sys_clk, for faster simulation.
+	
 	.i_reset( !reset_n ),			// input Active HIGH.
 
 	.i_irq( 1'b0 ),					// Active HIGH. (not used on 3DO).
@@ -164,6 +165,19 @@ assign zap_din = (madam_cs) ? madam_dout :
 matrix_engine matrix_inst (
 	.clock(sys_clk)
 );
+
+
+armsim armsim_inst (
+	.cpu_clk( sys_clk ),
+	.rst( !reset_n ),
+	
+	.fu_EN(1'b0),
+	
+	.pc( arm_pc ),
+	.instr( arm_inst )
+);
+wire [31:0] arm_pc;
+wire [31:0] arm_inst;
 
 
 endmodule

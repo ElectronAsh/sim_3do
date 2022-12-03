@@ -65,7 +65,7 @@ begin: blk1
         GT:     ok = (n == v) && !z;
         LE:     ok = (n != v) || z;
         AL:     ok = 1'd1;
-        NV:     ok = 1'd0;                    
+        NV:     ok = 1'd0;
         endcase   
 
         is_cc_satisfied = ok;
@@ -132,6 +132,15 @@ begin
 
         // Override per specific mode.
         case ( cpu_mode )
+                SVC:
+                begin
+                        case ( index )
+                                13:     translate = PHY_SVC_R13;
+                                14:     translate = PHY_SVC_R14;
+                    ARCH_CURR_SPSR:     translate = PHY_SVC_SPSR;
+                        endcase
+                end		
+		
                 FIQ:
                 begin
                         case ( index )
@@ -170,15 +179,6 @@ begin
                                 13:     translate = PHY_UND_R13;
                                 14:     translate = PHY_UND_R14;
                     ARCH_CURR_SPSR:     translate = PHY_UND_SPSR;
-                        endcase
-                end
-
-                SVC:
-                begin
-                        case ( index )
-                                13:     translate = PHY_SVC_R13;
-                                14:     translate = PHY_SVC_R14;
-                    ARCH_CURR_SPSR:     translate = PHY_SVC_SPSR;
                         endcase
                 end
 

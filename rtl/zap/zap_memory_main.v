@@ -234,10 +234,10 @@ begin: transform_function
         if ( ubyte == 1'd1 )
         begin
                 case ( address[1:0] )
-                0: transform = (d >> 24)  & 32'h000000ff;
-                1: transform = (d >> 16)  & 32'h000000ff;
-                2: transform = (d >> 8) & 32'h000000ff;
-                3: transform = (d >> 0) & 32'h000000ff;
+                0: transform = (d >> 24) & 32'h000000ff;	// 3DO ARM60 Endianess kludge. ElectronAsh.
+                1: transform = (d >> 16) & 32'h000000ff;
+                2: transform = (d >> 8)  & 32'h000000ff;
+                3: transform = (d >> 0)  & 32'h000000ff;
                 endcase
         end
         // Signed byte. Sign extend lower byte.
@@ -245,10 +245,10 @@ begin: transform_function
         begin
                 // Take lower byte.
                 case ( address[1:0] )
-                0: transform = (d >> 24)  & 32'h000000ff; 
-                1: transform = (d >> 16)  & 32'h000000ff;
-                2: transform = (d >> 8) & 32'h000000ff;
-                3: transform = (d >> 0) & 32'h000000ff;
+                0: transform = (d >> 24) & 32'h000000ff;	// 3DO ARM60 Endianess kludge. ElectronAsh.
+                1: transform = (d >> 16) & 32'h000000ff;
+                2: transform = (d >> 8)  & 32'h000000ff;
+                3: transform = (d >> 0)  & 32'h000000ff;
                 endcase
 
                 // Sign extend.

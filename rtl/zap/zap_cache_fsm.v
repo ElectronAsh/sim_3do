@@ -105,9 +105,9 @@ input   wire    [31:0]  i_wb_dat
 
 );
 
-// ----------------------------------------------------------------------------
+// -------------------------------------------------------------
 // Includes and Localparams
-// ----------------------------------------------------------------------------
+// -------------------------------------------------------------
 
 `include "zap_localparams.vh"
 `include "zap_defines.vh"
@@ -124,16 +124,16 @@ localparam INVALIDATE           = 6; /* Cache invalidate parent state */
 localparam CLEAN                = 7; /* Cache clean parent state */
 localparam NUMBER_OF_STATES     = 8; 
 
-// ----------------------------------------------------------------------------
+// ---------------------------------------------------------------
 // Signal aliases   
-// ----------------------------------------------------------------------------
+// ---------------------------------------------------------------
 
 wire cache_cmp   = (i_cache_tag[`CACHE_TAG__TAG] == i_address[`VA__CACHE_TAG]);
 wire cache_dirty = i_cache_tag_dirty;
 
-// ----------------------------------------------------------------------------
+// ---------------------------------------------------------------
 // Variables
-// ----------------------------------------------------------------------------
+// ---------------------------------------------------------------
 
 reg [$clog2(NUMBER_OF_STATES)-1:0]      state_ff, state_nxt;
 reg [31:0]                              buf_ff [3:0];
@@ -145,13 +145,13 @@ reg                                     cache_inv_req_nxt,
 reg [2:0]                               adr_ctr_ff, adr_ctr_nxt; // Needs to take on 0,1,2,3 AND 4(nxt).
 reg                                     hit;                     // For debug only.
 
-// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------
 // Logic
-// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------
 
 /* Tie flops to the output */
 always @* o_cache_clean_req = cache_clean_req_ff; // Tie req flop to output.
-always @* o_cache_inv_req   = cache_inv_req_ff;   // Tie inv flop to output.
+always @* o_cache_inv_req = cache_inv_req_ff;     // Tie inv flop to output.
 
 /* Sequential Block */
 always @ (posedge i_clk)
@@ -261,14 +261,12 @@ begin
                                 begin
                                         if ( i_rd ) /* Read request. */
                                         begin  
-                                                /* 
-                                                 * Accelerate performance 
-                                                 * Read throughput at 80MHz
-                                                 * clock is 80M operations per 
-                                                 * second (Hit).
-                                                 */
+                                                /* Accelerate performance */
                                                 o_dat   = adapt_cache_data(i_address[3:2], i_cache_line); 
-                                                hit     = 1'd1;
+
+                                                hit = 1'd1;
+
+
                                                 o_ack   = 1'd1;
                                         end
                                         else if ( i_wr ) /* Write request */
@@ -276,12 +274,7 @@ begin
                                                 state_nxt    = REFRESH_1;
                                                 o_ack        = 1'd0;
 
-                                                /* 
-                                                 * Each write to cache takes
-                                                 * 3 cycles. Write throuput at
-                                                 * 80MHz is 26.6M operations per
-                                                 * second (Hit).
-                                                 */
+                                                /* Accelerate performance */
                                                 o_cache_line = 
                                                 {i_din,i_din,i_din,i_din};
   
@@ -476,9 +469,9 @@ begin
         endcase
 end
 
-// ----------------------------------------------------------------------------
+// ------------------------------------------------------------------------
 // Tasks and functions.
-// ----------------------------------------------------------------------------
+// ------------------------------------------------------------------------
 
 function [31:0] adapt_cache_data 
 (input [1:0] shift, input [127:0] cd);
@@ -510,6 +503,8 @@ task  wb_prpr_read;
 input [31:0] i_address;
 input [2:0]  i_cti;
 begin
+        $display($time, " - %m :: Reading from address %x", i_address);
+
         o_wb_cyc_nxt = 1'd1;
         o_wb_stb_nxt = 1'd1;
         o_wb_wen_nxt = 1'd0;
@@ -527,6 +522,8 @@ input   [31:0]  i_address;
 input   [2:0]   i_cti;
 input   [3:0]   i_ben;
 begin
+        $display($time, " - %m :: Writing to address %x with ben = %x", i_address, i_ben);
+
         o_wb_cyc_nxt = 1'd1;
         o_wb_stb_nxt = 1'd1;
         o_wb_wen_nxt = 1'd1;
@@ -552,6 +549,8 @@ endtask
 
 // ----------------------------------------------------------------------------
 
+// synopsys translate_off
+ 
 wire [31:0] buf0_ff, buf1_ff, buf2_ff;
 
 assign buf0_ff = buf_ff[0];
@@ -569,10 +568,8 @@ wire [31:0] dbg_addr_pa  = i_phy_addr >> 4;
 wire [31:0] dbg_ct_tag   = o_cache_tag[`CACHE_TAG__TAG];
 wire [31:0] dbg_ct_pa    = o_cache_tag[`CACHE_TAG__PA];
 
+// synopsys translate_on
+
 endmodule // zap_cache_fsm
 
 `default_nettype wire
-
-// ----------------------------------------------------------------------------
-// END OF FILE
-// ----------------------------------------------------------------------------

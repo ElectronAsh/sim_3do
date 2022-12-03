@@ -259,6 +259,7 @@ begin
                                                  i_alu_operation_ff == SMLALL || 
                                                 i_alu_operation_ff == SMLALH) ? 
                                                 MOV : i_alu_operation_ff; 
+                                        // Multiplication becomes a MOV for ALU.
            o_flag_update_ff                  <= i_flag_update_ff;
            o_mem_srcdest_index_ff            <= i_mem_srcdest_index_ff;           
            o_mem_load_ff                     <= i_mem_load_ff;                    
@@ -374,32 +375,51 @@ function [31:0] resolve_conflict (
         input                            result_from_alu_valid   // Result from ALU is VALID.
 );
 begin
+`ifdef SH_DEBUG
+        $display($time, "%m: ================ resolve_conflict ==================");
+        $display($time, "%m: index from issue = %d value from issue = %d index from this stage = %d result from alu = %d", index_from_issue, value_from_issue, index_from_this_stage, result_from_alu);
+        $display($time, "%m: ====================================================");
+`endif
 
         if ( index_from_issue[32] == IMMED_EN )
         begin
                 resolve_conflict = index_from_issue[31:0];
+
+`ifdef SH_DEBUG
+                        $display($time, "%m: => It is an immediate value.");
+`endif
         end
         else if ( index_from_issue == PHY_PC ) 
         begin
                 resolve_conflict = i_pc_plus_8_ff; 
+
+`ifdef SH_DEBUG
+                        $display($time, "%m: => Giving PC");
+`endif                
         end 
         else if ( index_from_this_stage == index_from_issue[$clog2(PHY_REGS)-1:0] && result_from_alu_valid )
         begin
                 resolve_conflict = result_from_alu;
+
+`ifdef SH_DEBUG
+                        $display($time, "%m: => Getting result from ALU!");
+`endif
         end
         else
         begin
                 resolve_conflict = value_from_issue[31:0];
+`ifdef SH_DEBUG
+                        $display($time, "%m: => No changes!");
+`endif
         end
+
+`ifdef SH_DEBUG
+                $display($time, "%m: ==> Final result is %d", resolve_conflict);
+`endif
 end
 endfunction
 
 ///////////////////////////////////////////////////////////////////////////////
 
 endmodule // zap_shifter_main.v
-
 `default_nettype wire
-
-// ----------------------------------------------------------------------------
-// EOF
-// ----------------------------------------------------------------------------

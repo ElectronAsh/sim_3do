@@ -173,6 +173,15 @@ begin: blk1
                 begin
                         if ( i_walk )
                         begin
+                                $display($time, " - %m :: Page fault! Need to page walk! i_walk = %b", i_walk);
+                                $display($time, " - %m :: Core generated address %x", i_address);
+                                $display($time, " - %m :: Moving to FETCH_L1_DESC. i_baddr = %x baddr_tran_base = %x addr_va_table_index = %x", 
+                                         i_baddr, i_baddr[`VA__TRANSLATION_BASE], i_address[`VA__TABLE_INDEX]);
+
+                                `ifdef TLB_DEBUG
+                                        $stop;
+                                `endif
+
                                 o_busy = 1'd1;
 
                                 /*
@@ -186,22 +195,42 @@ begin: blk1
                         end
                         else if ( i_fsr[3:0] != 4'b0000 ) /* Access Violation. */
                         begin
+                                $display($time, " - %m :: Access violation fsr = %x far = %x...", i_fsr, i_far);
+
+                                `ifdef TLB_DEBUG
+                                        $stop;
+                                `endif
+
                                 o_fault = 1'd1;
                                 o_busy  = 1'd0;
                                 o_fsr   = i_fsr;
                                 o_far   = i_far;
+                        end
+                        else
+                        begin
+                                `ifdef DISP_TLB_SUCCESS
+                                        $display($time, " - %m :: TLB Hit for address = %x MMU enable = %x!", i_address, i_mmu_en);
+                                `endif
+
+                                `ifdef TLB_DEBUG
+                                        $stop;
+                                `endif
                         end
                 end
         end
 
         FETCH_L1_DESC_0:
         begin
+                $display($time, " - %m :: In state FETCH_L1_DESC_0");
+
                 o_busy = 1;
 
                 if ( i_wb_ack )
                 begin
                         dnxt = i_wb_dat;
                         state_nxt = FETCH_L1_DESC;
+
+                        $display($time, " - %m :: Received %x from WB. Moving to FETCH_L1_DESC...", dnxt );
                 end
                 else tsk_hold_wb_access;
         end
@@ -213,10 +242,18 @@ begin: blk1
                  * Examine it. dff holds the L1 descriptor.
                  */
 
+                $display($time, " - %m :: In FETCH_L1_DESC state...");
+
                 o_busy = 1'd1;
 
                 if ( 1 ) 
                 begin
+                        $display($time, " - %m :: ACK received. Read data is %x", i_wb_dat);
+
+                        `ifdef TLB_DEBUG
+                                $stop;
+                        `endif
+
                         case ( dff[`ID] )
 
                         SECTION_ID:
@@ -231,6 +268,8 @@ begin: blk1
                                                      dff};
                                 state_nxt       = REFRESH_CYCLE; 
 
+                                $display($time, " - %m :: It is a section ID. Writing to section TLB as %x. Moving to refresh cycle...", o_setlb_wdata);
+
                                 $display($time, " - %m :: #########################################################");
                                 $display($time, " - %m ::             SECTION DESCRIPTOR DETAILS                  #");
                                 $display($time, " - %m :: #########################################################");
@@ -240,6 +279,10 @@ begin: blk1
                                 $display($time, " - %m :: # Cacheable     = 0b%b",  o_setlb_wdata[`SECTION_TLB__CB] >> 1);
                                 $display($time, " - %m :: # Bufferable    = 0b%b",  o_setlb_wdata[`SECTION_TLB__CB] & 2'b01);
                                 $display($time, " - %m :: #########################################################");
+
+                                `ifdef TLB_DEBUG                
+                                        $stop;
+                                `endif
                         end
 
                         PAGE_ID:
@@ -255,6 +298,12 @@ begin: blk1
 
                                 tsk_prpr_wb_rd({dff[`L1_PAGE__PTBR], 
                                                   i_address[`VA__L2_TABLE_INDEX], 2'd0});
+
+                                $display($time, " - %m :: L1 received Page ID.");
+
+                                `ifdef TLB_DEBUG
+                                        $stop;
+                                `endif
                         end               
 
                         default: /* Generate section translation fault. Fault Class II */
@@ -265,6 +314,12 @@ begin: blk1
                                 o_fault      = 1'd1;
                                 o_busy       = 1'd0;
                                 state_nxt    = IDLE;
+
+                                $display($time, " - %m :: FSR section translation fault!");
+
+                                `ifdef TLB_DEBUG
+                                        $stop;
+                                `endif
                         end
  
                         endcase
@@ -357,6 +412,12 @@ begin: blk1
 
         REFRESH_CYCLE:
         begin
+                $display($time, " - %m :: Entered refresh cycle. Moving to IDLE...");
+
+                `ifdef TLB_DEBUG
+                        $stop;
+                `endif
+
                 o_busy    = 1'd1;
                 state_nxt = IDLE;
         end
@@ -402,6 +463,12 @@ endtask
 
 task tsk_prpr_wb_rd ( input [31:0] adr );
 begin
+        $display($time, " - %m :: Reading from location %x", adr);
+
+        `ifdef TLB_DEBUG
+                $stop;
+        `endif
+
         wb_stb_nxt      = 1'd1;
         wb_cyc_nxt      = 1'd1;
         wb_adr_nxt      = adr;
@@ -409,10 +476,22 @@ begin
 end
 endtask
 
+// ----------------------------------------------------------------------------
+
+// assertions_start
+
+always @ (posedge i_mmu_en)
+begin
+        $display($time, " - %m :: MMU Enabled!");
+end
+
+always @ (negedge i_mmu_en)
+begin
+        $display($time, " - %m :: MMU Disabled!");
+end
+
+// assertions_end
+
 endmodule // zap_tlb_fsm.v
 
 `default_nettype wire
-
-// ----------------------------------------------------------------------------
-// END OF FILE
-// ----------------------------------------------------------------------------

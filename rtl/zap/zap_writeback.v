@@ -119,9 +119,9 @@ module zap_writeback #(
 `include "zap_localparams.vh"
 `include "zap_functions.vh"
 
-// ----------------------------------------------------------------------------
+// ----------------------------------------------
 // Localparams
-// ----------------------------------------------------------------------------
+// ----------------------------------------------
 
 `ifndef ARM_MODE
         `define ARM_MODE (cpsr_ff[T] == 1'd0)
@@ -135,9 +135,21 @@ localparam DABT_VECTOR  = 32'h00000010;
 localparam IRQ_VECTOR   = 32'h00000018;
 localparam FIQ_VECTOR   = 32'h0000001C;
 
-// ----------------------------------------------------------------------------
+// ----------------------------------------------
 // Variables
-// ----------------------------------------------------------------------------
+// ----------------------------------------------
+
+// assertions_start
+        reg fiq_ack;
+        reg irq_ack;
+        reg und_ack;
+        reg dabt_ack;
+        reg iabt_ack;
+        reg swi_ack;
+        integer irq_addr = 0;
+        reg temp_set = 0;
+        reg error = 0;
+// assertions_end
 
 reg     [31:0]                  cpsr_ff, cpsr_nxt;
 reg     [31:0]                  pc_ff, pc_nxt;
@@ -152,9 +164,9 @@ assign  o_pc            = pc_ff;
 assign  o_pc_nxt        = pc_nxt & 32'hfffffffe;
 assign  o_cpsr_nxt      = cpsr_nxt;
 
-// ----------------------------------------------------------------------------
+// ----------------------------------------------
 // Register file
-// ----------------------------------------------------------------------------
+// ----------------------------------------------
 
 zap_register_file u_zap_register_file
 (
@@ -180,9 +192,9 @@ zap_register_file u_zap_register_file
  .o_rd_data_d    (       o_rd_data_3     )
 );
 
-// ----------------------------------------------------------------------------
+// ---------------------------------------------
 // Combinational Logic
-// ----------------------------------------------------------------------------
+// ---------------------------------------------
 
 always @ (*)
 begin: blk1
@@ -191,6 +203,15 @@ begin: blk1
 
         shelve_nxt    = shelve_ff;
         pc_shelve_nxt = pc_shelve_ff;
+
+        // assertions_start
+                fiq_ack  = 0;
+                irq_ack  = 0;
+                und_ack  = 0;
+                dabt_ack = 0;
+                iabt_ack = 0;
+                swi_ack  = 0;
+        // assertions_end
 
         o_hijack     = 0;
         o_hijack_op1 = 0;
@@ -270,9 +291,16 @@ begin: blk1
                 wa2                     = PHY_ABT_SPSR;
                 wdata2                  = cpsr_ff;
                 cpsr_nxt[`CPSR_MODE]    = ABT;
+
+                // assertions_start
+                        dabt_ack = 1'd1;
+                // assertions_end
+
         end
         else if ( i_fiq )
         begin
+                $display($time, " - %m :: FIQ detected.");
+
                 // Returns do LR - 4 to get back to the same instruction.
                 pc_shelve ( FIQ_VECTOR ); 
 
@@ -283,9 +311,15 @@ begin: blk1
                 wdata2                  = cpsr_ff;
                 cpsr_nxt[`CPSR_MODE]    = FIQ;
                 cpsr_nxt[F]             = 1'd1;
+
+                // assertions_start
+                        fiq_ack = 1'd1;
+                // assertions_end
         end
         else if ( i_irq )
         begin
+                $display($time, " - %m :: IRQ detected.");
+
                 pc_shelve (IRQ_VECTOR); 
 
                 wen                     = 1;
@@ -295,6 +329,11 @@ begin: blk1
                 wdata2                  = cpsr_ff;
                 cpsr_nxt[`CPSR_MODE]    = IRQ;
                 // Returns do LR - 4 to get back to the same instruction.
+
+                // assertions_start
+                        irq_addr = wdata1;
+                        irq_ack  = 1'd1;
+                // assertions_end
         end
         else if ( i_instr_abt )
         begin
@@ -307,6 +346,10 @@ begin: blk1
                 wa2    = PHY_ABT_SPSR;
                 wdata2 = cpsr_ff;
                 cpsr_nxt[`CPSR_MODE]  = ABT;
+
+                // assertions_start
+                        iabt_ack = 1'd1;
+                // assertions_end
         end
         else if ( i_swi )
         begin
@@ -319,6 +362,10 @@ begin: blk1
                 wa2                     = PHY_SVC_SPSR;
                 wdata2                  = cpsr_ff;
                 cpsr_nxt[`CPSR_MODE]    = SVC;
+
+                // assertions_start
+                        swi_ack = 1'd1;
+                // assertions_end
         end
         else if ( i_und )
         begin
@@ -331,6 +378,10 @@ begin: blk1
                 wa2                     = PHY_UND_SPSR;
                 wdata2                  = cpsr_ff;
                 cpsr_nxt[`CPSR_MODE]    = UND;
+
+                // assertions_start
+                        und_ack = 1'd1;
+                // assertions_end
         end
         else if ( i_copro_reg_en )
         begin
@@ -358,6 +409,8 @@ begin: blk1
                 // Load to PC will trigger from writeback.
                 if ( i_mem_load_ff && i_wr_index_1 == ARCH_PC)
                 begin
+                        $display($time, " - %m :: Detected load to PC. Trigger a writeback.");
+
                         pc_shelve (i_wr_data_1);
                         o_clear_from_writeback  = 1'd1;
                 end
@@ -367,9 +420,9 @@ begin: blk1
         pc_nxt = pc_nxt & 32'hffff_fffe;
 end
 
-// ----------------------------------------------------------------------------
+// ----------------------------------------------
 // Sequential Logic
-// ----------------------------------------------------------------------------
+// ----------------------------------------------
 
 always @ ( posedge i_clk )
 begin
@@ -395,9 +448,9 @@ begin
         end
 end
 
-// ----------------------------------------------------------------------------
+// ----------------------------------------------
 // Tasks
-// ----------------------------------------------------------------------------
+// ----------------------------------------------
 
 task pc_shelve (input [31:0] new_pc);
 begin
@@ -415,31 +468,30 @@ begin
 end
 endtask
 
-always @ (*)
-if ( cpsr_nxt[`CPSR_MODE] != USR && cpsr_ff[`CPSR_MODE] == USR )
-begin
-        if ( 
-                i_data_abt      || 
-                i_fiq           || 
-                i_irq           || 
-                i_instr_abt     || 
-                i_swi           ||
-                i_und
-         )
+// assertions_start 
+
+        always @ (*)
+        if ( cpsr_nxt[`CPSR_MODE] != USR && cpsr_ff[`CPSR_MODE] == USR )
         begin
-                // OKAY...
+                if ( 
+                        i_data_abt      || 
+                        i_fiq           || 
+                        i_irq           || 
+                        i_instr_abt     || 
+                        i_swi           ||
+                        i_und
+                 )
+                begin
+                        // OKAY...
+                end
+                else
+                begin
+                        $display($time, "Error : %m CPU is changing out of USR mode without an exception...");
+                        $stop;
+                end
         end
-        else
-        begin
-                $display($time, "Error : %m CPU is changing out of USR mode without an exception...");
-                $stop;
-        end
-end
+
+// assertions_end
 
 endmodule // zap_register_file.v
-
 `default_nettype wire
-
-// ----------------------------------------------------------------------------
-// END OF FILE
-// ----------------------------------------------------------------------------

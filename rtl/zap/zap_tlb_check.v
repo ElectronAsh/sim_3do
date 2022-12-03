@@ -89,10 +89,9 @@ output reg [31:0]                       o_far;          // Fault Address Registe
 output reg                              o_cacheable;    // Cacheble stats of the PTE.
 output reg [31:0]                       o_phy_addr;     // Physical address.
 
-// ----------------------------------------------------------------------------
-
 always @*
 begin
+
         // Default values. Taken for MMU disabled esp.
         o_fsr       = 0;        // No fault.
         o_far       = i_va;     // Fault address.
@@ -253,10 +252,6 @@ begin
 end
 endfunction
 
+
 endmodule // zap_tlb_check.v
-
 `default_nettype wire
-
-// ----------------------------------------------------------------------------
-// EOF
-// ----------------------------------------------------------------------------

@@ -480,11 +480,11 @@ else begin
 
 		// IRQs. (FIQ on ARM will be triggered if PENDING and corresponding MASK bits are both SET.)
 															
-		16'h0040: irq0_pend <= irq0_pend |  cpu_din;				// 0x40. Writing to 0x40 SETs irq0_pend bits. 
-		16'h0044: irq0_pend <= irq0_pend & ~cpu_din;				// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
+		16'h0040: begin irq0_pend <= irq0_pend |  cpu_din; $display("Write to irq0_pend SET."); end				// 0x40. Writing to 0x40 SETs irq0_pend bits. 
+		16'h0044: begin irq0_pend <= irq0_pend & ~cpu_din; $display("Write to irq0_pend CLR."); end				// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
 		
-		16'h0048: irq0_enable <= irq0_enable |  cpu_din;	// 0x48. Writing to 0x48 SETs irq0_enable bits.
-		16'h004c: irq0_enable <= irq0_enable & ~cpu_din;	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
+		16'h0048: begin irq0_enable <= irq0_enable |  cpu_din; $display("Write to irq0_enable SET."); end	// 0x48. Writing to 0x48 SETs irq0_enable bits.
+		16'h004c: begin irq0_enable <= irq0_enable & ~cpu_din; $display("Write to irq0_enable CLR."); end	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
 
 		16'h0050: mode <= mode |  cpu_din;		// 0x50. Writing to 0x50 SETs mode bits.
 		16'h0054: mode <= mode & ~cpu_din;		// 0x54. Writing to 0x54 CLEARs mode bits.
@@ -494,11 +494,11 @@ else begin
 		16'h005c: spare <= cpu_din;					// 0x5c. ?
 
 															// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.
-		16'h0060: irq1_pend <= irq1_pend |  cpu_din;		// 0x60. Writing to 0x60 SETs irq1_pend bits.
-		16'h0064: irq1_pend <= irq1_pend & ~cpu_din;		// 0x64. Writing to 0x64 CLEARs irq1_pend bits.
+		16'h0060: begin irq1_pend <= irq1_pend |  cpu_din; $display("Write to irq1_pend SET."); end		// 0x60. Writing to 0x60 SETs irq1_pend bits.
+		16'h0064: begin irq1_pend <= irq1_pend & ~cpu_din; $display("Write to irq1_pend CLR."); end		// 0x64. Writing to 0x64 CLEARs irq1_pend bits.
 		
-		16'h0068: irq1_enable <= irq1_enable |  cpu_din;	// 0x68. Writing to 0x68 SETs irq1_enable bits.
-		16'h006c: irq1_enable <= irq1_enable & ~cpu_din;	// 0x6c. Writing to 0x6c CLEARSs irq1_enable bits.
+		16'h0068: begin irq1_enable <= irq1_enable |  cpu_din; $display("Write to irq1_enable SET."); end	// 0x68. Writing to 0x68 SETs irq1_enable bits.
+		16'h006c: begin irq1_enable <= irq1_enable & ~cpu_din; $display("Write to irq1_enable CLR."); end	// 0x6c. Writing to 0x6c CLEARSs irq1_enable bits.
 
 		// hdelay / adbio stuff...
 		16'h0080: hdelay <= cpu_din;		// 0x80

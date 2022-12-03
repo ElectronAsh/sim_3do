@@ -106,7 +106,6 @@ output wire      [31:0]                 o_dac,
 output wire      [31:0]                 o_baddr,
 output wire                             o_mmu_en,
 output wire      [1:0]                  o_sr,
-output wire                             o_pid,
 output wire                             o_dcache_inv,
 output wire                             o_icache_inv,
 output wire                             o_dcache_clean,
@@ -1163,7 +1162,6 @@ zap_cp15_cb u_zap_cp15_cb (
         .o_baddr                (o_baddr),
         .o_mmu_en               (o_mmu_en),
         .o_sr                   (o_sr),
-        .o_pid                  (o_pid),
         .o_dcache_inv           (o_dcache_inv),
         .o_icache_inv           (o_icache_inv),
         .o_dcache_clean         (o_dcache_clean),
@@ -1192,10 +1190,7 @@ SYS:     CPU_MODE = "SYS";
 default: CPU_MODE = "???";
 endcase
 
+
 endmodule // zap_core.v
 
 `default_nettype wire
-
-// ----------------------------------------------------------------------------
-// EOF
-// ----------------------------------------------------------------------------

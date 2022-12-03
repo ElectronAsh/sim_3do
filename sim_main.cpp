@@ -8,8 +8,11 @@
 //#include <atomic>
 //#include <fstream>
 
-#include <verilated.h>
+#include "wavedrom.h"
+WaveDrom waveDrom;
+static const bool GENERATE_JSON = true;
 
+#include <verilated.h>
 
 #include "Vcore_3do___024root.h"
 #include "Vcore_3do.h"
@@ -50,6 +53,8 @@ static int                      g_VertexBufferSize = 5000, g_IndexBufferSize = 1
 
 // Instantiation of module.
 Vcore_3do* top = new Vcore_3do;
+
+bool next_ack = 0;
 
 bool rom_select = 0;	// Select the BIOS ROM at startup! (not Kanji).
 
@@ -95,6 +100,11 @@ uint32_t vint1_reg;
 
 uint32_t cur_pc;
 uint32_t old_pc;
+
+bool madam_cs;
+bool clio_cs;
+bool svf_cs;
+bool svf2_cs;
 
 bool dump_ram = 0;
 
@@ -705,24 +715,17 @@ int verilate() {
 							  (ram_ptr[word_addr&0x7FFFF]&0x000000FF)<<24;
 			*/
 
-			top->i_wb_ack = 0;
-			
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_predecode__DOT__o_pc_ff;
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff;
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__i_pc_ff;
-
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_pc;
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff;
-
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff;
-
-			cur_pc = 0x00000000;
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__fetch_pc_ff;
+			cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__fifo_pc_plus_8;
 
 			//trace = 1;
 
-			if (top->o_wb_stb) {
-				top->i_wb_ack = 1;
+			if (top->i_wb_ack) next_ack = 0;
+			top->i_wb_ack = next_ack;
 
+			if (top->o_wb_stb) next_ack = 1;
+
+			if (top->o_wb_stb && top->i_wb_ack) {
 				//if (cur_pc==0x03000EF4) trace = 1;
 
 				if (trace) {
@@ -733,149 +736,194 @@ int verilate() {
 					}
 				}
 
+				/*
+				uint32_t rom_test = (rom_ptr[top->rootp->core_3do__DOT__arm_pc & 0x3FFFF] & 0xFF000000) >> 24 |
+					(rom_ptr[top->rootp->core_3do__DOT__arm_pc & 0x3FFFF] & 0x00FF0000) >> 8 |
+					(rom_ptr[top->rootp->core_3do__DOT__arm_pc & 0x3FFFF] & 0x0000FF00) << 8 |
+					(rom_ptr[top->rootp->core_3do__DOT__arm_pc & 0x3FFFF] & 0x000000FF) << 24;
+
+				top->rootp->core_3do__DOT__arm_inst = rom_test;
+				*/
+
 				//if (top->o_wb_adr==0x03400084) trace = 1;
 				//if (trace) fprintf(logfile, "PC: 0x%08X \n", cur_pc);
 
-				if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/ ) fprintf(logfile, "Addr: 0x%08X ", top->o_wb_adr);
+				if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/) fprintf(logfile, "Addr: 0x%08X ", top->o_wb_adr);
 
 				// Tech manual suggests "Any write to this area will unmap the BIOS".
-				if (top->o_wb_adr>=0x00000000 && top->o_wb_dat<=0x001FFFFF && top->o_wb_we) map_bios = 0;
-				//if (top->o_wb_adr>=0x00000000 && top->o_wb_dat<=0x00000000 && top->o_wb_we) map_bios = 0;
+				//if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x001FFFFF && top->o_wb_we) map_bios = 0;
+				if (top->o_wb_adr>=0x00000000 && top->o_wb_dat<=0x00000000 && top->o_wb_we) map_bios = 0;
 
 				// Main RAM reads...
-					 if (top->o_wb_adr>=0x00000118 && top->o_wb_adr<=0x00000118) top->i_wb_dat = 0xE3A00000;	// MOV R0, #0. Clear R0 ! TESTING! Skip big delay.
+				if (top->o_wb_adr >= 0x00000118 && top->o_wb_adr <= 0x00000118) top->i_wb_dat = 0xE3A00000;	// MOV R0, #0. Clear R0 ! TESTING! Skip big delay.
+				//else if (top->o_wb_adr >= 0x00014f6c && top->o_wb_adr <= 0x00014f6f) top->i_wb_dat = 0xE1A00000;	// NOP ! SWI Overrun thing.
 				//else if (top->o_wb_adr>=0x00000050 && top->o_wb_adr<=0x00000050) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) TESTING !
 				//else if (top->o_wb_adr>=0x0000095C && top->o_wb_adr<=0x000009F0) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) TESTING !
-				else if (top->o_wb_adr>=0x00000000 && top->o_wb_adr<=0x001FFFFF) { if (map_bios && rom_select==0) top->i_wb_dat = rom_byteswapped;
-																				   else if (map_bios && rom_select==1) top->i_wb_dat = rom2_byteswapped;
-																				   else { top->i_wb_dat = ram_ptr[word_addr&0x7FFFF]; } }
+				else if (top->o_wb_adr >= 0x00000000 && top->o_wb_adr <= 0x001FFFFF) {
+					if (map_bios && rom_select == 0) top->i_wb_dat = rom_byteswapped;
+					else if (map_bios && rom_select == 1) top->i_wb_dat = rom2_byteswapped;
+					else { top->i_wb_dat = ram_ptr[word_addr & 0x7FFFF]; }
+				}
 
-				else if (top->o_wb_adr>=0x00200000 && top->o_wb_adr<=0x002FFFFF) { /*fprintf(logfile, "VRAM            ");*/ top->i_wb_dat = vram_ptr[word_addr&0x3FFFF]; /*if (top->o_wb_we) vram_ptr[word_addr&0x7FFFF] = top->o_wb_dat;*/ }
+				else if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x002FFFFF) { /*fprintf(logfile, "VRAM            ");*/ top->i_wb_dat = vram_ptr[word_addr & 0x3FFFF]; /*if (top->o_wb_we) vram_ptr[word_addr&0x7FFFF] = top->o_wb_dat;*/ }
 				
 				// BIOS reads...
 				//else if (top->o_wb_adr>=0x03000218 && top->o_wb_adr<=0x03000220) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip t2_testmemory and BeepsAndHold. TESTING!
-				
-				else if (top->o_wb_adr>=0x03000510 && top->o_wb_adr<=0x03000510) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
-				else if (top->o_wb_adr>=0x03000504 && top->o_wb_adr<=0x0300050C) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
+
+				else if (top->o_wb_adr >= 0x03000510 && top->o_wb_adr <= 0x03000510) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
+				else if (top->o_wb_adr >= 0x03000504 && top->o_wb_adr <= 0x0300050C) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
 				//else if (top->o_wb_adr>=0x03000340 && top->o_wb_adr<=0x03000340) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip endless loop on mem size check fail.
-				else if (top->o_wb_adr>=0x030006a8 && top->o_wb_adr<=0x030006b0) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip test_vram_svf. TESTING !!
+				else if (top->o_wb_adr >= 0x030006a8 && top->o_wb_adr <= 0x030006b0) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip test_vram_svf. TESTING !!
 				//else if (top->o_wb_adr>=0x030008E0 && top->o_wb_adr<=0x03000944) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0)
 				//else if (top->o_wb_adr>=0x0300056C && top->o_wb_adr<=0x0300056C) top->i_wb_dat = 0xE888001F;	// STM fix. TESTING !!
-				else if (top->o_wb_adr>=0x03000000 && top->o_wb_adr<=0x030FFFFF) { /*fprintf(logfile, "BIOS            ");*/ top->i_wb_dat = rom_byteswapped; }
-				
-				else if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x03100020) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0xBADACCE5; }
+				else if (top->o_wb_adr >= 0x03000000 && top->o_wb_adr <= 0x030FFFFF) { /*fprintf(logfile, "BIOS            ");*/ top->i_wb_dat = rom_byteswapped; }
+
+				else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x03100020) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0xBADACCE5; }
 				//else if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0x0000006A; /*line_count = 0; vcnt_max=262;*/ }	// Spoof the first read value.
 
-				else if (top->o_wb_adr>=0x03140000 && top->o_wb_adr<=0x0315FFFF) { fprintf(logfile, "NVRAM           "); }
-				else if (top->o_wb_adr==0x03180000 && top->o_wb_we) {  fprintf(logfile, "DiagPort        "); shift_reg = 0x2000; }
-				else if (top->o_wb_adr==0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = 0x00000000; }
+				else if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315FFFF) { fprintf(logfile, "NVRAM           "); }
+				else if (top->o_wb_adr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); shift_reg = 0x2000; }
+				else if (top->o_wb_adr == 0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = 0x00000000; }
 				//else if (top->o_wb_adr==0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = (shift_reg&0x8000)>>15; shift_reg=shift_reg<<1; }
-				else if (top->o_wb_adr>=0x03180004 && top->o_wb_adr<=0x031BFFFF) { fprintf(logfile, "Slow Bus        "); }
-				else if (top->o_wb_adr>=0x03200000 && top->o_wb_adr<=0x0320FFFF) { fprintf(logfile, "VRAM SVF        "); top->i_wb_dat = 0xBADACCE5; }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x032F0000 && top->o_wb_adr<=0x032FFFFF) { fprintf(logfile, "Unknown         "); top->i_wb_dat = 0xBADACCE5; }	// Dummy reads for now.
-			
+				else if (top->o_wb_adr >= 0x03180004 && top->o_wb_adr <= 0x031BFFFF) { fprintf(logfile, "Slow Bus        "); }
+				else if (top->o_wb_adr >= 0x03200000 && top->o_wb_adr <= 0x0320FFFF) { fprintf(logfile, "VRAM SVF        "); top->i_wb_dat = 0xBADACCE5; }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x032F0000 && top->o_wb_adr <= 0x032FFFFF) { fprintf(logfile, "Unknown         "); top->i_wb_dat = 0xBADACCE5; }	// Dummy reads for now.
+
 				// MADAM...
-				else if (top->o_wb_adr==0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); /*top->i_wb_dat = 0x01020000;*/ }
-				else if (top->o_wb_adr==0x03300000 && top->o_wb_we)  { fprintf(logfile, "MADAM Print     "); MyAddLog("%c", top->o_wb_dat&0xff); printf("%c", top->o_wb_dat&0xff); }
-				
-				else if (top->o_wb_adr==0x03300004 && top->o_wb_we)  { fprintf(logfile, "MADAM msysbits  "); /*msys_reg = top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); /*top->i_wb_dat = 0x01020000;*/ }
+				else if (top->o_wb_adr == 0x03300000 && top->o_wb_we) { fprintf(logfile, "MADAM Print     "); MyAddLog("%c", top->o_wb_dat & 0xff); printf("%c", top->o_wb_dat & 0xff); }
+
+				else if (top->o_wb_adr == 0x03300004 && top->o_wb_we) { fprintf(logfile, "MADAM msysbits  "); /*msys_reg = top->o_wb_dat;*/ }
 				//else if (top->o_wb_adr==0x03300004 && !top->o_wb_we) { fprintf(logfile, "MADAM msysbits  "); top->i_wb_dat = msys_reg; }
-				else if (top->o_wb_adr==0x03300004 && !top->o_wb_we) { fprintf(logfile, "MADAM msysbits  "); /*top->i_wb_dat = 0x00000029;*/ }
+				else if (top->o_wb_adr == 0x03300004 && !top->o_wb_we) { fprintf(logfile, "MADAM msysbits  "); /*top->i_wb_dat = 0x00000029;*/ }
 
-				else if (top->o_wb_adr==0x03300008 && top->o_wb_we)  { fprintf(logfile, "MADAM mctl      "); /*mctl_reg = top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x03300008 && !top->o_wb_we) { fprintf(logfile, "MADAM mctl      "); /*top->i_wb_dat = mctl_reg;*/ }
-				else if (top->o_wb_adr==0x0330000C && top->o_wb_we)  { fprintf(logfile, "MADAM sltime    "); /*sltime_reg = top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x0330000C && !top->o_wb_we) { fprintf(logfile, "MADAM sltime    "); /*top->i_wb_dat = sltime_reg;*/ }
-				else if (top->o_wb_adr==0x03300020 && !top->o_wb_we) { fprintf(logfile, "MADAM abortbits "); /*top->i_wb_dat = abortbits;*/ }
-				else if (top->o_wb_adr==0x03300020 && top->o_wb_we) { fprintf(logfile, "MADAM abortbits "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x03300574 && !top->o_wb_we) { fprintf(logfile, "MADAM PBUS thing"); /*top->i_wb_dat = 0xFFFFFFFC;*/ }
-				else if (top->o_wb_adr==0x03300580 && top->o_wb_we)  { fprintf(logfile, "MADAM vdl_addr! "); /*vdl_addr_reg = top->o_wb_dat;*/ }
-				else if (top->o_wb_adr>=0x03300000 && top->o_wb_adr<=0x033FFFFF) { fprintf(logfile, "MADAM           "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads.
-				
+				else if (top->o_wb_adr == 0x03300008 && top->o_wb_we) { fprintf(logfile, "MADAM mctl      "); /*mctl_reg = top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03300008 && !top->o_wb_we) { fprintf(logfile, "MADAM mctl      "); /*top->i_wb_dat = mctl_reg;*/ }
+				else if (top->o_wb_adr == 0x0330000C && top->o_wb_we) { fprintf(logfile, "MADAM sltime    "); /*sltime_reg = top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x0330000C && !top->o_wb_we) { fprintf(logfile, "MADAM sltime    "); /*top->i_wb_dat = sltime_reg;*/ }
+				else if (top->o_wb_adr == 0x03300020 && !top->o_wb_we) { fprintf(logfile, "MADAM abortbits "); /*top->i_wb_dat = abortbits;*/ }
+				else if (top->o_wb_adr == 0x03300020 && top->o_wb_we) { fprintf(logfile, "MADAM abortbits "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x03300574 && !top->o_wb_we) { fprintf(logfile, "MADAM PBUS thing"); /*top->i_wb_dat = 0xFFFFFFFC;*/ }
+				else if (top->o_wb_adr == 0x03300580 && top->o_wb_we) { fprintf(logfile, "MADAM vdl_addr! "); /*vdl_addr_reg = top->o_wb_dat;*/ }
+				else if (top->o_wb_adr >= 0x03300000 && top->o_wb_adr <= 0x033FFFFF) { fprintf(logfile, "MADAM           "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads.
+
 				// CLIO...
-				else if (top->o_wb_adr==0x03400000 && !top->o_wb_we) { fprintf(logfile, "CLIO Revision   "); /*top->i_wb_dat = 0x02020000;*/ }
-				else if (top->o_wb_adr==0x03400004 && top->o_wb_we) { fprintf(logfile, "CLIO vint0      "); /*vint0_reg = top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x03400004 && !top->o_wb_we) { fprintf(logfile, "CLIO vint0      "); /*top->i_wb_dat = vint0_reg;*/ }
-				else if (top->o_wb_adr==0x0340000C && top->o_wb_we) { fprintf(logfile, "CLIO vint1      "); /*vint1_reg = top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x0340000C && !top->o_wb_we) { fprintf(logfile, "CLIO vint1      "); /*top->i_wb_dat = vint1_reg;*/ }
+				else if (top->o_wb_adr == 0x03400000 && !top->o_wb_we) { fprintf(logfile, "CLIO Revision   "); /*top->i_wb_dat = 0x02020000;*/ }
+				else if (top->o_wb_adr == 0x03400004 && top->o_wb_we) { fprintf(logfile, "CLIO vint0      "); /*vint0_reg = top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03400004 && !top->o_wb_we) { fprintf(logfile, "CLIO vint0      "); /*top->i_wb_dat = vint0_reg;*/ }
+				else if (top->o_wb_adr == 0x0340000C && top->o_wb_we) { fprintf(logfile, "CLIO vint1      "); /*vint1_reg = top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x0340000C && !top->o_wb_we) { fprintf(logfile, "CLIO vint1      "); /*top->i_wb_dat = vint1_reg;*/ }
 
-				else if (top->o_wb_adr==0x03400024) { fprintf(logfile, "CLIO audout     "); /*top->i_wb_dat = 0;*/ }
+				else if (top->o_wb_adr == 0x03400024) { fprintf(logfile, "CLIO audout     "); /*top->i_wb_dat = 0;*/ }
 
-				else if (top->o_wb_adr==0x03400028 && top->o_wb_we)  { fprintf(logfile, "CLIO cstatbits  "); /*cstat_reg = top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x03400028 && !top->o_wb_we) { fprintf(logfile, "CLIO cstatbits  "); /*top->i_wb_dat = cstat_reg;*/ }	// bit 6 = ? bit 0 = Reset of CLIO caused by power-on.
-				else if (top->o_wb_adr==0x03400034 && top->o_wb_we)  { fprintf(logfile, "CLIO vcnt       "); /*clio_vcnt = top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x03400034 && !top->o_wb_we) { fprintf(logfile, "CLIO vcnt       "); /*top->i_wb_dat = (field<<11) | line_count;*/ }
-				
-				else if (top->o_wb_adr==0x03400040 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 set   "); /*irq0 |= top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x03400044 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 clear "); /*irq0 &= ~top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x03400048 && top->o_wb_we) { fprintf(logfile, "CLIO mask0 set  "); /*mask0 |= top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x0340004c && top->o_wb_we) { fprintf(logfile, "CLIO mask0 clear"); /*mask0 &= ~top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03400028 && top->o_wb_we) { fprintf(logfile, "CLIO cstatbits  "); /*cstat_reg = top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03400028 && !top->o_wb_we) { fprintf(logfile, "CLIO cstatbits  "); /*top->i_wb_dat = cstat_reg;*/ }	// bit 6 = ? bit 0 = Reset of CLIO caused by power-on.
+				else if (top->o_wb_adr == 0x03400034 && top->o_wb_we) { fprintf(logfile, "CLIO vcnt       "); /*clio_vcnt = top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03400034 && !top->o_wb_we) { fprintf(logfile, "CLIO vcnt       "); /*top->i_wb_dat = (field<<11) | line_count;*/ }
 
-				else if (top->o_wb_adr==0x03400060 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 set   "); /*irq1 |= top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x03400064 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 clear "); /*irq1 &= ~top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x03400068 && top->o_wb_we) { fprintf(logfile, "CLIO mask1 set  "); /*mask1 |= top->o_wb_dat;*/ }
-				else if (top->o_wb_adr==0x0340006c && top->o_wb_we) { fprintf(logfile, "CLIO mask1 clear"); /*mask1 &= ~top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03400040 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 set   "); /*irq0 |= top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03400044 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 clear "); /*irq0 &= ~top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03400048 && top->o_wb_we) { fprintf(logfile, "CLIO mask0 set  "); /*mask0 |= top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x0340004c && top->o_wb_we) { fprintf(logfile, "CLIO mask0 clear"); /*mask0 &= ~top->o_wb_dat;*/ }
 
-				else if (top->o_wb_adr>=0x03400040 && top->o_wb_adr<=0x03400044 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 read   "); /*top->i_wb_dat = irq0;*/ }
-				else if (top->o_wb_adr>=0x03400048 && top->o_wb_adr<=0x0340004C && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read  "); /*top->i_wb_dat = mask0;*/ }
+				else if (top->o_wb_adr == 0x03400060 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 set   "); /*irq1 |= top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03400064 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 clear "); /*irq1 &= ~top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x03400068 && top->o_wb_we) { fprintf(logfile, "CLIO mask1 set  "); /*mask1 |= top->o_wb_dat;*/ }
+				else if (top->o_wb_adr == 0x0340006c && top->o_wb_we) { fprintf(logfile, "CLIO mask1 clear"); /*mask1 &= ~top->o_wb_dat;*/ }
 
-				else if (top->o_wb_adr>=0x03400060 && top->o_wb_adr<=0x03400064 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 read   "); /*top->i_wb_dat = irq1;*/ }
-				else if (top->o_wb_adr>=0x03400068 && top->o_wb_adr<=0x0340006C && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read  "); /*top->i_wb_dat = mask1;*/ }
+				else if (top->o_wb_adr >= 0x03400040 && top->o_wb_adr <= 0x03400044 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 read   "); /*top->i_wb_dat = irq0;*/ }
+				else if (top->o_wb_adr >= 0x03400048 && top->o_wb_adr <= 0x0340004C && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read  "); /*top->i_wb_dat = mask0;*/ }
 
-				else if (top->o_wb_adr==0x03400080) { fprintf(logfile, "CLIO hdelay     "); /*top->i_wb_dat = 0;*/ }
-				else if (top->o_wb_adr==0x03400084 && !top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); /*top->i_wb_dat = 0;*/ }
-				else if (top->o_wb_adr==0x03400084 && top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); rom_select = (top->o_wb_dat&0x40); }
-				else if (top->o_wb_adr==0x03400088) { fprintf(logfile, "CLIO adbctl     "); /*top->i_wb_dat = 0;*/ }
-				else if (top->o_wb_adr>=0x03400100 && top->o_wb_adr<=0x0340017F && !(top->o_wb_adr&4) ) { fprintf(logfile, "CLIO timer_cnt  "); /*top->i_wb_dat = 0x00000040;*/ }
-				else if (top->o_wb_adr>=0x03400100 && top->o_wb_adr<=0x0340017F && (top->o_wb_adr&4) ) { fprintf(logfile, "CLIO timer_bkp  "); /*top->i_wb_dat = 0x00000040;*/ }
-				else if (top->o_wb_adr==0x03400200) { fprintf(logfile, "CLIO timer1_set "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x03400204) { fprintf(logfile, "CLIO timer1_clr "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x03400208) { fprintf(logfile, "CLIO timer2_set "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x0340020C) { fprintf(logfile, "CLIO timer2_clr "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x03400220) { fprintf(logfile, "CLIO slack      "); /*top->i_wb_dat = 0x00000040;*/ }
-				else if (top->o_wb_adr==0x03400304) { fprintf(logfile, "CLIO dma        "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x03400308) { fprintf(logfile, "CLIO dmareqdis  "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x03400400) { fprintf(logfile, "CLIO expctl_set "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x03400404) { fprintf(logfile, "CLIO expctl_clr "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x03400408) { fprintf(logfile, "CLIO type0_4    "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x03400410) { fprintf(logfile, "CLIO dipir1     "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr==0x03400414) { fprintf(logfile, "CLIO dipir2     "); /*top->i_wb_dat = 0x00004000;*/ }
-				else if (top->o_wb_adr>=0x03400500 && top->o_wb_adr<=0x0340053f) { fprintf(logfile, "CLIO sel        "); /*top->i_wb_dat = 0x00000000;*/ }
-				else if (top->o_wb_adr>=0x03400540 && top->o_wb_adr<=0x0340057f) { fprintf(logfile, "CLIO poll       "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr >= 0x03400060 && top->o_wb_adr <= 0x03400064 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 read   "); /*top->i_wb_dat = irq1;*/ }
+				else if (top->o_wb_adr >= 0x03400068 && top->o_wb_adr <= 0x0340006C && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read  "); /*top->i_wb_dat = mask1;*/ }
 
-				else if (top->o_wb_adr>=0x034017d0 && top->o_wb_adr<=0x034017d0) { fprintf(logfile, "CLIO sema       "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x034017d4 && top->o_wb_adr<=0x034017d4) { fprintf(logfile, "CLIO semaack    "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x034017e0 && top->o_wb_adr<=0x034017e0) { fprintf(logfile, "CLIO dspdma     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x034017e4 && top->o_wb_adr<=0x034017e4) { fprintf(logfile, "CLIO dspprst0   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x034017e8 && top->o_wb_adr<=0x034017e8) { fprintf(logfile, "CLIO dspprst1   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x034017f4 && top->o_wb_adr<=0x034017f4) { fprintf(logfile, "CLIO dspppc     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x034017f8 && top->o_wb_adr<=0x034017f8) { fprintf(logfile, "CLIO dsppnr     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x034017fc && top->o_wb_adr<=0x034017fc) { fprintf(logfile, "CLIO dsppgw     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x034039dc && top->o_wb_adr<=0x034039dc) { fprintf(logfile, "CLIO dsppclkreload"); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr == 0x03400080) { fprintf(logfile, "CLIO hdelay     "); /*top->i_wb_dat = 0;*/ }
+				else if (top->o_wb_adr == 0x03400084 && !top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); /*top->i_wb_dat = 0;*/ }
+				else if (top->o_wb_adr == 0x03400084 && top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); rom_select = (top->o_wb_dat & 0x40); }
+				else if (top->o_wb_adr == 0x03400088) { fprintf(logfile, "CLIO adbctl     "); /*top->i_wb_dat = 0;*/ }
+				else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && !(top->o_wb_adr & 4)) { fprintf(logfile, "CLIO timer_cnt  "); /*top->i_wb_dat = 0x00000040;*/ }
+				else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && (top->o_wb_adr & 4)) { fprintf(logfile, "CLIO timer_bkp  "); /*top->i_wb_dat = 0x00000040;*/ }
+				else if (top->o_wb_adr == 0x03400200) { fprintf(logfile, "CLIO timer1_set "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x03400204) { fprintf(logfile, "CLIO timer1_clr "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x03400208) { fprintf(logfile, "CLIO timer2_set "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x0340020C) { fprintf(logfile, "CLIO timer2_clr "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x03400220) { fprintf(logfile, "CLIO slack      "); /*top->i_wb_dat = 0x00000040;*/ }
+				else if (top->o_wb_adr == 0x03400304) { fprintf(logfile, "CLIO dma        "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x03400308) { fprintf(logfile, "CLIO dmareqdis  "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x03400400) { fprintf(logfile, "CLIO expctl_set "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x03400404) { fprintf(logfile, "CLIO expctl_clr "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x03400408) { fprintf(logfile, "CLIO type0_4    "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x03400410) { fprintf(logfile, "CLIO dipir1     "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr == 0x03400414) { fprintf(logfile, "CLIO dipir2     "); /*top->i_wb_dat = 0x00004000;*/ }
+				else if (top->o_wb_adr >= 0x03400500 && top->o_wb_adr <= 0x0340053f) { fprintf(logfile, "CLIO sel        "); /*top->i_wb_dat = 0x00000000;*/ }
+				else if (top->o_wb_adr >= 0x03400540 && top->o_wb_adr <= 0x0340057f) { fprintf(logfile, "CLIO poll       "); /*top->i_wb_dat = 0x00000000;*/ }
 
-				else if (top->o_wb_adr>=0x03401800 && top->o_wb_adr<=0x03401fff) { fprintf(logfile, "CLIO DSPP  N 32 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x03402000 && top->o_wb_adr<=0x03402fff) { fprintf(logfile, "CLIO DSPP  N 16 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x03403000 && top->o_wb_adr<=0x034031ff) { fprintf(logfile, "CLIO DSPP EI 32 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x03403400 && top->o_wb_adr<=0x034037ff) { fprintf(logfile, "CLIO DSPP EI 16 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x0340C000 && top->o_wb_adr<=0x0340C000) { fprintf(logfile, "CLIO unc_rev    "); /*top->i_wb_dat = 0x03800000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x0340C000 && top->o_wb_adr<=0x0340C004) { fprintf(logfile, "CLIO unc_soft_rv"); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x0340C000 && top->o_wb_adr<=0x0340C008) { fprintf(logfile, "CLIO unc_addr   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x0340C000 && top->o_wb_adr<=0x0340C00C) { fprintf(logfile, "CLIO unc_rom    "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-				else if (top->o_wb_adr>=0x03400000 && top->o_wb_adr<=0x034FFFFF) { fprintf(logfile, "CLIO            "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x034017d0 && top->o_wb_adr <= 0x034017d0) { fprintf(logfile, "CLIO sema       "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x034017d4 && top->o_wb_adr <= 0x034017d4) { fprintf(logfile, "CLIO semaack    "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x034017e0 && top->o_wb_adr <= 0x034017e0) { fprintf(logfile, "CLIO dspdma     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x034017e4 && top->o_wb_adr <= 0x034017e4) { fprintf(logfile, "CLIO dspprst0   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x034017e8 && top->o_wb_adr <= 0x034017e8) { fprintf(logfile, "CLIO dspprst1   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x034017f4 && top->o_wb_adr <= 0x034017f4) { fprintf(logfile, "CLIO dspppc     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x034017f8 && top->o_wb_adr <= 0x034017f8) { fprintf(logfile, "CLIO dsppnr     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x034017fc && top->o_wb_adr <= 0x034017fc) { fprintf(logfile, "CLIO dsppgw     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x034039dc && top->o_wb_adr <= 0x034039dc) { fprintf(logfile, "CLIO dsppclkreload"); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+
+				else if (top->o_wb_adr >= 0x03401800 && top->o_wb_adr <= 0x03401fff) { fprintf(logfile, "CLIO DSPP  N 32 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x03402000 && top->o_wb_adr <= 0x03402fff) { fprintf(logfile, "CLIO DSPP  N 16 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x03403000 && top->o_wb_adr <= 0x034031ff) { fprintf(logfile, "CLIO DSPP EI 32 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x03403400 && top->o_wb_adr <= 0x034037ff) { fprintf(logfile, "CLIO DSPP EI 16 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C000) { fprintf(logfile, "CLIO unc_rev    "); /*top->i_wb_dat = 0x03800000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C004) { fprintf(logfile, "CLIO unc_soft_rv"); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C008) { fprintf(logfile, "CLIO unc_addr   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C00C) { fprintf(logfile, "CLIO unc_rom    "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+				else if (top->o_wb_adr >= 0x03400000 && top->o_wb_adr <= 0x034FFFFF) { fprintf(logfile, "CLIO            "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
 				else /*top->i_wb_dat = 0xBADACCE5*/;	// Dummy reads for now.
 
 				//if (top->o_wb_sel != 0xF) fprintf(logfile, "BYTE! ");
 
-				if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/ ) {
+				madam_cs = (top->o_wb_adr >= 0x03300000 && top->o_wb_adr <= 0x0330FFFF);
+				clio_cs = (top->o_wb_adr >= 0x03400000 && top->o_wb_adr <= 0x0340FFFF);
+				svf_cs = (top->o_wb_adr == 0x03206100 || top->o_wb_adr == 0x03206900);
+				svf2_cs = (top->o_wb_adr == 0x032002B4);
+
+				uint32_t read_data = (madam_cs) ? top->rootp->core_3do__DOT__madam_dout :
+					(clio_cs) ? top->rootp->core_3do__DOT__clio_dout :
+					(svf_cs) ? 0xBADACCE5 :
+					(svf2_cs) ? 0x00000000 :
+					top->i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM etc.)
+
+				if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/) {
 					//if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)  o_wb_sel: 0x%01X  o_wb_bte: 0x%01X\n", top->i_wb_dat, cur_pc, top->o_wb_sel, top->o_wb_bte);
 					if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);	// Disabling BE bit printf for now. (sync with Opera).
-					else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->i_wb_dat, cur_pc);
+					//else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat, cur_pc);
+					else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", read_data, cur_pc);
 				}
 
-				bool is_bios = top->o_wb_adr>=0x03000000 && top->o_wb_adr<=0x030FFFFF;
-				bool is_ram  = top->o_wb_adr>=0x00000000 && top->o_wb_adr<=0x001FFFFF;
+				/*
+				if (GENERATE_JSON && top->sys_clk && (madam_cs || clio_cs || svf_cs || svf2_cs) && top->o_wb_cti!=7) {
+					waveDrom["clock"].add(top->sys_clk);
+					waveDrom["o_wb_adr"].add(top->o_wb_adr);
+					waveDrom["i_wb_dat"].add(top->i_wb_dat);
+					waveDrom["o_wb_dat"].add(top->o_wb_dat);
+					waveDrom["o_wb_stb"].add(top->o_wb_stb);
+					waveDrom["i_wb_ack"].add(top->i_wb_ack);
+					waveDrom["write"].add(top->o_wb_we);
+				}
+				*/
+
+				if (GENERATE_JSON && top->reset_n) {
+					waveDrom["clock"].add(top->sys_clk);
+					waveDrom["o_wb_adr"].add(top->o_wb_adr);
+					waveDrom["i_wb_dat"].add(top->i_wb_dat);
+					waveDrom["o_wb_dat"].add(top->o_wb_dat);
+					waveDrom["o_wb_stb"].add(top->o_wb_stb);
+					waveDrom["i_wb_ack"].add(top->i_wb_ack);
+					waveDrom["write"].add(top->o_wb_we);
+				}
 
 				/*
+				bool is_bios = top->o_wb_adr>=0x03000000 && top->o_wb_adr<=0x030FFFFF;
+				bool is_ram  = top->o_wb_adr>=0x00000000 && top->o_wb_adr<=0x001FFFFF;
 					 if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x0A ) printf("Addr: 0x%08X BEQ!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
 				else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x1A ) printf("Addr: 0x%08X BNE!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
 				else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x2A ) printf("Addr: 0x%08X BCS!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
@@ -907,7 +955,7 @@ int verilate() {
 			*/
 
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff;
-			cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_pc;		// Seem to match more closely to the real PC, but still jumping around?
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_pc;		// Seems to match more closely to the real PC, but still jumping around?
 
 			/*
 			if (old_pc != cur_pc) {
@@ -1053,6 +1101,7 @@ int verilate() {
 
 		return 1;
 	}
+
 	// Stop Verilating...
 	top->final();
 	delete top;
@@ -1232,6 +1281,16 @@ int main(int argc, char** argv, char** env) {
 	top->rootp->core_3do__DOT__matrix_inst__DOT__MV1_in  = 0x44880000;
 	top->rootp->core_3do__DOT__matrix_inst__DOT__MV2_in  = 0x00444444;
 
+	if (GENERATE_JSON) {
+		waveDrom.add(WaveDromSignal("clock"));
+		waveDrom.add(WaveDromSignal("o_wb_adr", true));
+		waveDrom.add(WaveDromSignal("i_wb_dat", true));
+		waveDrom.add(WaveDromSignal("o_wb_dat", true));
+		waveDrom.add(WaveDromSignal("o_wb_stb"));
+		waveDrom.add(WaveDromSignal("i_wb_ack"));
+		waveDrom.add(WaveDromSignal("write"));
+	}
+
 	// Our state
 	bool show_demo_window = true;
 	bool show_another_window = false;
@@ -1283,7 +1342,8 @@ int main(int argc, char** argv, char** env) {
 		D3D11_SAMPLER_DESC desc;
 		ZeroMemory(&desc, sizeof(desc));
 		//desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;	// LERP.
-		desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;		// Point sampling.
+		desc.Filter = D3D11_FILTER_ANISOTROPIC;
+		//desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;		// Point sampling.
 		desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 		desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
 		desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -1418,7 +1478,6 @@ int main(int argc, char** argv, char** env) {
 		//bool firq_button_pressed = ImGui::Button("Tickle FIRQ");
 		//if (trig_fiq==0 && firq_button_pressed) trig_fiq = 1;
 
-
 		ImGui::Image(my_tex_id, ImVec2(width*2, height*2), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
 		ImGui::End();
 
@@ -1451,7 +1510,13 @@ int main(int argc, char** argv, char** env) {
 
 			//if (top->rootp->o_wb_adr>=0x03400100 && top->rootp->o_wb_adr<=0x03400180 && top->rootp->o_wb_we && top->rootp->o_wb_stb) { run_enable=0; break; }	// Stop on CLIO timer access.
 			
-			if (cur_pc==0x0001162c) { run_enable=0; second_stop=1; break; }
+			//Is this a folio we are pointing to now?
+			//teq	r9,#0
+			//beq	aborttask
+			
+			//if (cur_pc==0x0001162c) { run_enable=0; second_stop=1; break; }
+
+			if (cur_pc==0x00010460) { run_enable=0; second_stop=1; break; }
 
 			//if (cur_pc==0x00011624) { run_enable=0; second_stop=1; break; }
 			//if (second_stop && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r9==0) { run_enable=0; break; }
@@ -1507,21 +1572,21 @@ int main(int argc, char** argv, char** env) {
 		else ImGui::Text("    Unknown    ");
 
 		//ImGui::Text("          PC: 0x%08X", top->rootp->core_3do__DOT__a23_core_inst__DOT__u_execute__DOT__u_register_bank__DOT__o_pc);
-		ImGui::Text("    o_wb_adr: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_adr);
-		ImGui::Text("    i_wb_dat: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat);
+		ImGui::Text("    o_wb_adr: 0x%08X", top->o_wb_adr);
+		ImGui::Text("    i_wb_dat: 0x%08X", top->i_wb_dat);
 		ImGui::Separator();
-		ImGui::Text("    o_wb_dat: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_dat);
-		ImGui::Text("     o_wb_we: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_we); ImGui::SameLine(); if (!top->rootp->o_wb_we) ImGui::Text(" Read"); else ImGui::Text(" Write");
-		ImGui::Text("    o_wb_sel: 0x%01X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_sel);
-		ImGui::Text("    o_wb_cyc: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_cyc);
-		ImGui::Text("    o_wb_stb: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_stb);
-		ImGui::Text("    i_wb_ack: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_ack);
+		ImGui::Text("    o_wb_dat: 0x%08X", top->o_wb_dat);
+		ImGui::Text("     o_wb_we: %d", top->o_wb_we); ImGui::SameLine(); if (!top->rootp->o_wb_we) ImGui::Text(" Read"); else ImGui::Text(" Write");
+		ImGui::Text("    o_wb_sel: 0x%01X", top->o_wb_sel);
+		ImGui::Text("    o_wb_cyc: %d", top->o_wb_cyc);
+		ImGui::Text("    o_wb_stb: %d", top->o_wb_stb);
+		ImGui::Text("    i_wb_ack: %d", top->i_wb_ack);
 		ImGui::Separator();
 		ImGui::Text("       i_fiq: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_fiq); 
 		ImGui::Separator();
 		ImGui::Text("    Zap...");
-		ImGui::Text("    o_wb_cti: 0x%01X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_cti);
-		ImGui::Text("    o_wb_bte: 0x%01X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_bte);
+		ImGui::Text("    o_wb_cti: 0x%01X", top->o_wb_cti);
+		ImGui::Text("    o_wb_bte: 0x%01X", top->o_wb_bte);
 		ImGui::Text("  i_mem_addr: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__i_mem_address_ff2);
 		/*
 		ImGui::Text("       sbyte: %d", top->rootp->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__sbyte);
@@ -1546,24 +1611,40 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("         op2: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__op2);
 		ImGui::Text("      opcode: 0x%01X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__opcode);
 
+		uint32_t reg_src = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__o_alu_source_ff;
+		uint32_t reg_dst = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__o_destination_index_ff;
+		ImVec4 reg_col [40];
+		for (int i = 0; i < 40; i++) {
+			reg_col[i] = ImVec4(1.0f,1.0f,1.0f,1.0f);
+			if (reg_src==i) reg_col[i] = ImVec4(0.0f,1.0f,0.0f,1.0f);	// Source reg = GREEN.
+			if (reg_dst==i) reg_col[i] = ImVec4(1.0f,0.0f,0.0f,1.0f);	// Dest reg = RED.
+		}
+
+		uint32_t arm_reg[40];
+		for (int i = 0; i < 40; i++) {
+			arm_reg[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[i];
+		}
+
 		ImGui::Separator();
 		ImGui::Text("          PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);
-		ImGui::Text("          R0: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[0]);
-		ImGui::Text("          R1: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[1]);
-		ImGui::Text("          R2: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[2]);
-		ImGui::Text("          R3: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[3]);
-		ImGui::Text("          R4: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[4]);
-		ImGui::Text("          R5: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[5]);
-		ImGui::Text("          R6: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[6]);
-		ImGui::Text("          R7: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[7]);
-		ImGui::Text("          R8: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[8]);
-		ImGui::Text("          R9: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[9]);
-		ImGui::Text("         R10: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[10]);
-		ImGui::Text("         R11: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[11]);
-		ImGui::Text("         R12: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[12]);
-		ImGui::Text("         R13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[13]);
-		ImGui::Text("         R14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[14]);
-		ImGui::Text("      ?  R15: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[15]);
+		ImGui::TextColored(ImVec4(reg_col[0]),  "          R0: 0x%08X", arm_reg[0]);
+		ImGui::TextColored(ImVec4(reg_col[1]),  "          R1: 0x%08X", arm_reg[1]);
+		ImGui::TextColored(ImVec4(reg_col[2]),  "          R2: 0x%08X", arm_reg[2]);
+		ImGui::TextColored(ImVec4(reg_col[3]),  "          R3: 0x%08X", arm_reg[3]);
+		ImGui::TextColored(ImVec4(reg_col[4]),  "          R4: 0x%08X", arm_reg[4]);
+		ImGui::TextColored(ImVec4(reg_col[5]),  "          R5: 0x%08X", arm_reg[5]);
+		ImGui::TextColored(ImVec4(reg_col[6]),  "          R6: 0x%08X", arm_reg[6]);
+		ImGui::TextColored(ImVec4(reg_col[7]),  "          R7: 0x%08X", arm_reg[7]);
+		ImGui::TextColored(ImVec4(reg_col[8]),  "          R8: 0x%08X", arm_reg[8]);
+		ImGui::TextColored(ImVec4(reg_col[9]),  "          R9: 0x%08X", arm_reg[9]);
+		ImGui::TextColored(ImVec4(reg_col[10]), "         R10: 0x%08X", arm_reg[10]);
+		ImGui::TextColored(ImVec4(reg_col[11]), "         R11: 0x%08X", arm_reg[11]);
+		ImGui::TextColored(ImVec4(reg_col[12]), "         R12: 0x%08X", arm_reg[12]);
+		ImGui::TextColored(ImVec4(reg_col[13]), "      SP R13: 0x%08X", arm_reg[13]);
+		ImGui::TextColored(ImVec4(reg_col[14]), "      LR R14: 0x%08X", arm_reg[14]);
+		//ImGui::TextColored(ImVec4(reg_col[15]), " unused? R15: 0x%08X", arm_reg[15]);
+		ImGui::Text("reg_src: %d", reg_src);
+		ImGui::Text("reg_dst: %d", reg_dst);
 		ImGui::Separator();
 
 		uint32_t cpsr = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_cpsr;
@@ -1581,36 +1662,36 @@ int main(int argc, char** argv, char** env) {
 		ImGui::End();
 	
 		ImGui::Begin("ARM Secondary regs");
-		ImGui::Text("        RAZ?: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[16]);
-		ImGui::Text("  FIQ CPSR??: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[17]);
-		ImGui::Text("         FR8: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[18]);
-		ImGui::Text("         FR9: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[19]);
-		ImGui::Text("        FR10: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[20]);
-		ImGui::Text("        FR11: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[21]);
-		ImGui::Text("        FR12: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[22]);
-		ImGui::Text("        FR13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[23]);
-		ImGui::Text("        FR14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[24]);
+		ImGui::TextColored(ImVec4(reg_col[16]), "         RAZ: 0x%08X", arm_reg[16]);
+		ImGui::TextColored(ImVec4(reg_col[17]), "    PHY_CPSR: 0x%08X", arm_reg[17]);
+		ImGui::TextColored(ImVec4(reg_col[18]), "         FR8: 0x%08X", arm_reg[18]);
+		ImGui::TextColored(ImVec4(reg_col[19]), "         FR9: 0x%08X", arm_reg[19]);
+		ImGui::TextColored(ImVec4(reg_col[20]), "        FR10: 0x%08X", arm_reg[20]);
+		ImGui::TextColored(ImVec4(reg_col[21]), "        FR11: 0x%08X", arm_reg[21]);
+		ImGui::TextColored(ImVec4(reg_col[22]), "        FR12: 0x%08X", arm_reg[22]);
+		ImGui::TextColored(ImVec4(reg_col[23]), "        FR13: 0x%08X", arm_reg[23]);
+		ImGui::TextColored(ImVec4(reg_col[24]), "        FR14: 0x%08X", arm_reg[24]);
 		ImGui::Separator();
-		ImGui::Text("       IRQ13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[25]);
-		ImGui::Text("       IRQ14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[26]);
+		ImGui::TextColored(ImVec4(reg_col[25]), "       IRQ13: 0x%08X", arm_reg[25]);
+		ImGui::TextColored(ImVec4(reg_col[26]), "       IRQ14: 0x%08X", arm_reg[26]);
 		ImGui::Separator();
-		ImGui::Text("       SVC13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[27]);
-		ImGui::Text("       SVC14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[28]);
+		ImGui::TextColored(ImVec4(reg_col[27]), "       SVC13: 0x%08X", arm_reg[27]);
+		ImGui::TextColored(ImVec4(reg_col[28]), "       SVC14: 0x%08X", arm_reg[28]);
 		ImGui::Separator();
-		ImGui::Text("       UND13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[29]);
-		ImGui::Text("       UND14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[30]);
+		ImGui::TextColored(ImVec4(reg_col[29]), "       UND13: 0x%08X", arm_reg[29]);
+		ImGui::TextColored(ImVec4(reg_col[30]), "       UND14: 0x%08X", arm_reg[30]);
 		ImGui::Separator();
-		ImGui::Text("       ABT13: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[31]);
-		ImGui::Text("       ABT14: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[32]);
+		ImGui::TextColored(ImVec4(reg_col[31]), "       ABT13: 0x%08X", arm_reg[31]);
+		ImGui::TextColored(ImVec4(reg_col[32]), "       ABT14: 0x%08X", arm_reg[32]);
 		ImGui::Separator();
-		ImGui::Text("        DUM0: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[33]);
-		ImGui::Text("        DUM1: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[34]);
+		ImGui::TextColored(ImVec4(reg_col[33]), "        DUM0: 0x%08X", arm_reg[33]);
+		ImGui::TextColored(ImVec4(reg_col[34]), "        DUM1: 0x%08X", arm_reg[34]);
 		ImGui::Separator();
-		ImGui::Text("    FIQ_SPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[35]);
-		ImGui::Text("    IRQ_SPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[36]);
-		ImGui::Text("    SVC_SPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[37]);
-		ImGui::Text("    UND_SPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[38]);
-		ImGui::Text("    ABT_SPSR: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[39]);
+		ImGui::TextColored(ImVec4(reg_col[35]), "    FIQ_SPSR: 0x%08X", arm_reg[35]);
+		ImGui::TextColored(ImVec4(reg_col[36]), "    IRQ_SPSR: 0x%08X", arm_reg[36]);
+		ImGui::TextColored(ImVec4(reg_col[37]), "    SVC_SPSR: 0x%08X", arm_reg[37]);
+		ImGui::TextColored(ImVec4(reg_col[38]), "    UND_SPSR: 0x%08X", arm_reg[38]);
+		ImGui::TextColored(ImVec4(reg_col[39]), "    ABT_SPSR: 0x%08X", arm_reg[39]);
 		ImGui::Separator();
 		ImGui::End();
 
@@ -1755,6 +1836,61 @@ int main(int argc, char** argv, char** env) {
 		ImGui::End();
 
 		/*
+		ImGui::Begin("armsim");
+		ImGui::Text("   pc: 0x%08X", top->rootp->core_3do__DOT__arm_pc);
+		ImGui::Text(" inst: 0x%08X", top->rootp->core_3do__DOT__arm_inst);
+		ImGui::End();
+		*/
+
+		uint32_t decode_word[16];
+		uint32_t issue_word[16];
+		uint32_t shifter_word[16];
+		uint32_t alu_word[16];
+		uint32_t memory_word[16];
+		uint32_t rb_word[16];
+		for (int i = 0; i < 16; i++) {
+			decode_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_decompile[i];
+			issue_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__issue_decompile[i];
+			shifter_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__shifter_decompile[i];
+			alu_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__alu_decompile[i];
+			memory_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__memory_decompile[i];
+			rb_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__rb_decompile[i];
+		}
+
+		char decode_string[64];
+		char issue_string[64];
+		char shifter_string[64];
+		char alu_string[64];
+		char memory_string[64];
+		char rb_string[64];
+		for (int i=0; i<64; i+=4) {
+			decode_string[i+0] = decode_word[ (i>>2) ] >> 0; decode_string[i+1] = decode_word[ (i>>2) ] >> 8; decode_string[i+2] = decode_word[ (i>>2) ] >> 16; decode_string[i+3] = decode_word[ (i>>2) ] >> 24;
+			issue_string[i+0] = issue_word[ (i>>2) ] >> 0; issue_string[i+1] = issue_word[ (i>>2) ] >> 8; issue_string[i+2] = issue_word[ (i>>2) ] >> 16; issue_string[i+3] = issue_word[ (i>>2) ] >> 24;
+			shifter_string[i+0] = shifter_word[ (i>>2) ] >> 0; shifter_string[i+1] = shifter_word[ (i>>2) ] >> 8; shifter_string[i+2] = shifter_word[ (i>>2) ] >> 16; shifter_string[i+3] = shifter_word[ (i>>2) ] >> 24;
+			alu_string[i+0] = alu_word[ (i>>2) ] >> 0; alu_string[i+1] = alu_word[ (i>>2) ] >> 8; alu_string[i+2] = alu_word[ (i>>2) ] >> 16; alu_string[i+3] = alu_word[ (i>>2) ] >> 24;
+			memory_string[i+0] = memory_word[ (i>>2) ] >> 0; memory_string[i+1] = memory_word[ (i>>2) ] >> 8; memory_string[i+2] = memory_word[ (i>>2) ] >> 16; memory_string[i+3] = memory_word[ (i>>2) ] >> 24;
+			rb_string[i+0] = rb_word[ (i>>2) ] >> 0; rb_string[i+1] = rb_word[ (i>>2) ] >> 8; rb_string[i+2] = rb_word[ (i>>2) ] >> 16; rb_string[i+3] = rb_word[ (i>>2) ] >> 24;
+		}
+
+		strrev(decode_string);
+		strrev(issue_string);
+		strrev(shifter_string);
+		strrev(alu_string);
+		strrev(memory_string);
+		strrev(rb_string);
+
+		ImGui::Begin("Zap Core decompile");
+		ImGui::Text("0x%08X: ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_inst);
+		ImGui::Text("    decode: %s", decode_string);
+		ImGui::Text("     issue: %s", issue_string);
+		ImGui::Text("   shifter: %s", shifter_string);
+		ImGui::Text("       alu: %s", alu_string);
+		ImGui::Text("    memory: %s", memory_string);
+		ImGui::Text("        rb: %s", rb_string);
+		ImGui::End();
+		
+
+		/*
 		ImGui::Begin("Matrix Engine");
 		ImGui::Text("   MI00: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI00);
 		ImGui::Text("   MI01: 0x%016llX", top->rootp->core_3do__DOT__matrix_inst__DOT__MI01);
@@ -1829,6 +1965,10 @@ int main(int argc, char** argv, char** env) {
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+
+	if (GENERATE_JSON) {
+		waveDrom.write("out.json");
+	}
 
 	CleanupDeviceD3D();
 	DestroyWindow(hwnd);

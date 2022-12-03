@@ -159,18 +159,18 @@ module zap_alu_main #(
         // Memory access related
         // ----------------------------------------------------------------
 
-        output reg  [zap_clog2(PHY_REGS)-1:0]   o_mem_srcdest_index_ff,                 // LD/ST data register.
-        output reg                              o_mem_load_ff,                          // LD/ST load indicator.
-        output reg                              o_mem_store_ff,                         // LD/ST store indicator.
-        output reg [31:0]                       o_mem_address_ff,                       // LD/ST address to access.
-        output reg                              o_mem_unsigned_byte_enable_ff,          // uint8_t
-        output reg                              o_mem_signed_byte_enable_ff,            // int8_t
-        output reg                              o_mem_signed_halfword_enable_ff,        // int16_t
-        output reg                              o_mem_unsigned_halfword_enable_ff,      // uint16_t
-        output reg [31:0]                       o_mem_srcdest_value_ff,                 // LD/ST value to store.
-        output reg                              o_mem_translate_ff,                     // LD/ST force user view of memory.
-        output reg [3:0]                        o_ben_ff,                               // LD/ST byte enables (only for STore instructions).
-        output reg  [31:0]                      o_address_nxt,                          // D pin of address register to drive TAG RAMs.
+        output reg  [zap_clog2(PHY_REGS)-1:0]   o_mem_srcdest_index_ff,  // LD/ST data register.
+        output reg                              o_mem_load_ff,              // LD/ST load indicator.
+        output reg                              o_mem_store_ff,             // LD/ST store indicator.
+        output reg [31:0]                       o_mem_address_ff,           // LD/ST address to access.
+        output reg                              o_mem_unsigned_byte_enable_ff,     // uint8_t
+        output reg                              o_mem_signed_byte_enable_ff,       // int8_t
+        output reg                              o_mem_signed_halfword_enable_ff,   // int16_t
+        output reg                              o_mem_unsigned_halfword_enable_ff, // uint16_t
+        output reg [31:0]                       o_mem_srcdest_value_ff,     // LD/ST value to store.
+        output reg                              o_mem_translate_ff,         // LD/ST force user view of memory.
+        output reg [3:0]                        o_ben_ff,                   // LD/ST byte enables (only for STore instructions).
+        output reg  [31:0]                      o_address_nxt,              // D pin of address register to drive TAG RAMs.
 
         // -------------------------------------------------------------
         // Wishbone signal outputs.
@@ -200,7 +200,10 @@ module zap_alu_main #(
 // Localparams
 // -----------------------------------------------------------------------------
 
-// Local N,Z,C,V structures.
+/*
+ *  These override global N,Z,C,V definitions which are on CPSR. These params
+ *  are localized over the 4-bit flag structure.
+ */
 localparam [1:0] _N  = 2'd3;
 localparam [1:0] _Z  = 2'd2;
 localparam [1:0] _C  = 2'd1;
@@ -448,7 +451,7 @@ begin
         o_data_wb_sel_nxt = o_data_wb_sel_ff;
         o_address_nxt     = o_mem_address_ff;
 
-        if ( i_reset )  // Synchronous reset. 
+        if ( i_reset )  
         begin 
                 o_data_wb_cyc_nxt = 1'd0;
                 o_data_wb_stb_nxt = 1'd0;
@@ -640,13 +643,17 @@ begin: flags_bp_feedback
                 o_clear_from_alu        = 1'd1; // Need to flush everything because we might end up fetching stuff in KERNEL instead of USER mode.
                 o_pc_from_alu           = sum;  // NOT tmp_sum, that would be loaded into CPSR. 
 
-                // USR cannot change mode. Will silently fail.
+                // USR cannot change mode.
+				if (flags_nxt[`CPSR_MODE] == USR) $display($time, " - %m :: USR tried to mode change!");
+				
                 flags_nxt[`CPSR_MODE]   = (flags_nxt[`CPSR_MODE] == USR) ? USR : flags_nxt[`CPSR_MODE]; // Security.
         end
         else if ( i_destination_index_ff == ARCH_PC && (i_condition_code_ff != NV))
         begin
                 if ( i_flag_update_ff && o_dav_nxt ) // PC update with S bit. Context restore. 
                 begin
+                        $display($time, " - %m :: Saw PC update with S bit set. Context restore initiated.");
+
                         o_destination_index_nxt = PHY_RAZ_REGISTER;
                         o_clear_from_alu        = 1'd1;
                         o_pc_from_alu           = tmp_sum;
@@ -666,6 +673,11 @@ begin: flags_bp_feedback
                                 if ( i_switch_ff ) 
                                 begin
                                         flags_nxt[T]            = tmp_sum[0];
+
+                                        if ( tmp_sum[0] )
+                                                $display($time, " - %m :: Entering THUMB state.");
+                                        else
+                                                $display($time, " - %m :: Entering ARM state.");
                                 end
                         end
                         else    // Correctly predicted.
@@ -680,6 +692,11 @@ begin: flags_bp_feedback
                                         o_clear_from_alu        = 1'd1;
                                         o_pc_from_alu           = tmp_sum; // Jump to branch target.
                                         flags_nxt[T]            = tmp_sum[0];   
+                                        
+                                        if ( tmp_sum[0] )
+                                                $display($time, " - %m :: Entering THUMB state.");
+                                        else
+                                                $display($time, " - %m :: Entering ARM state.");
                                 end
                                 else
                                 begin
@@ -698,13 +715,10 @@ begin: flags_bp_feedback
                 else    // Branch not taken
                 begin
                         if ( i_taken_ff == WT || i_taken_ff == ST ) 
-                        //
                         // Wrong prediction as taken. Go back to the same
                         // branch. Non branches are always predicted as not-taken.
-                        //
                         // GO BACK TO THE SAME BRANCH AND INFORM PREDICTOR OF ITS   
                         // MISTAKE - THE NEXT TIME THE PREDICTION WILL BE NOT-TAKEN.
-                        //
                         begin
                                 o_clear_from_alu = 1'd1;
                                 o_pc_from_alu    = i_pc_ff; 
@@ -719,6 +733,7 @@ begin: flags_bp_feedback
         else if ( i_mem_srcdest_index_ff == ARCH_PC && o_dav_nxt && i_mem_load_ff)
         begin
                 // Loads to PC also puts the unit to sleep.
+                $display($time, " - %m :: ALU saw a load to R15. Sleeping.");
                 sleep_nxt = 1'd1;
         end
 
@@ -791,15 +806,15 @@ begin: blk2
         flags_out = 0;
 
         case(op)
-        AND: rd = rn & rm;
-        EOR: rd = rn ^ rm;
-        BIC: rd = rn & ~(rm);
-        MOV: rd = rm;
-        MVN: rd = ~rm;
-        ORR: rd = rn | rm;
-        TST: rd = rn & rm; // Target is not written.
-        //TEQ: rd = rn ^ rn; // Target is not written.
-        TEQ: rd = rn ^ rm; // Target is not written.	bug fix. ElectronAsh.
+		AND: rd = rn & rm;
+		EOR: rd = rn ^ rm;
+		BIC: rd = rn & ~(rm);
+		MOV: rd = rm;
+		MVN: rd = ~rm;
+		ORR: rd = rn | rm;
+		TST: rd = rn & rm; // Target is not written.
+		//TEQ: rd = rn ^ rn; // Target is not written.
+		TEQ: rd = rn ^ rm; // Target is not written.	bug fix. ElectronAsh.
         default: 
         begin
                 rd = 0;
@@ -935,24 +950,26 @@ begin
 end
 endfunction // generate_ben
 
-/*
- * This assertion ensures that no privilege escalation is possible.
- * It does so by ensuring that the flag register cannot change out
- * of USR during normal operation.
- */
-always @*
-begin
-        if ( flags_nxt[`CPSR_MODE] != USR && flags_ff[`CPSR_MODE] == USR )
+// assertions_start
+
+        /*
+         * This assertion ensures that no privilege escalation is possible.
+         * It does so by ensuring that the flag register cannot change out
+         * of USR during normal operation.
+         */
+        always @*
         begin
-                $display($time, " - %m :: Error: Privilege Escalation Error.");
-                $stop;
+                if ( flags_nxt[`CPSR_MODE] != USR && flags_ff[`CPSR_MODE] == USR )
+                begin
+                        $display($time, " - %m :: Error: Privilege Escalation Error.");
+                        $stop;
+                end
         end
-end
 
-reg [64*8-1:0] OPCODE;
-
-always @*
-case(opcode)
+        reg [64*8-1:0] OPCODE;
+        
+        always @*
+        case(opcode)
         AND:begin       OPCODE = "AND";    end              
         EOR:begin       OPCODE = "EOR";    end    
         MOV:begin       OPCODE = "MOV";    end
@@ -971,12 +988,10 @@ case(opcode)
         RSC:begin       OPCODE = "RSC";    end 
         CMP:begin       OPCODE = "CMP";    end
         CMN:begin       OPCODE = "CMN";    end
-endcase
+        endcase
+
+// assertions_end
 
 endmodule // zap_alu_main.v
 
 `default_nettype wire
-
-// ----------------------------------------------------------------------------
-// END OF FILE
-// ----------------------------------------------------------------------------
