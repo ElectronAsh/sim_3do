@@ -10,16 +10,20 @@
 I run Verilator from within WSL2 / Ubuntu, to "compile" the Verilog into the C/C++ sim model.
 
 Your version of Verilator needs to be the same (or close) version to what I used.
-I'm currently using v4.204, installed by compiling the Verilator source, then sudo make install, etc.
+I'm currently using v5.002-117-g31d8b4cb8, installed by compiling the Verilator source, then sudo make install, etc.
 
-Every time a change is made to the Verilog, verilator needs to be run again, before running the sim from MSVC.
+Every time a change is made to the Verilog, verilator needs to be run again before running the sim from within MSVC.
 (I know it's possible to have MSVC run a WSL command, and that verilator can be compiled for Windows, but I find WSL good enough for most of this.)
 
-I used Microsoft Visual Studio 2019, version 16.4.5 (the free version), to build and run the sim.
+I'm now using Microsoft Visual Studio 2022, version 17.4.2 (the free version) to build and run the sim.
 
 
 This is very early work on an FPGA core for the 3DO console.
 The Zap CPU has started booting some BIOS code, but it's not getting very far yet before crashing.
+
+I'm using the latest commit of the Zap CPU before the author changed it to (mainly) SystemVerilog.
+I tried many times to get the very latest SV version to work, but it crashes within the first handful of instructions.
+Whereas the older Verilog-only version does at least "boot" far enough to show the 3DO logo.
 
 :+1:'fixel' and 'trapexit' have been helping me a lot (on The 3DO Community Discord).
 
@@ -33,13 +37,17 @@ trapexit helped me get the Opera 3DO emulator compiling under MSVC, so I can com
 Everything else (registers, DRAM, VRAM, framebuffer) are all still emulated in C right now.
 (I've started moving the registers from C to Verilog now. Still some logic done in C, plus the BIOS, DRAM, VRAM etc.)
 
-I was able to display the 3DO logo by parsing the CLUT (Color Look-Up Table), but only by using a VRAM dump from the MAME debugger (ie. "cheating")
-But that was enough to confirm that I could decode the logo image correctly...
+The BIOS is now booting far enough to copy the 3DO logo into VRAM as it's supposed to.
+Displaying the logo is still handled in the sim_main C code, though.
 
 ![](png/3do_sim_logo.png)
 
 
-The 3DO BIOS isn't booting far enough to copy the logo into VRAM yet.
+The BIOS crashes always at the same point now, and prints "SWI Overrun" to the console, and also shows that text on the display.
+I'm not sure what's causing the SWI Overrun issue yet, but it looks like there may be a bug in the Zap core related to the MRS/MSR instruction.
+
+(It seems like those instructions are not using the correct index values for the source and destination for the CPU register access.
+ Or at least not at the correct time. It looks correct when the instruction is at the "decode" stage, but the wrong thing gets written back to the CPU reg at the Writeback stage.)
 
 Most of the registers for MADAM are in place already, but very little logic is written for them.
 I've started putting the CLIO registers in Verilog.
