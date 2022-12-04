@@ -424,8 +424,8 @@ reg field;
 
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
-	//revision <= 32'h02020000;		// Opera returns 0x02020000.
-	revision <= 32'h02022000;		// Latest MAME returns 0x02022000 with panafz10 BIOS.
+	revision <= 32'h02020000;		// Opera returns 0x02020000.
+	//revision <= 32'h02022000;		// Latest MAME returns 0x02022000 with panafz10 BIOS.
 	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
 	//cstatbits[6] <= 1'b1;			// Set bit 0 (DIPIR). TESTING !!
 	expctl <= 32'h00000080;

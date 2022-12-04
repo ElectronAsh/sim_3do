@@ -47,7 +47,8 @@ module zap_decompile #(parameter [31:0] INS_WDT = 32'd36) (
                         begin
                                         if ( !i_dav ) 
                                         begin
-                                                o_decompile = "IGNORE";                                                        
+                                                //o_decompile = "IGNORE";                                                        
+                                                o_decompile = " ";                                                        
                                         end
                                         else if ( i_instruction ==? BLX1 )
                                         begin

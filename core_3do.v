@@ -166,7 +166,7 @@ matrix_engine matrix_inst (
 	.clock(sys_clk)
 );
 
-
+/*
 armsim armsim_inst (
 	.cpu_clk( sys_clk ),
 	.rst( !reset_n ),
@@ -178,6 +178,6 @@ armsim armsim_inst (
 );
 wire [31:0] arm_pc;
 wire [31:0] arm_inst;
-
+*/
 
 endmodule
