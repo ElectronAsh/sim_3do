@@ -718,7 +718,7 @@ int verilate() {
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__fetch_pc_ff;
 			cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__fifo_pc_plus_8;
 
-			//trace = 1;
+			trace = 1;
 
 			if (top->i_wb_ack) next_ack = 0;
 			top->i_wb_ack = next_ack;
@@ -728,7 +728,7 @@ int verilate() {
 			if (top->o_wb_stb && top->i_wb_ack) {
 				//if (cur_pc==0x03000EF4) trace = 1;
 
-				if (trace) {
+				if (trace && top->reset_n) {
 					//if ((cur_pc>(old_pc+8)) || (cur_pc<(old_pc-8))) {
 					if (cur_pc!=old_pc) {
 						fprintf(logfile, "PC: 0x%08X \n", cur_pc);
@@ -778,8 +778,8 @@ int verilate() {
 				//else if (top->o_wb_adr>=0x0300056C && top->o_wb_adr<=0x0300056C) top->i_wb_dat = 0xE888001F;	// STM fix. TESTING !!
 				else if (top->o_wb_adr >= 0x03000000 && top->o_wb_adr <= 0x030FFFFF) { /*fprintf(logfile, "BIOS            ");*/ top->i_wb_dat = rom_byteswapped; }
 
-				else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x03100020) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0xBADACCE5; }
-				//else if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0x0000006A; /*line_count = 0; vcnt_max=262;*/ }	// Spoof the first read value.
+				//else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x03100020) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0xBADACCE5; }
+				else if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0x0000006A; /*line_count = 0; vcnt_max=262;*/ }	// Spoof the first read value.
 
 				else if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315FFFF) { fprintf(logfile, "NVRAM           "); }
 				else if (top->o_wb_adr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); shift_reg = 0x2000; }
@@ -888,7 +888,8 @@ int verilate() {
 
 				uint32_t read_data = (madam_cs) ? top->rootp->core_3do__DOT__madam_dout :
 					(clio_cs) ? top->rootp->core_3do__DOT__clio_dout :
-					(svf_cs) ? 0xBADACCE5 :
+					//(svf_cs) ? 0xBADACCE5 :
+					(svf_cs) ? 0x00000000 :		// What MAME reads from SVF at start-up.
 					(svf2_cs) ? 0x00000000 :
 					top->i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM etc.)
 
@@ -1516,7 +1517,10 @@ int main(int argc, char** argv, char** env) {
 			
 			//if (cur_pc==0x0001162c) { run_enable=0; second_stop=1; break; }
 
-			if (cur_pc==0x00010460) { run_enable=0; second_stop=1; break; }
+			if (cur_pc==0x03000518) { run_enable=0; second_stop=1; break; }
+			//if (cur_pc==0x030002b8) { run_enable=0; second_stop=1; break; }
+			
+			//if (cur_pc==0x00010460) { run_enable=0; second_stop=1; break; }
 
 			//if (cur_pc==0x00011624) { run_enable=0; second_stop=1; break; }
 			//if (second_stop && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r9==0) { run_enable=0; break; }
@@ -1606,6 +1610,8 @@ int main(int argc, char** argv, char** env) {
 		}
 		printf("\n");
 		*/
+
+		
 
 		ImGui::Text("         op1: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__op1);
 		ImGui::Text("         op2: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__op2);
@@ -1841,6 +1847,8 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text(" inst: 0x%08X", top->rootp->core_3do__DOT__arm_inst);
 		ImGui::End();
 		*/
+
+		//top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__o_decompile;
 
 		uint32_t decode_word[16];
 		uint32_t issue_word[16];
