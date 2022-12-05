@@ -29,9 +29,11 @@ EDIT: I'm now using the very latest SystemVerilog version of the Zap ARM core.
 The main issue getting it running was because I was immediately setting the i_wb_ack signal in the C code high, as soon as I saw o_wb_stb go high.
 So the Verilator model was seeing the ack signal go high on the very same "clock" cycle, which was wrong.
 
-The SystemVerilog version of Zap is now booting to the 3DO logo, and no longer showing the "SVI Overrun" error in the 3DO BIOS.
+The SystemVerilog version of Zap is now booting to the 3DO logo, and no longer showing the "SWI Overrun" error in the 3DO BIOS.
 But it is now "boot looping" after about every 18 frames. I think this is good progress though, as it's now using the very latest Zap, MSVC 2022, and Verilator.
+(and presumably the latest version of Dear Imgui, from the imgui repo.) 
 
+:+1: Revanth (the author of the Zap ARM core) has now installed sim_3do, and is looking to help with the core. ;)
 
 :+1:'fixel' and 'trapexit' have been helping me a lot (on The 3DO Community Discord).
 
@@ -42,23 +44,26 @@ trapexit helped me get the Opera 3DO emulator compiling under MSVC, so I can com
 (I might make a new repo for the Opera MSVC project, but there are tons of files, and it will take some time to figure out.)
 
 
-Everything else (registers, DRAM, VRAM, framebuffer) are all still emulated in C right now.
-(I've started moving the registers from C to Verilog now. Still some logic done in C, plus the BIOS, DRAM, VRAM etc.)
+Everything else (BIOS, DRAM, VRAM, framebuffer) are all still emulated in C right now.
+(I've started moving more of the registers from C to Verilog. Some of the logic is still being handled in C.)
 
 The BIOS is now booting far enough to copy the 3DO logo into VRAM as it's supposed to.
+(before I was "cheating", by using a VRAM dump from MAME.)
+
 Displaying the logo is still handled in the sim_main C code, though.
+The C code is parsing the VDL header, and loading the CLUT (palette), so the logo displays correctly.
+
+
+I added some code which highlights the source register in Green, and the destination register in Red.
+That is only valid when the instruction is in the decode stage of the pipeline (see the lower-left window)...
 
 ![](png/3do_sim_logo.png)
 
 
-The BIOS crashes always at the same point now, and prints "SWI Overrun" to the console, and also shows that text on the display.
-I'm not sure what's causing the SWI Overrun issue yet, but it looks like there may be a bug in the Zap core related to the MRS/MSR instruction.
-
-(It seems like those instructions are not using the correct index values for the source and destination for the CPU register access.
- Or at least not at the correct time. It looks correct when the instruction is at the "decode" stage, but the wrong thing gets written back to the CPU reg at the Writeback stage.)
-
 Most of the registers for MADAM are in place already, but very little logic is written for them.
+
 I've started putting the CLIO registers in Verilog.
+Almost no other logic exists in CLIO either atm, aside from the counters for hcnt/vcnt, and some basic Interupt (FIQ) logic.
 
 
 ElectronAsh.
