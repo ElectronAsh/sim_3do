@@ -295,11 +295,10 @@ void process_vdl() {
 
 int verilate() {
 	if (!Verilated::gotFinish()) {
-		//while ( top->rootp->FL_ADDR < 0x0100 ) {		// Only run for a short time.
-		if (main_time < 100) {
+		if (main_time < 50) {
 			top->reset_n = 0;   	// Assert reset (active LOW)
 		}
-		if (main_time == 100) {		// Do == here, so we can still reset it in the main loop.
+		if (main_time == 50) {		// Do == here, so we can still reset it in the main loop.
 			top->reset_n = 1;		// Deassert reset./
 		}
 		//if ((main_time & 1) == 1) {
@@ -705,7 +704,6 @@ int verilate() {
 		//if (top->SRAM_DQ > 0) printf("SRAM_DQ is High!!!\n");
 		//if (top->VGA_R > 0 || top->VGA_G > 0 || top->VGA_B > 0) printf("VGA is High!!!\n");
 		*/
-		//}
 
 		main_time++;            // Time passes...
 
