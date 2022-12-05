@@ -132,6 +132,9 @@
     <ClCompile Include="..\..\out\Vcore_3do_zap_tlb__L80_S80_SB80_F80__Slow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\imgui_functions.h">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\bookshelf.h">

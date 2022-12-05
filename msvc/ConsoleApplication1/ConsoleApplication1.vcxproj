@@ -109,7 +109,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
@@ -149,7 +149,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
@@ -173,6 +173,7 @@
     <ClCompile Include="..\..\..\verilator\include\verilated.cpp" />
     <ClCompile Include="..\..\..\verilator\include\verilated_save.cpp" />
     <ClCompile Include="..\..\..\verilator\include\verilated_threads.cpp" />
+    <ClCompile Include="..\..\imgui_functions.h" />
     <ClCompile Include="..\..\out\Vcore_3do.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do_zap_cache_tag_ram__C4000_CB40__DepSet_hb8315f21__0.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do_zap_cache_tag_ram__C4000_CB40__DepSet_hb8315f21__0__Slow.cpp" />
