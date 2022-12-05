@@ -25,6 +25,14 @@ I'm using the latest commit of the Zap CPU before the author changed it to (main
 I tried many times to get the very latest SV version to work, but it crashes within the first handful of instructions.
 Whereas the older Verilog-only version does at least "boot" far enough to show the 3DO logo.
 
+EDIT: I'm now using the very latest SystemVerilog version of the Zap ARM core.
+The main issue getting it running was because I was immediately setting the i_wb_ack signal in the C code high, as soon as I saw o_wb_stb go high.
+So the Verilator model was seeing the ack signal go high on the very same "clock" cycle, which was wrong.
+
+The SystemVerilog version of Zap is now booting to the 3DO logo, and no longer showing the "SVI Overrun" error in the 3DO BIOS.
+But it is now "boot looping" after about every 18 frames. I think this is good progress though, as it's now using the very latest Zap, MSVC 2022, and Verilator.
+
+
 :+1:'fixel' and 'trapexit' have been helping me a lot (on The 3DO Community Discord).
 
 fixel helped patch the Zap core, to handle byte reads/writes properly.

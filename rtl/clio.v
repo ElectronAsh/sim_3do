@@ -87,14 +87,14 @@ module clio (			// IC140 on FZ1.
 );
 
 
-wire irq0_trig = |({any_irq1,irq0_pend[30:0]} & irq0_enable);	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set. I think irq0_enable[31] can mask that bit?
+wire irq0_trig = |({any_irq1,irq0_pend[30:0]} & irq0_enable);	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set. I think irq0_enable[31] can also mask that bit?
 
-wire irq1_trig = |(irq1_pend & irq1_enable);
-wire any_irq1 = |irq1_pend;	// Are any irq1_pend bits set?
+wire irq1_trig = |(irq1_pend & irq1_enable); // bitwise OR, after masking irq1_pend with the irq1_enable bits.
+wire any_irq1 = |irq1_pend;	// bitwise OR of irq1_pend, to see if ANY of the bits are set. 
 
 assign firq_n = !(irq0_trig | irq1_trig);
 
-
+// Timings taken from a 3DO patent, IIRC... ElectronAsh.
 wire read_en  = hcnt>=11 && hcnt<=1292;
 wire write_en = hcnt>=1293 && hcnt<=1339;
 wire copy_en  = hcnt>=1340 && hcnt<=1399;

@@ -221,7 +221,7 @@ unsigned char buffer[16];
 unsigned int rom_size = 1024 * 256 * 4;		// 1MB. (32-bit wide).
 uint32_t *rom_ptr = (uint32_t *) malloc(rom_size);
 
-unsigned int rom2_size = 1024 * 256 * 4;		// 1MB. (32-bit wide).
+unsigned int rom2_size = 1024 * 256 * 4;	// 1MB. (32-bit wide).
 uint32_t *rom2_ptr = (uint32_t *) malloc(rom2_size);
 
 unsigned int ram_size = 1024 * 512 * 4;		// 2MB. (32-bit wide).
@@ -723,8 +723,9 @@ int verilate() {
 		if (top->i_wb_ack) next_ack = 0;
 		top->i_wb_ack = next_ack;
 
-		if (top->o_wb_stb) {
-			next_ack = 1;
+		if (top->o_wb_stb) next_ack = 1;
+
+		if (top->o_wb_stb && top->i_wb_ack) {
 			//if (cur_pc==0x03000EF4) trace = 1;
 
 			if (trace) {
@@ -782,8 +783,8 @@ int verilate() {
 
 			else if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315FFFF) { fprintf(logfile, "NVRAM           "); }
 			else if (top->o_wb_adr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); shift_reg = 0x2000; }
-			else if (top->o_wb_adr == 0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = 0x00000000; }
-			//else if (top->o_wb_adr==0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = (shift_reg&0x8000)>>15; shift_reg=shift_reg<<1; }
+			//else if (top->o_wb_adr == 0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = 0x00000000; }
+			else if (top->o_wb_adr==0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = (shift_reg&0x8000)>>15; shift_reg=shift_reg<<1; }
 			else if (top->o_wb_adr >= 0x03180004 && top->o_wb_adr <= 0x031BFFFF) { fprintf(logfile, "Slow Bus        "); }
 			else if (top->o_wb_adr >= 0x03200000 && top->o_wb_adr <= 0x0320FFFF) { fprintf(logfile, "VRAM SVF        "); top->i_wb_dat = 0xBADACCE5; }	// Dummy reads for now.
 			else if (top->o_wb_adr >= 0x032F0000 && top->o_wb_adr <= 0x032FFFFF) { fprintf(logfile, "Unknown         "); top->i_wb_dat = 0xBADACCE5; }	// Dummy reads for now.
@@ -880,23 +881,18 @@ int verilate() {
 
 			//if (top->o_wb_sel != 0xF) fprintf(logfile, "BYTE! ");
 
-			madam_cs = (top->o_wb_adr >= 0x03300000 && top->o_wb_adr <= 0x0330FFFF);
-			clio_cs = (top->o_wb_adr >= 0x03400000 && top->o_wb_adr <= 0x0340FFFF);
-			svf_cs = (top->o_wb_adr == 0x03206100 || top->o_wb_adr == 0x03206900);
-			svf2_cs = (top->o_wb_adr == 0x032002B4);
-
-			uint32_t read_data = (madam_cs) ? top->rootp->core_3do__DOT__madam_dout :
-				(clio_cs) ? top->rootp->core_3do__DOT__clio_dout :
-				(svf_cs) ? 0xBADACCE5 :
-				(svf2_cs) ? 0x00000000 :
-				top->i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM etc.)
-
 			if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/) {
 				//if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)  o_wb_sel: 0x%01X  o_wb_bte: 0x%01X\n", top->i_wb_dat, cur_pc, top->o_wb_sel, top->o_wb_bte);
 				if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);	// Disabling BE bit printf for now. (sync with Opera).
 				//else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat, cur_pc);
-				else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", read_data, cur_pc);
+				else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->rootp->core_3do__DOT__zap_din, cur_pc);
 			}
+
+			bool madam_cs = top->rootp->core_3do__DOT__madam_cs;
+			bool clio_cs = top->rootp->core_3do__DOT__clio_cs;
+			bool svf_cs = top->rootp->core_3do__DOT__svf_cs;
+			bool svf2_cs = top->rootp->core_3do__DOT__svf2_cs;
+
 
 			/*
 			if (GENERATE_JSON && top->sys_clk && (madam_cs || clio_cs || svf_cs || svf2_cs) && top->o_wb_cti!=7) {
@@ -919,42 +915,7 @@ int verilate() {
 				waveDrom["i_wb_ack"].add(top->i_wb_ack);
 				waveDrom["write"].add(top->o_wb_we);
 			}
-
-			/*
-			bool is_bios = top->o_wb_adr>=0x03000000 && top->o_wb_adr<=0x030FFFFF;
-			bool is_ram  = top->o_wb_adr>=0x00000000 && top->o_wb_adr<=0x001FFFFF;
-			if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x0A ) printf("Addr: 0x%08X BEQ!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x1A ) printf("Addr: 0x%08X BNE!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x2A ) printf("Addr: 0x%08X BCS!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x3A ) printf("Addr: 0x%08X BCC!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x4A ) printf("Addr: 0x%08X BMI!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x5A ) printf("Addr: 0x%08X BPL!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x6A ) printf("Addr: 0x%08X BVS!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x7A ) printf("Addr: 0x%08X BVC!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x8A ) printf("Addr: 0x%08X BHI!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0x9A ) printf("Addr: 0x%08X BLS!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0xAA ) printf("Addr: 0x%08X BGE!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0xBA ) printf("Addr: 0x%08X BLT!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0xCA ) printf("Addr: 0x%08X BGT!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0xDA ) printf("Addr: 0x%08X BLE!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0xEA ) printf("Addr: 0x%08X BAL!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && (top->i_wb_dat>>24)==0xEB ) printf("Addr: 0x%08X BL !  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			else if ( (is_bios | is_ram) && !top->o_wb_we && top->i_wb_dat==0xE1A0F00E ) printf("Addr: 0x%08X RET!  i_wb_dat: 0x%08X\n", top->o_wb_adr, top->i_wb_dat);
-			*/
-
-		}	//PC: 0x%08X\n", top->o_wb_adr, top->i_wb_dat, top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff);
-
-			/*
-			if (top->rootp->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__ubyte) {
-			top->i_wb_dat = (top->i_wb_dat&0xFF000000)>>24 | 
-			(top->i_wb_dat&0x00FF0000)>>8 | 
-			(top->i_wb_dat&0x0000FF00)<<8 | 
-			(top->i_wb_dat&0x000000FF)<<24;
-			}
-			*/
-
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_pc_ff;
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_pc;		// Seems to match more closely to the real PC, but still jumping around?
+		}
 
 			/*
 			if (old_pc != cur_pc) {
@@ -990,15 +951,15 @@ int verilate() {
 
 		/*
 		if (line_count==vcnt_max) {
-		line_count=0;
-		field = !field;
-		frame_count++;
-		process_logo();
+			line_count=0;
+			field = !field;
+			frame_count++;
+			process_logo();
 		}
-		else if ( (main_time&0x3FF)==0 ) {
-		line_count++;
-		if ( line_count==(vint0_reg&0x7FF) ) irq0 |= 1;
-		if ( line_count==(vint1_reg&0x7FF) ) irq0 |= 2;
+			else if ( (main_time&0x3FF)==0 ) {
+			line_count++;
+			if ( line_count==(vint0_reg&0x7FF) ) irq0 |= 1;
+			if ( line_count==(vint1_reg&0x7FF) ) irq0 |= 2;
 		}
 		*/
 
