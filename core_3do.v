@@ -49,8 +49,18 @@ zap_top zap_top_inst (
 	.i_wb_dat( zap_din )			// input [31:0]
 );
 
-wire [31:0] zap_din;
+wire madam_cs = (o_wb_adr>=32'h03300000 && o_wb_adr<=32'h0330FFFF);
+wire clio_cs  = (o_wb_adr>=32'h03400000 && o_wb_adr<=32'h0340FFFF);
+wire svf_cs   = (o_wb_adr==32'h03206100 || o_wb_adr==32'h03206900);
+wire svf2_cs  = o_wb_adr==32'h032002B4;
 
+wire [31:0] zap_din = (madam_cs) ? madam_dout :
+					  (clio_cs)  ? clio_dout :
+					  (svf_cs)   ? 32'hBADACCE5 :
+					  (svf2_cs)  ? 32'h00000000 :
+								   i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM etc.)
+
+wire [31:0] clio_dout;
 
 clio clio_inst (
 	.clk_25m( sys_clk ),	// input. 
@@ -125,6 +135,9 @@ clio clio_inst (
 	//.uncackr( uncackr )	// inout. Video DMA Read Acknowledge. FMV? UN - Uncle Chip.
 );
 
+
+wire [31:0] madam_dout;
+
 madam madam_inst (
 	.clk_25m( sys_clk ),
 	.reset_n( reset_n ),
@@ -148,36 +161,10 @@ madam madam_inst (
 	.rpsc_n( rpsc_n ) 	// output. Left-hand VRAM SAM strobe.  (pixel or VDL data is on S-bus[15:00]).
 );
 
-wire [31:0] madam_dout;
-wire [31:0] clio_dout;
-
-wire madam_cs = (o_wb_adr>=32'h03300000 && o_wb_adr<=32'h0330FFFF);
-wire clio_cs  = (o_wb_adr>=32'h03400000 && o_wb_adr<=32'h0340FFFF);
-wire svf_cs   = (o_wb_adr==32'h03206100 || o_wb_adr==32'h03206900);
-wire svf2_cs  = o_wb_adr==32'h032002B4;
-
-assign zap_din = (madam_cs) ? madam_dout :
-				 (clio_cs)  ? clio_dout :
-				 (svf_cs)   ? 32'hBADACCE5 :
-				 (svf2_cs)  ? 32'h00000000 :
-								i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM etc.)
 
 matrix_engine matrix_inst (
 	.clock(sys_clk)
 );
 
-/*
-armsim armsim_inst (
-	.cpu_clk( sys_clk ),
-	.rst( !reset_n ),
-	
-	.fu_EN(1'b0),
-	
-	.pc( arm_pc ),
-	.instr( arm_inst )
-);
-wire [31:0] arm_pc;
-wire [31:0] arm_inst;
-*/
 
 endmodule

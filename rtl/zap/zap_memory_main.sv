@@ -235,7 +235,7 @@ begin: transform_function
         if ( ubyte == 1'd1 )
         begin
                 case ( address[1:0] )
-                0: transform = (d >> 24) & 32'h000000ff;	// 3DO ARM60 Endianess kludge. ElectronAsh.
+                0: transform = (d >> 24) & 32'h000000ff;	// 3DO ARM60 Big Endian kludge. fixel / ElectronAsh.
                 1: transform = (d >> 16) & 32'h000000ff;
                 2: transform = (d >> 8)  & 32'h000000ff;
                 3: transform = (d >> 0)  & 32'h000000ff;				
@@ -246,7 +246,7 @@ begin: transform_function
         begin
                 // Take lower byte.
                 case ( address[1:0] )
-                0: transform = (d >> 24) & 32'h000000ff;	// 3DO ARM60 Endianess kludge. ElectronAsh.
+                0: transform = (d >> 24) & 32'h000000ff;	// 3DO ARM60 Big Endian kludge. fixel / ElectronAsh.
                 1: transform = (d >> 16) & 32'h000000ff;
                 2: transform = (d >> 8)  & 32'h000000ff;
                 3: transform = (d >> 0)  & 32'h000000ff;

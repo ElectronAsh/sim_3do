@@ -1049,7 +1049,7 @@ begin
         begin
 				// Based on address lower 2-bits.
 				case ( addr[1:0] )
-                0: x = 1 << 3; 	// ARM60 Endianess kludge. ElectronAsh.
+                0: x = 1 << 3; 		// 3DO ARM60 Big Endian kludge. fixel / ElectronAsh.
                 1: x = 1 << 2;
                 2: x = 1 << 1;
                 3: x = 1;
@@ -1057,7 +1057,7 @@ begin
         end 
         else if ( uh || sh ) // Halfword. A word = 2 half words.
         begin
-				case ( addr[1] ) 	// ARM60 Endianess kludge. ElectronAsh.
+				case ( addr[1] ) 	// 3DO ARM60 Big Endian kludge. fixel / ElectronAsh.
                 0: x = 4'b1100;
                 1: x = 4'b0011;
                 endcase
