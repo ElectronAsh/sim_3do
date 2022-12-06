@@ -350,6 +350,7 @@ always @(*) begin
 	16'h0410: cpu_dout = dipir1;	// 0x410. DIPIR (Disc Inserted Provide Interrupt Response) 1.
 	16'h0414: cpu_dout = dipir2;	// 0x414. DIPIR (Disc Inserted Provide Interrupt Response) 2.
 
+	// opera_xbus_get_res(); ...
 	16'h0500: cpu_dout = sel_0;		// 0x500
 	16'h0504: cpu_dout = sel_1;		// 0x504
 	16'h0508: cpu_dout = sel_2;		// 0x508
@@ -367,6 +368,7 @@ always @(*) begin
 	16'h0538: cpu_dout = sel_14;	// 0x538
 	16'h053c: cpu_dout = sel_15;	// 0x53c
 
+	// opera_xbus_get_poll(); ...
 	16'h0540: cpu_dout = poll_0;	// 0x540
 	16'h0544: cpu_dout = poll_1;	// 0x544
 	16'h0548: cpu_dout = poll_2;	// 0x548
@@ -384,8 +386,8 @@ always @(*) begin
 	16'h0578: cpu_dout = poll_14;	// 0x578
 	16'h057c: cpu_dout = poll_15;	// 0x57c
 
-// 0x580 - 0x5bf. In Opera, on a write, this calls "opera_xbus_fifo_set_cmd(val_)".
-// 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
+	// 0x580 - 0x5bf. In Opera, on a write, this calls "opera_xbus_fifo_set_cmd(val_)".
+	// 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
 
 // DSP...
 	16'h17d0: cpu_dout = sema;		// 0x17d0. DSP/ARM Semaphore. (can't call it "semaphore", because Verilog / Verilator).
@@ -440,7 +442,8 @@ if (!reset_n) begin
 	hcnt <= 32'd0;
 	vcnt <= 32'd0;
 	
-	dipir2 <= 32'h00004000;			// This is the first value read from dipir2 by the Opera emulator!	
+	dipir2 <= 32'h00004000;			// This is the first value read from dipir2 by the Opera emulator!
+	poll_0 <= 32'h0000000F;			// Spoofing value from Opera log atm.
 	
 	adbio_reg <= 32'h00000062;
 	//adbio_reg <= 32'h00000000;

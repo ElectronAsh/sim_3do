@@ -7,25 +7,18 @@
 
 #include "imgui_functions.h"
 
-
-#include "wavedrom.h"
-WaveDrom waveDrom;
-static const bool GENERATE_JSON = false;
-
 #include <verilated.h>
 
 #include "Vcore_3do___024root.h"
 #include "Vcore_3do.h"
+
+FILE *logfile;
 
 
 #include <d3d11.h>
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 #include <tchar.h>
-
-
-FILE *logfile;
-
 
 // DirectX data
 static ID3D11Device*            g_pd3dDevice = NULL;
@@ -51,6 +44,7 @@ static int                      g_VertexBufferSize = 5000, g_IndexBufferSize = 1
 Vcore_3do* top = new Vcore_3do;
 
 bool next_ack = 0;
+bool do_printf = 0;
 
 bool rom_select = 0;	// Select the BIOS ROM at startup! (not Kanji).
 
@@ -307,8 +301,6 @@ int verilate() {
 
 		pix_count++;
 
-		uint32_t temp_word;
-
 		uint32_t word_addr = (top->o_wb_adr)>>2;
 
 		// Handle writes to Main RAM, with byte masking...
@@ -327,6 +319,8 @@ int verilate() {
 							  ((ram_ptr[ (top->o_wb_adr+1)&0x1fffff ]<<16) & 0x00FF0000) |
 							  ((ram_ptr[ (top->o_wb_adr+2)&0x1fffff ]<<8) &  0x0000FF00) |
 							  ((ram_ptr[ (top->o_wb_adr+3)&0x1fffff ]<<0) &  0x000000FF);
+
+		uint32_t temp_word;
 
 		// Handle writes to VRAM, with byte masking...
 		if (top->o_wb_adr>=0x00200000 && top->o_wb_adr<=0x002FFFFF && top->o_wb_stb && top->o_wb_we) {		// 1MB Masked.
@@ -374,6 +368,7 @@ int verilate() {
 		if (top->o_wb_stb) next_ack = 1;
 
 		if (top->o_wb_stb && top->i_wb_ack) {
+			do_printf = 1;
 			//if (cur_pc==0x03000EF4) trace = 1;
 
 			if (trace) {
@@ -530,57 +525,7 @@ int verilate() {
 			bool clio_cs = top->rootp->core_3do__DOT__clio_cs;
 			bool svf_cs = top->rootp->core_3do__DOT__svf_cs;
 			bool svf2_cs = top->rootp->core_3do__DOT__svf2_cs;
-
-
-			/*
-			if (GENERATE_JSON && top->sys_clk && (madam_cs || clio_cs || svf_cs || svf2_cs) && top->o_wb_cti!=7) {
-			waveDrom["clock"].add(top->sys_clk);
-			waveDrom["o_wb_adr"].add(top->o_wb_adr);
-			waveDrom["i_wb_dat"].add(top->i_wb_dat);
-			waveDrom["o_wb_dat"].add(top->o_wb_dat);
-			waveDrom["o_wb_stb"].add(top->o_wb_stb);
-			waveDrom["i_wb_ack"].add(top->i_wb_ack);
-			waveDrom["write"].add(top->o_wb_we);
-			}
-			*/
-
-			if (GENERATE_JSON && top->reset_n) {
-				waveDrom["clock"].add(top->sys_clk);
-				waveDrom["o_wb_adr"].add(top->o_wb_adr);
-				waveDrom["i_wb_dat"].add(top->i_wb_dat);
-				waveDrom["o_wb_dat"].add(top->o_wb_dat);
-				waveDrom["o_wb_stb"].add(top->o_wb_stb);
-				waveDrom["i_wb_ack"].add(top->i_wb_ack);
-				waveDrom["write"].add(top->o_wb_we);
-			}
 		}
-
-			/*
-			if (old_pc != cur_pc) {
-			//printf("PC=0x%08X  ", cur_pc);
-			//printf("R15: 0x%08X \n", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__i_pc_ff);
-			printf("PC: 0x%08X  o_wb_adr: 0x%08X\n", cur_pc, top->o_wb_adr);
-			}
-			old_pc = cur_pc;
-			*/
-
-			/*
-			if (old_pc != cur_pc) {
-			printf("PC: 0x%08X  i_wb_dat: 0x%08X\n", cur_pc, top->i_wb_dat);
-			printf("R0: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r0);
-			printf("R1: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r1);
-			printf("R2: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r2);
-			printf("R3: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r3);
-			printf("R4: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r4);
-			printf("R5: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r5);
-			printf("R6: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r6);
-			printf("R7: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r7);
-			printf("R8: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r8);
-			printf("R9: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r9);
-			printf("R10: 0x%08X \n\n", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r10);
-			}
-			old_pc = cur_pc;
-			*/
 
 		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==top->rootp->core_3do__DOT__clio_inst__DOT__vcnt_max && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0) {
 			frame_count++;
@@ -877,16 +822,6 @@ int main(int argc, char** argv, char** env) {
 	top->rootp->core_3do__DOT__matrix_inst__DOT__MV0_in  = 0x00000888;
 	top->rootp->core_3do__DOT__matrix_inst__DOT__MV1_in  = 0x44880000;
 	top->rootp->core_3do__DOT__matrix_inst__DOT__MV2_in  = 0x00444444;
-
-	if (GENERATE_JSON) {
-		waveDrom.add(WaveDromSignal("clock"));
-		waveDrom.add(WaveDromSignal("o_wb_adr", true));
-		waveDrom.add(WaveDromSignal("i_wb_dat", true));
-		waveDrom.add(WaveDromSignal("o_wb_dat", true));
-		waveDrom.add(WaveDromSignal("o_wb_stb"));
-		waveDrom.add(WaveDromSignal("i_wb_ack"));
-		waveDrom.add(WaveDromSignal("write"));
-	}
 
 	// Our state
 	bool show_demo_window = true;
@@ -1490,10 +1425,6 @@ int main(int argc, char** argv, char** env) {
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
-
-	if (GENERATE_JSON) {
-		waveDrom.write("out.json");
-	}
 
 	CleanupDeviceD3D();
 	DestroyWindow(hwnd);
