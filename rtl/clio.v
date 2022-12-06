@@ -290,7 +290,10 @@ always @(*) begin
 
 // hdelay / adbio stuff...
 	16'h0080: cpu_dout = hdelay;		// 0x80
-	16'h0084: cpu_dout = adbio_reg;		// 0x84
+	
+	//16'h0084: cpu_dout = adbio_reg;		// 0x84
+	16'h0084: cpu_dout = 32'h00000000;		// 0x84
+	
 	16'h0088: cpu_dout = adbctl;		// 0x88
 
 
@@ -386,8 +389,8 @@ always @(*) begin
 	16'h0578: cpu_dout = poll_14;	// 0x578
 	16'h057c: cpu_dout = poll_15;	// 0x57c
 
-	// 0x580 - 0x5bf. In Opera, on a write, this calls "opera_xbus_fifo_set_cmd(val_)".
-	// 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
+	16'h0580: cpu_dout = 32'h00000000;	// In Opera, on a READ, this calls "opera_xbus_fifo_get_status();"
+	16'h05C0: cpu_dout = 32'h00000000;	// In Opera, on a READ, this calls "opera_xbus_fifo_get_data();"
 
 // DSP...
 	16'h17d0: cpu_dout = sema;		// 0x17d0. DSP/ARM Semaphore. (can't call it "semaphore", because Verilog / Verilator).
@@ -417,7 +420,7 @@ always @(*) begin
 	endcase
 end
 
-reg [5:0] clk_div;
+reg [11:0] clk_div;
 always @(posedge clk_25m) clk_div <= clk_div + 1;
 
 wire timer_tick = (clk_div==0);
@@ -437,16 +440,19 @@ if (!reset_n) begin
 	//cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
 	//cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
 	cstatbits <= 32'h00000040;		// This is the first value read from cstatbits by the Opera emulator!
+	
 	expctl <= 32'h00000080;
 	field <= 1'b1;
 	hcnt <= 32'd0;
 	vcnt <= 32'd0;
 	
 	dipir2 <= 32'h00004000;			// This is the first value read from dipir2 by the Opera emulator!
+	
 	poll_0 <= 32'h0000000F;			// Spoofing value from Opera log atm.
 	
-	adbio_reg <= 32'h00000062;
-	//adbio_reg <= 32'h00000000;
+	//adbio_reg <= 32'h00000062;
+	adbio_reg <= 32'h00000000;			// Spoofing value from Opera log atm.
+										// TESTING - Also forcing it to read back 0x00000000 after a WRITE. See below! 
 	
 	irq0_pend <= 32'h00000000;
 	irq0_enable <= 32'h00000000;
@@ -612,7 +618,7 @@ case ({cpu_addr,2'b00})
 		16'h0538: sel_14 <= cpu_din;	// 0x538
 		16'h053c: sel_15 <= cpu_din;	// 0x53c
 
-		16'h0540: poll_0 <= cpu_din;	// 0x540
+		16'h0540: /*poll_0 <= cpu_din*/;	// 0x540
 		16'h0544: poll_1 <= cpu_din;	// 0x544
 		16'h0548: poll_2 <= cpu_din;	// 0x548
 		16'h054c: poll_3 <= cpu_din;	// 0x54c

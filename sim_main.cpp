@@ -358,7 +358,8 @@ int verilate() {
 							   ((rom2_ptr[ (top->o_wb_adr+2)&0xfffff ]<<8) &  0x0000FF00) |
 							   ((rom2_ptr[ (top->o_wb_adr+3)&0xfffff ]<<0) &  0x000000FF);
 
-		cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__fifo_pc_plus_8;
+		//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_pc;
+		cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__i_pc_ff;
 
 		//trace = 1;
 
@@ -384,8 +385,8 @@ int verilate() {
 			if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/) fprintf(logfile, "Addr: 0x%08X ", top->o_wb_adr);
 
 			// Tech manual suggests "Any write to this area will unmap the BIOS".
-			if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x001FFFFF && top->o_wb_we) map_bios = 0;
-			//if (top->o_wb_adr>=0x00000000 && top->o_wb_dat<=0x00000000 && top->o_wb_we) map_bios = 0;
+			//if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x001FFFFF && top->o_wb_we) map_bios = 0;
+			if (top->o_wb_adr>=0x00000000 && top->o_wb_dat<=0x00000000 && top->o_wb_we) map_bios = 0;
 
 			// Main RAM (or overlaid BIOS) reads...
 			if (top->o_wb_adr >= 0x00000118 && top->o_wb_adr <= 0x00000118) top->i_wb_dat = 0xE3A00000;	// MOV R0, #0. Clear R0 ! TESTING! Skip big delay.
@@ -403,10 +404,10 @@ int verilate() {
 			// BIOS reads...
 			//else if (top->o_wb_adr>=0x03000218 && top->o_wb_adr<=0x03000220) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip t2_testmemory and BeepsAndHold. TESTING!
 
-			else if (top->o_wb_adr >= 0x03000510 && top->o_wb_adr <= 0x03000510) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
-			else if (top->o_wb_adr >= 0x03000504 && top->o_wb_adr <= 0x0300050C) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
+			//else if (top->o_wb_adr >= 0x03000510 && top->o_wb_adr <= 0x03000510) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
+			//else if (top->o_wb_adr >= 0x03000504 && top->o_wb_adr <= 0x0300050C) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip another delay.
 			//else if (top->o_wb_adr>=0x03000340 && top->o_wb_adr<=0x03000340) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip endless loop on mem size check fail.
-			else if (top->o_wb_adr >= 0x030006a8 && top->o_wb_adr <= 0x030006b0) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip test_vram_svf. TESTING !!
+			//else if (top->o_wb_adr >= 0x030006a8 && top->o_wb_adr <= 0x030006b0) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0) Skip test_vram_svf. TESTING !!
 			//else if (top->o_wb_adr>=0x030008E0 && top->o_wb_adr<=0x03000944) top->i_wb_dat = 0xE1A00000;	// NOP ! (MOV R0,R0)
 			//else if (top->o_wb_adr>=0x0300056C && top->o_wb_adr<=0x0300056C) top->i_wb_dat = 0xE888001F;	// STM fix. TESTING !!
 			else if (top->o_wb_adr >= 0x03000000 && top->o_wb_adr <= 0x030FFFFF) { /*fprintf(logfile, "BIOS            ");*/ top->i_wb_dat = /*(rom_select==0) ?*/ rom_merged /*: rom2_merged*/; }
@@ -416,115 +417,174 @@ int verilate() {
 
 			else if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315FFFF) { fprintf(logfile, "NVRAM           "); }
 			else if (top->o_wb_adr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); shift_reg = 0x2000; }
-			//else if (top->o_wb_adr == 0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = 0x00000000; }
-			else if (top->o_wb_adr==0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = (shift_reg&0x8000)>>15; shift_reg=shift_reg<<1; }
+			else if (top->o_wb_adr == 0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = 0x00000000; }
+			//else if (top->o_wb_adr==0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = (shift_reg&0x8000)>>15; shift_reg=shift_reg<<1; }
 			else if (top->o_wb_adr >= 0x03180004 && top->o_wb_adr <= 0x031BFFFF) { fprintf(logfile, "Slow Bus        "); }
 			else if (top->o_wb_adr >= 0x03200000 && top->o_wb_adr <= 0x0320FFFF) { fprintf(logfile, "VRAM SVF        "); top->i_wb_dat = 0xBADACCE5; }	// Dummy reads for now.
 			else if (top->o_wb_adr >= 0x032F0000 && top->o_wb_adr <= 0x032FFFFF) { fprintf(logfile, "Unknown         "); top->i_wb_dat = 0xBADACCE5; }	// Dummy reads for now.
 
 			// MADAM...
-			else if (top->o_wb_adr == 0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); /*top->i_wb_dat = 0x01020000;*/ }
-			else if (top->o_wb_adr == 0x03300000 && top->o_wb_we) { fprintf(logfile, "MADAM Print     "); MyAddLog("%c", top->o_wb_dat & 0xff); printf("%c", top->o_wb_dat & 0xff); }
-
-			else if (top->o_wb_adr == 0x03300004 && top->o_wb_we) { fprintf(logfile, "MADAM msysbits  "); /*msys_reg = top->o_wb_dat;*/ }
-			//else if (top->o_wb_adr==0x03300004 && !top->o_wb_we) { fprintf(logfile, "MADAM msysbits  "); top->i_wb_dat = msys_reg; }
-			else if (top->o_wb_adr == 0x03300004 && !top->o_wb_we) { fprintf(logfile, "MADAM msysbits  "); /*top->i_wb_dat = 0x00000029;*/ }
-
-			else if (top->o_wb_adr == 0x03300008 && top->o_wb_we) { fprintf(logfile, "MADAM mctl      "); /*mctl_reg = top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x03300008 && !top->o_wb_we) { fprintf(logfile, "MADAM mctl      "); /*top->i_wb_dat = mctl_reg;*/ }
-			else if (top->o_wb_adr == 0x0330000C && top->o_wb_we) { fprintf(logfile, "MADAM sltime    "); /*sltime_reg = top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x0330000C && !top->o_wb_we) { fprintf(logfile, "MADAM sltime    "); /*top->i_wb_dat = sltime_reg;*/ }
-			else if (top->o_wb_adr == 0x03300020 && !top->o_wb_we) { fprintf(logfile, "MADAM abortbits "); /*top->i_wb_dat = abortbits;*/ }
-			else if (top->o_wb_adr == 0x03300020 && top->o_wb_we) { fprintf(logfile, "MADAM abortbits "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x03300574 && !top->o_wb_we) { fprintf(logfile, "MADAM PBUS thing"); /*top->i_wb_dat = 0xFFFFFFFC;*/ }
-			else if (top->o_wb_adr == 0x03300580 && top->o_wb_we) { fprintf(logfile, "MADAM vdl_addr! "); /*vdl_addr_reg = top->o_wb_dat;*/ }
-			else if (top->o_wb_adr >= 0x03300000 && top->o_wb_adr <= 0x033FFFFF) { fprintf(logfile, "MADAM           "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads.
+			if (top->o_wb_adr>=0x03300000 && top->o_wb_adr<=0x033FFFFF) {
+				switch (top->o_wb_adr) {
+					case 0x03000000: { fprintf(logfile, "MADAM Print     "); break; }
+					case 0x03300000: { fprintf(logfile, "MADAM Print     "); break; }
+					case 0x03300004: { fprintf(logfile, "MADAM msysbits  "); break; }
+					case 0x03300008: { fprintf(logfile, "MADAM mctl      "); break; }
+					case 0x0330000C: { fprintf(logfile, "MADAM sltime    "); break; }
+					case 0x03300580: { fprintf(logfile, "MADAM vdl_addr! "); break; }
+							default: { fprintf(logfile, "MADAM ??        "); break; }
+				}
+			}
 
 			// CLIO...
-			else if (top->o_wb_adr == 0x03400000 && !top->o_wb_we) { fprintf(logfile, "CLIO Revision   "); /*top->i_wb_dat = 0x02020000;*/ }
-			else if (top->o_wb_adr == 0x03400004 && top->o_wb_we) { fprintf(logfile, "CLIO vint0      "); /*vint0_reg = top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x03400004 && !top->o_wb_we) { fprintf(logfile, "CLIO vint0      "); /*top->i_wb_dat = vint0_reg;*/ }
-			else if (top->o_wb_adr == 0x0340000C && top->o_wb_we) { fprintf(logfile, "CLIO vint1      "); /*vint1_reg = top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x0340000C && !top->o_wb_we) { fprintf(logfile, "CLIO vint1      "); /*top->i_wb_dat = vint1_reg;*/ }
+			if (top->o_wb_adr >= 0x03400000 && top->o_wb_adr <= 0x034FFFFF) {
+				switch (top->o_wb_adr) {
+					case 0x03400004: { fprintf(logfile, "CLIO vint0      "); break; }
+					case 0x0340000C: { fprintf(logfile, "CLIO vint1      "); break; }
 
-			else if (top->o_wb_adr == 0x03400024) { fprintf(logfile, "CLIO audout     "); /*top->i_wb_dat = 0;*/ }
+					case 0x03400024: { fprintf(logfile, "CLIO audout     "); break; }
 
-			else if (top->o_wb_adr == 0x03400028 && top->o_wb_we) { fprintf(logfile, "CLIO cstatbits  "); /*cstat_reg = top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x03400028 && !top->o_wb_we) { fprintf(logfile, "CLIO cstatbits  "); /*top->i_wb_dat = cstat_reg;*/ }	// bit 6 = ? bit 0 = Reset of CLIO caused by power-on.
-			else if (top->o_wb_adr == 0x03400034 && top->o_wb_we) { fprintf(logfile, "CLIO vcnt       "); /*clio_vcnt = top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x03400034 && !top->o_wb_we) { fprintf(logfile, "CLIO vcnt       "); /*top->i_wb_dat = (field<<11) | line_count;*/ }
+					case 0x03400028: { fprintf(logfile, "CLIO cstatbits  "); break; }
 
-			else if (top->o_wb_adr == 0x03400040 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 set   "); /*irq0 |= top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x03400044 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 clear "); /*irq0 &= ~top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x03400048 && top->o_wb_we) { fprintf(logfile, "CLIO mask0 set  "); /*mask0 |= top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x0340004c && top->o_wb_we) { fprintf(logfile, "CLIO mask0 clear"); /*mask0 &= ~top->o_wb_dat;*/ }
+					case 0x03400040: { fprintf(logfile, "CLIO irq0 set   "); break; }
+					case 0x03400044: { fprintf(logfile, "CLIO irq0 clear "); break; }
+					case 0x03400048: { fprintf(logfile, "CLIO mask0 set  "); break; }
+					case 0x0340004c: { fprintf(logfile, "CLIO mask0 clear"); break; }
 
-			else if (top->o_wb_adr == 0x03400060 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 set   "); /*irq1 |= top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x03400064 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 clear "); /*irq1 &= ~top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x03400068 && top->o_wb_we) { fprintf(logfile, "CLIO mask1 set  "); /*mask1 |= top->o_wb_dat;*/ }
-			else if (top->o_wb_adr == 0x0340006c && top->o_wb_we) { fprintf(logfile, "CLIO mask1 clear"); /*mask1 &= ~top->o_wb_dat;*/ }
+					case 0x03400060: { fprintf(logfile, "CLIO irq1 set   "); break; }
+					case 0x03400064: { fprintf(logfile, "CLIO irq1 clear "); break; }
+					case 0x03400068: { fprintf(logfile, "CLIO mask1 set  "); break; }
+					case 0x0340006c: { fprintf(logfile, "CLIO mask1 clear"); break; }
 
-			else if (top->o_wb_adr >= 0x03400040 && top->o_wb_adr <= 0x03400044 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 read   "); /*top->i_wb_dat = irq0;*/ }
-			else if (top->o_wb_adr >= 0x03400048 && top->o_wb_adr <= 0x0340004C && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read  "); /*top->i_wb_dat = mask0;*/ }
+					case 0x03400080: { fprintf(logfile, "CLIO hdelay     "); break; }
+					case 0x03400084: { fprintf(logfile, "CLIO adbio      "); break; }
+					case 0x03400088: { fprintf(logfile, "CLIO adbctl     "); break; }
 
-			else if (top->o_wb_adr >= 0x03400060 && top->o_wb_adr <= 0x03400064 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 read   "); /*top->i_wb_dat = irq1;*/ }
-			else if (top->o_wb_adr >= 0x03400068 && top->o_wb_adr <= 0x0340006C && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read  "); /*top->i_wb_dat = mask1;*/ }
+					case 0x03400100: { fprintf(logfile, "CLIO tmr0_cnt   "); break; }
+					case 0x03400108: { fprintf(logfile, "CLIO tmr1_cnt   "); break; }
+					case 0x03400110: { fprintf(logfile, "CLIO tmr2_cnt   "); break; }
+					case 0x03400118: { fprintf(logfile, "CLIO tmr3_cnt   "); break; }
+					case 0x03400120: { fprintf(logfile, "CLIO tmr4_cnt   "); break; }
+					case 0x03400128: { fprintf(logfile, "CLIO tmr5_cnt   "); break; }
+					case 0x03400130: { fprintf(logfile, "CLIO tmr6_cnt   "); break; }
+					case 0x03400138: { fprintf(logfile, "CLIO tmr7_cnt   "); break; }
+					case 0x03400140: { fprintf(logfile, "CLIO tmr8_cnt   "); break; }
+					case 0x03400148: { fprintf(logfile, "CLIO tmr9_cnt   "); break; }
+					case 0x03400150: { fprintf(logfile, "CLIO tmr10_cnt  "); break; }
+					case 0x03400158: { fprintf(logfile, "CLIO tmr11_cnt  "); break; }
+					case 0x03400160: { fprintf(logfile, "CLIO tmr12_cnt  "); break; }
+					case 0x03400168: { fprintf(logfile, "CLIO tmr13_cnt  "); break; }
+					case 0x03400170: { fprintf(logfile, "CLIO tmr14_cnt  "); break; }
+					case 0x03400178: { fprintf(logfile, "CLIO tmr15_cnt  "); break; }
 
-			else if (top->o_wb_adr == 0x03400080) { fprintf(logfile, "CLIO hdelay     "); /*top->i_wb_dat = 0;*/ }
-			else if (top->o_wb_adr == 0x03400084 && !top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); /*top->i_wb_dat = 0;*/ }
-			else if (top->o_wb_adr == 0x03400084 && top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); rom_select = (top->o_wb_dat & 0x40); }
-			else if (top->o_wb_adr == 0x03400088) { fprintf(logfile, "CLIO adbctl     "); /*top->i_wb_dat = 0;*/ }
-			else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && !(top->o_wb_adr & 4)) { fprintf(logfile, "CLIO timer_cnt  "); /*top->i_wb_dat = 0x00000040;*/ }
-			else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && (top->o_wb_adr & 4)) { fprintf(logfile, "CLIO timer_bkp  "); /*top->i_wb_dat = 0x00000040;*/ }
-			else if (top->o_wb_adr == 0x03400200) { fprintf(logfile, "CLIO timer1_set "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x03400204) { fprintf(logfile, "CLIO timer1_clr "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x03400208) { fprintf(logfile, "CLIO timer2_set "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x0340020C) { fprintf(logfile, "CLIO timer2_clr "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x03400220) { fprintf(logfile, "CLIO slack      "); /*top->i_wb_dat = 0x00000040;*/ }
-			else if (top->o_wb_adr == 0x03400304) { fprintf(logfile, "CLIO dma        "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x03400308) { fprintf(logfile, "CLIO dmareqdis  "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x03400400) { fprintf(logfile, "CLIO expctl_set "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x03400404) { fprintf(logfile, "CLIO expctl_clr "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x03400408) { fprintf(logfile, "CLIO type0_4    "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x03400410) { fprintf(logfile, "CLIO dipir1     "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr == 0x03400414) { fprintf(logfile, "CLIO dipir2     "); /*top->i_wb_dat = 0x00004000;*/ }
-			else if (top->o_wb_adr >= 0x03400500 && top->o_wb_adr <= 0x0340053f) { fprintf(logfile, "CLIO sel        "); /*top->i_wb_dat = 0x00000000;*/ }
-			else if (top->o_wb_adr >= 0x03400540 && top->o_wb_adr <= 0x0340057f) { fprintf(logfile, "CLIO poll       "); /*top->i_wb_dat = 0x00000000;*/ }
+					case 0x03400104: { fprintf(logfile, "CLIO tmr0_bkp   "); break; }
+					case 0x0340010c: { fprintf(logfile, "CLIO tmr1_bkp   "); break; }
+					case 0x03400114: { fprintf(logfile, "CLIO tmr2_bkp   "); break; }
+					case 0x0340011c: { fprintf(logfile, "CLIO tmr3_bkp   "); break; }
+					case 0x03400124: { fprintf(logfile, "CLIO tmr4_bkp   "); break; }
+					case 0x0340012c: { fprintf(logfile, "CLIO tmr5_bkp   "); break; }
+					case 0x03400134: { fprintf(logfile, "CLIO tmr6_bkp   "); break; }
+					case 0x0340013c: { fprintf(logfile, "CLIO tmr7_bkp   "); break; }
+					case 0x03400144: { fprintf(logfile, "CLIO tmr8_bkp   "); break; }
+					case 0x0340014c: { fprintf(logfile, "CLIO tmr9_bkp   "); break; }
+					case 0x03400154: { fprintf(logfile, "CLIO tmr10_bkp  "); break; }
+					case 0x0340015c: { fprintf(logfile, "CLIO tmr11_bkp  "); break; }
+					case 0x03400164: { fprintf(logfile, "CLIO tmr12_bkp  "); break; }
+					case 0x0340016c: { fprintf(logfile, "CLIO tmr13_bkp  "); break; }
+					case 0x03400174: { fprintf(logfile, "CLIO tmr14_bkp  "); break; }
+					case 0x0340017c: { fprintf(logfile, "CLIO tmr15_bkp  "); break; }
 
-			else if (top->o_wb_adr >= 0x034017d0 && top->o_wb_adr <= 0x034017d0) { fprintf(logfile, "CLIO sema       "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x034017d4 && top->o_wb_adr <= 0x034017d4) { fprintf(logfile, "CLIO semaack    "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x034017e0 && top->o_wb_adr <= 0x034017e0) { fprintf(logfile, "CLIO dspdma     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x034017e4 && top->o_wb_adr <= 0x034017e4) { fprintf(logfile, "CLIO dspprst0   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x034017e8 && top->o_wb_adr <= 0x034017e8) { fprintf(logfile, "CLIO dspprst1   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x034017f4 && top->o_wb_adr <= 0x034017f4) { fprintf(logfile, "CLIO dspppc     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x034017f8 && top->o_wb_adr <= 0x034017f8) { fprintf(logfile, "CLIO dsppnr     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x034017fc && top->o_wb_adr <= 0x034017fc) { fprintf(logfile, "CLIO dsppgw     "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x034039dc && top->o_wb_adr <= 0x034039dc) { fprintf(logfile, "CLIO dsppclkreload"); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
+					case 0x03400200: { fprintf(logfile, "CLIO tmr1_set   "); break; }
+					case 0x03400204: { fprintf(logfile, "CLIO tmr1_clr   "); break; }
+					case 0x03400208: { fprintf(logfile, "CLIO tmr2_set   "); break; }
+					case 0x0340020C: { fprintf(logfile, "CLIO tmr2_clr   "); break; }
 
-			else if (top->o_wb_adr >= 0x03401800 && top->o_wb_adr <= 0x03401fff) { fprintf(logfile, "CLIO DSPP  N 32 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x03402000 && top->o_wb_adr <= 0x03402fff) { fprintf(logfile, "CLIO DSPP  N 16 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x03403000 && top->o_wb_adr <= 0x034031ff) { fprintf(logfile, "CLIO DSPP EI 32 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x03403400 && top->o_wb_adr <= 0x034037ff) { fprintf(logfile, "CLIO DSPP EI 16 "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C000) { fprintf(logfile, "CLIO unc_rev    "); /*top->i_wb_dat = 0x03800000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C004) { fprintf(logfile, "CLIO unc_soft_rv"); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C008) { fprintf(logfile, "CLIO unc_addr   "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C00C) { fprintf(logfile, "CLIO unc_rom    "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else if (top->o_wb_adr >= 0x03400000 && top->o_wb_adr <= 0x034FFFFF) { fprintf(logfile, "CLIO            "); /*top->i_wb_dat = 0x00000000;*/ }	// Dummy reads for now.
-			else /*top->i_wb_dat = 0xBADACCE5*/;	// Dummy reads for now.
+					case 0x03400220: { fprintf(logfile, "CLIO slack      "); break; }
+					case 0x03400304: { fprintf(logfile, "CLIO dma        "); break; }
+					case 0x03400308: { fprintf(logfile, "CLIO dmareqdis  "); break; }
+					case 0x03400400: { fprintf(logfile, "CLIO expctl_set "); break; }
+					case 0x03400404: { fprintf(logfile, "CLIO expctl_clr "); break; }
+					case 0x03400408: { fprintf(logfile, "CLIO type0_4    "); break; }
+					case 0x03400410: { fprintf(logfile, "CLIO dipir1     "); break; }
+					case 0x03400414: { fprintf(logfile, "CLIO dipir2     "); break; }
 
-			//if (top->o_wb_sel != 0xF) fprintf(logfile, "BYTE! ");
+					case 0x03400500: { fprintf(logfile, "CLIO sel0       "); break; }
+					case 0x03400504: { fprintf(logfile, "CLIO sel1       "); break; }
+					case 0x03400508: { fprintf(logfile, "CLIO sel2       "); break; }
+					case 0x0340050c: { fprintf(logfile, "CLIO sel3       "); break; }
+					case 0x03400510: { fprintf(logfile, "CLIO sel4       "); break; }
+					case 0x03400514: { fprintf(logfile, "CLIO sel5       "); break; }
+					case 0x03400518: { fprintf(logfile, "CLIO sel6       "); break; }
+					case 0x0340051c: { fprintf(logfile, "CLIO sel7       "); break; }
+					case 0x03400520: { fprintf(logfile, "CLIO sel8       "); break; }
+					case 0x03400524: { fprintf(logfile, "CLIO sel9       "); break; }
+					case 0x03400528: { fprintf(logfile, "CLIO sel10      "); break; }
+					case 0x0340052c: { fprintf(logfile, "CLIO sel11      "); break; }
+					case 0x03400530: { fprintf(logfile, "CLIO sel12      "); break; }
+					case 0x03400534: { fprintf(logfile, "CLIO sel13      "); break; }
+					case 0x03400538: { fprintf(logfile, "CLIO sel14      "); break; }
+					case 0x0340053c: { fprintf(logfile, "CLIO sel15      "); break; }
 
-			if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/) {
-				//if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)  o_wb_sel: 0x%01X  o_wb_bte: 0x%01X\n", top->i_wb_dat, cur_pc, top->o_wb_sel, top->o_wb_bte);
-				if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);	// Disabling BE bit printf for now. (sync with Opera).
-				//else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat, cur_pc);
-				else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->rootp->core_3do__DOT__zap_din, cur_pc);
+					case 0x03400540: { fprintf(logfile, "CLIO poll0      "); break; }
+					case 0x03400544: { fprintf(logfile, "CLIO poll1      "); break; }
+					case 0x03400548: { fprintf(logfile, "CLIO poll2      "); break; }
+					case 0x0340054c: { fprintf(logfile, "CLIO poll3      "); break; }
+					case 0x03400550: { fprintf(logfile, "CLIO poll4      "); break; }
+					case 0x03400554: { fprintf(logfile, "CLIO poll5      "); break; }
+					case 0x03400558: { fprintf(logfile, "CLIO poll6      "); break; }
+					case 0x0340055c: { fprintf(logfile, "CLIO poll7      "); break; }
+					case 0x03400560: { fprintf(logfile, "CLIO poll8      "); break; }
+					case 0x03400564: { fprintf(logfile, "CLIO poll9      "); break; }
+					case 0x03400568: { fprintf(logfile, "CLIO poll10     "); break; }
+					case 0x0340056c: { fprintf(logfile, "CLIO poll11     "); break; }
+					case 0x03400570: { fprintf(logfile, "CLIO poll12     "); break; }
+					case 0x03400574: { fprintf(logfile, "CLIO poll13     "); break; }
+					case 0x03400578: { fprintf(logfile, "CLIO poll14     "); break; }
+					case 0x0340057c: { fprintf(logfile, "CLIO poll15     "); break; }
+					case 0x034017d0: { fprintf(logfile, "CLIO sema       "); break; }
+					case 0x034017d4: { fprintf(logfile, "CLIO semaack    "); break; }
+					case 0x034017e0: { fprintf(logfile, "CLIO dspdma     "); break; }
+					case 0x034017e4: { fprintf(logfile, "CLIO dspprst0   "); break; }
+					case 0x034017e8: { fprintf(logfile, "CLIO dspprst1   "); break; }
+					case 0x034017f4: { fprintf(logfile, "CLIO dspppc     "); break; }
+					case 0x034017f8: { fprintf(logfile, "CLIO dsppnr     "); break; }
+					case 0x034017fc: { fprintf(logfile, "CLIO dsppgw     "); break; }
+					case 0x034039dc: { fprintf(logfile, "CLIO dsppclkreld"); break; }
+					default: break;
+				}
+
+					 if (top->o_wb_adr >= 0x03400580 && top->o_wb_adr <= 0x034005bf) fprintf(logfile, "CLIO CmdFIFO    ");
+				else if (top->o_wb_adr >= 0x034005c0 && top->o_wb_adr <= 0x034005ff) fprintf(logfile, "CLIO DataFIFO   ");
+				else if (top->o_wb_adr >= 0x03401800 && top->o_wb_adr <= 0x03401fff) fprintf(logfile, "CLIO DSPP  N 32 ");
+				else if (top->o_wb_adr >= 0x03402000 && top->o_wb_adr <= 0x03402fff) fprintf(logfile, "CLIO DSPP  N 16 ");
+				else if (top->o_wb_adr >= 0x03403000 && top->o_wb_adr <= 0x034031ff) fprintf(logfile, "CLIO DSPP EI 32 ");
+				else if (top->o_wb_adr >= 0x03403400 && top->o_wb_adr <= 0x034037ff) fprintf(logfile, "CLIO DSPP EI 16 ");
+				else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C000) fprintf(logfile, "CLIO unc_rev    ");
+				else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C004) fprintf(logfile, "CLIO unc_soft_rv");
+				else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C008) fprintf(logfile, "CLIO unc_addr   ");
+				else if (top->o_wb_adr >= 0x0340C000 && top->o_wb_adr <= 0x0340C00C) fprintf(logfile, "CLIO unc_rom    ");
+				//else { fprintf(logfile, "CLIO ?          "); }
 			}
+
 
 			bool madam_cs = top->rootp->core_3do__DOT__madam_cs;
 			bool clio_cs = top->rootp->core_3do__DOT__clio_cs;
 			bool svf_cs = top->rootp->core_3do__DOT__svf_cs;
 			bool svf2_cs = top->rootp->core_3do__DOT__svf2_cs;
+
+			top->i_wb_dat = (madam_cs) ? top->rootp->core_3do__DOT__madam_dout :
+							(clio_cs)  ? top->rootp->core_3do__DOT__clio_dout :
+							(svf_cs)   ? 0xBADACCE5 :
+							(svf2_cs)  ? 0x00000000 :
+							top->i_wb_dat;	// Else, take input from the C code above (for BIOS, DRAM, VRAM, NVRAM etc.)
+
+			if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF /*&& !(top->o_wb_adr==0x03400044)*/) {
+				//if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)  o_wb_sel: 0x%01X  o_wb_bte: 0x%01X\n", top->i_wb_dat, cur_pc, top->o_wb_sel, top->o_wb_bte);
+				if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);	// Disabling BE bit printf for now. (sync with Opera).
+				//else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat, cur_pc);
+				//else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->rootp->core_3do__DOT__zap_din, cur_pc);
+				else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", top->i_wb_dat, cur_pc);
+			}
 		}
 
 		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==top->rootp->core_3do__DOT__clio_inst__DOT__vcnt_max && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0) {
@@ -1065,7 +1125,7 @@ int main(int argc, char** argv, char** env) {
 		else if (top->rootp->o_wb_adr>=0x03200000 && top->rootp->o_wb_adr<=0x0320FFFF) ImGui::Text("     VRAM SVF  ");
 		else if (top->rootp->o_wb_adr>=0x03300000 && top->rootp->o_wb_adr<=0x033FFFFF) ImGui::Text("     MADAM     ");
 		else if (top->rootp->o_wb_adr>=0x03400000 && top->rootp->o_wb_adr<=0x034FFFFF) ImGui::Text("     CLIO      ");
-		else ImGui::Text("    Unknown    ");
+		else { ImGui::Text("    Unknown    "); run_enable = 0; trace = 1; }
 
 		ImGui::Text("    i_wb_dat: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat);
 		ImGui::Text("    o_wb_dat: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__o_wb_dat);
