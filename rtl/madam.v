@@ -281,7 +281,8 @@ end
 
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
-	mctl <= 32'h00002000;
+	//mctl <= 32'h00002000;
+	mctl <= 32'h00000000;	// This is the first value read from MADAM mctl by the Opera emulator!
 end
 else begin
 	// Handle MADAM register WRITES...

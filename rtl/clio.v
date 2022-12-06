@@ -415,6 +415,12 @@ always @(*) begin
 	endcase
 end
 
+reg [5:0] clk_div;
+always @(posedge clk_25m) clk_div <= clk_div + 1;
+
+wire timer_tick = (clk_div==0);
+
+
 wire wdgrst = 0;
 wire dipir = 0;
 
@@ -426,14 +432,18 @@ always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera returns 0x02020000.
 	//revision <= 32'h02022000;		// Latest MAME returns 0x02022000 with panafz10 BIOS.
-	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
-	//cstatbits[6] <= 1'b1;			// Set bit 0 (DIPIR). TESTING !!
+	//cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
+	//cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
+	cstatbits <= 32'h00000040;		// This is the first value read from cstatbits by the Opera emulator!
 	expctl <= 32'h00000080;
 	field <= 1'b1;
 	hcnt <= 32'd0;
 	vcnt <= 32'd0;
 	
+	dipir2 <= 32'h00004000;			// This is the first value read from dipir2 by the Opera emulator!	
+	
 	adbio_reg <= 32'h00000062;
+	//adbio_reg <= 32'h00000000;
 	
 	irq0_pend <= 32'h00000000;
 	irq0_enable <= 32'h00000000;
@@ -465,29 +475,46 @@ else begin
 	if (wdgrst) cstatbits[1] <= 1'b1;		// Set bit 1 (WDT).
 	else if (dipir) cstatbits[6] <= 1'b1;	// Set bit 6 (DIPIR).
 	
-	// Handle CLIO register WRITES...
-	if (cpu_wr) begin
-		case ({cpu_addr,2'b00})
-		//16'h0000: revision <= cpu_din;	// 0x00 - READ ONLY? CLIO version in High byte. Feature flags in the rest. Opera return 0x02020000. MAME returns 0x01020000.
-		16'h0004: csysbits <= cpu_din;	// 0x04
-		16'h0008: vint0 <= cpu_din;		// 0x08
-		16'h000c: vint1 <= cpu_din;		// 0x0C
-		16'h0020: audin <= cpu_din;		// 0x20
-		16'h0024: audout <= cpu_din;	// 0x24
-		16'h0028: cstatbits <= cpu_din;	// 0x28
-		16'h002c: wdog <= cpu_din;		// 0x2c
-		16'h0030: hcnt <= cpu_din;		// 0x30 / hpos when read?
-		16'h0034: vcnt <= cpu_din;		// 0x34 / vpos when read?
-		16'h0038: seed <= cpu_din;		// 0x38
-		16'h003c: random <= cpu_din;	// 0x3c - read only?
+	if (timer_count_0>0  && timer_tick) timer_count_0 <= timer_count_0 - 1;
+	if (timer_count_1>0  && timer_tick) timer_count_1 <= timer_count_1 - 1;
+	if (timer_count_2>0  && timer_tick) timer_count_2 <= timer_count_2 - 1;
+	if (timer_count_3>0  && timer_tick) timer_count_3 <= timer_count_3 - 1;
+	if (timer_count_4>0  && timer_tick) timer_count_4 <= timer_count_4 - 1;
+	if (timer_count_5>0  && timer_tick) timer_count_5 <= timer_count_5 - 1;
+	if (timer_count_6>0  && timer_tick) timer_count_6 <= timer_count_6 - 1;
+	if (timer_count_7>0  && timer_tick) timer_count_7 <= timer_count_7 - 1;
+	if (timer_count_8>0  && timer_tick) timer_count_8 <= timer_count_8 - 1;
+	if (timer_count_9>0  && timer_tick) timer_count_9 <= timer_count_9 - 1;
+	if (timer_count_10>0 && timer_tick) timer_count_10 <= timer_count_10 - 1;
+	if (timer_count_11>0 && timer_tick) timer_count_11 <= timer_count_11 - 1;
+	if (timer_count_12>0 && timer_tick) timer_count_12 <= timer_count_12 - 1;
+	if (timer_count_13>0 && timer_tick) timer_count_13 <= timer_count_13 - 1;
+	if (timer_count_14>0 && timer_tick) timer_count_14 <= timer_count_14 - 1;
+	if (timer_count_15>0 && timer_tick) timer_count_15 <= timer_count_15 - 1;
+	
+// Handle CLIO register WRITES...
+if (cpu_wr) begin
+case ({cpu_addr,2'b00})
+//16'h0000: revision <= cpu_din;	// 0x00 - READ ONLY? CLIO version in High byte. Feature flags in the rest. Opera return 0x02020000. MAME returns 0x01020000.
+16'h0004: csysbits <= cpu_din;	// 0x04
+16'h0008: vint0 <= cpu_din;		// 0x08
+16'h000c: vint1 <= cpu_din;		// 0x0C
+16'h0020: audin <= cpu_din;		// 0x20
+16'h0024: audout <= cpu_din;	// 0x24
+16'h0028: cstatbits <= cpu_din;	// 0x28
+16'h002c: wdog <= cpu_din;		// 0x2c
+16'h0030: hcnt <= cpu_din;		// 0x30 / hpos when read?
+16'h0034: vcnt <= cpu_din;		// 0x34 / vpos when read?
+16'h0038: seed <= cpu_din;		// 0x38
+16'h003c: random <= cpu_din;	// 0x3c - read only?
 
-		// IRQs. (FIQ on ARM will be triggered if PENDING and corresponding MASK bits are both SET.)
-															
-		16'h0040: begin irq0_pend <= irq0_pend |  cpu_din; $display("Write to irq0_pend SET."); end				// 0x40. Writing to 0x40 SETs irq0_pend bits. 
-		16'h0044: begin irq0_pend <= irq0_pend & ~cpu_din; $display("Write to irq0_pend CLR."); end				// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
-		
-		16'h0048: begin irq0_enable <= irq0_enable |  cpu_din; $display("Write to irq0_enable SET."); end	// 0x48. Writing to 0x48 SETs irq0_enable bits.
-		16'h004c: begin irq0_enable <= irq0_enable & ~cpu_din; $display("Write to irq0_enable CLR."); end	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
+// IRQs. (FIQ on ARM will be triggered if PENDING and corresponding MASK bits are both SET.)
+													
+16'h0040: begin irq0_pend <= irq0_pend |  cpu_din; $display("Write to irq0_pend SET."); end				// 0x40. Writing to 0x40 SETs irq0_pend bits. 
+16'h0044: begin irq0_pend <= irq0_pend & ~cpu_din; $display("Write to irq0_pend CLR."); end				// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
+
+16'h0048: begin irq0_enable <= irq0_enable |  cpu_din; $display("Write to irq0_enable SET."); end	// 0x48. Writing to 0x48 SETs irq0_enable bits.
+16'h004c: begin irq0_enable <= irq0_enable & ~cpu_din; $display("Write to irq0_enable CLR."); end	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
 
 		16'h0050: mode <= mode |  cpu_din;		// 0x50. Writing to 0x50 SETs mode bits.
 		16'h0054: mode <= mode & ~cpu_din;		// 0x54. Writing to 0x54 CLEARs mode bits.

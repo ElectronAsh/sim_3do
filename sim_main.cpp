@@ -111,9 +111,6 @@ int frame_count = 0;
 bool prev_hsync = 0;
 int line_count = 0;
 
-bool trig_irq = 0;
-bool trig_fiq = 0;
-
 bool run_enable = 0;
 bool single_step = 0;
 bool multi_step = 0;
@@ -1015,8 +1012,6 @@ int main(int argc, char** argv, char** env) {
 			main_time = 0;
 			rom_select = 0;	// Select the BIOS ROM at startup! (not Kanji).
 			map_bios = 1;
-			trig_irq = 0;
-			trig_fiq = 0;
 			field = 1;
 			frame_count = 0;
 			line_count = 0;
@@ -1073,12 +1068,6 @@ int main(int argc, char** argv, char** env) {
 		ImGui::SameLine(); ImGui::SliderInt("Step amount", &multi_step_amount, 8, 1024);
 		//ImGui::Text("Last SDRAM WRITE. byte_addr: 0x%08X  write_data: 0x%08X  data_ben: 0x%01X\n", last_sdram_byteaddr, last_sdram_writedata, last_sdram_ben);	//  Note sd_data_i is OUT of the sim!
 
-		//bool irq_button_pressed = ImGui::Button("Tickle IRQ");
-		//if (trig_irq==0 && irq_button_pressed) trig_irq = 1;
-
-		//bool firq_button_pressed = ImGui::Button("Tickle FIRQ");
-		//if (trig_fiq==0 && firq_button_pressed) trig_fiq = 1;
-
 		ImGui::Image(my_tex_id, ImVec2(width*2, height*2), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
 		ImGui::End();
 
@@ -1102,55 +1091,26 @@ int main(int argc, char** argv, char** env) {
 		//if ( (top->rootp->o_wb_cti!=7) || (top->rootp->o_wb_bte!=0) ) { run_enable=0; printf("cti / bte changed!!\n"); }
 
 		if (run_enable) for (int step = 0; step < 2048; step++) {	// Simulates MUCH faster if it's done in batches.
-			verilate();
+			verilate();												// But, it will affect the update rate of the GUI.
 
-			//if (top->rootp->o_wb_adr>=0x03400100 && top->rootp->o_wb_adr<=0x03400180 && top->rootp->o_wb_we && top->rootp->o_wb_stb) { run_enable=0; break; }	// Stop on CLIO timer access.
+			// Stop on CLIO timer access.
+			//if (top->rootp->o_wb_adr>=0x03400100 && top->rootp->o_wb_adr<=0x03400180 && top->rootp->o_wb_we && top->rootp->o_wb_stb) { run_enable=0; break; }
 
 			//Is this a folio we are pointing to now?
 			//teq	r9,#0
 			//beq	aborttask
-
 			//if (cur_pc==0x0001162c) { run_enable=0; second_stop=1; break; }
 
-			if (cur_pc==0x00010460) { run_enable=0; second_stop=1; break; }
+			//if (cur_pc==0x03000372) { run_enable=0; second_stop=1; break; }
+
+			//if (cur_pc==0x00010460) { run_enable=0; second_stop=1; break; }
 
 			//if (cur_pc==0x00011624) { run_enable=0; second_stop=1; break; }
 			//if (second_stop && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r9==0) { run_enable=0; break; }
 
 			//if (top->rootp->core_3do__DOT__zap_top_inst__DOT__i_fiq) { run_enable=0; break; }
-
-			//if (cur_pc==0x000002b8) { run_enable=0; break; }
-
-			//if (top->rootp->o_wb_adr==0x03300580) { run_enable=0; break; }
-
-			//if (top->rootp->core_3do__DOT__clio_inst__DOT__irq1_enable&0x100) { run_enable=0; break; }
-
-			//if (top->rootp->o_wb_adr==0x00200000 && top->rootp->o_wb_we && top->rootp->o_wb_stb) { run_enable=0; break; }	// TESTING - Stop sim on first VRAM access.
-
-			//if (top->rootp->o_wb_adr==0x032FFFEC) { run_enable = 0; break; }
-			//if (top->rootp->o_wb_adr==0x00000114 && top->rootp->o_wb_stb && !top->rootp->o_wb_we) { run_enable = 0; break; }
-			//if (top->rootp->o_wb_adr==0x00000038 && !top->rootp->o_wb_we) { run_enable = 0; break; }
-			//if (top->rootp->o_wb_adr==0x00000050 && !top->rootp->o_wb_we) { run_enable = 0; break; }
-			//if (top->rootp->o_wb_adr==0x00001600 && !top->rootp->o_wb_we) { run_enable = 0; break; }
-			//if (top->rootp->o_wb_adr==0x00100000 && top->rootp->o_wb_we) { run_enable = 0; break; }
-			//if (top->rootp->o_wb_adr==0x0000175C && top->rootp->o_wb_we) { run_enable = 0; break; }
-			//if (top->rootp->o_wb_adr==0x03000338) { run_enable = 0; break; }
-			//if (cur_pc==0x03000330) { run_enable = 0; break; }
-			//if (cur_pc==0x00000178) { run_enable = 0; break; }
-			//if (cur_pc==0x00000120) { run_enable = 0; break; }
-			//if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__r1==0x000019b1) { run_enable = 0; break; }
-
-			//if (top->rootp->o_wb_adr>=0x1C && top->rootp->o_wb_adr<=0x1F && top->rootp->o_wb_we) { run_enable = 0; break; }	// Stop on writes to FIQ vector.
-
-			//if (cur_pc==0x0000003c) { run_enable = 0; break; }
-			//if (cur_pc==0x00000050) { run_enable = 0; break; }
-			//if (cur_pc==0x030002C4) { run_enable = 0; break; }
-			//if (cur_pc==0x00000960) { run_enable = 0; break; }
-			//if (cur_pc==0x03000EB8) { run_enable = 0; break; }
-
-			//if (top->rootp->__Vfunc_core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__transform__114__ubyte) { run_enable = 0; break; }
 		}
-		else {																// But, it will affect the update rate of the GUI.
+		else {
 			if (single_step) verilate();
 			if (multi_step) for (int step = 0; step < multi_step_amount; step++) verilate();
 		}
@@ -1235,6 +1195,11 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Separator();
 
 		uint32_t cpsr = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__alu_cpsr_nxt;
+		// Pause the sim, on certain cpsr errors.
+		// (3DO code should never enter Thumb mode, as the ARM60 doesn't have Thumb instructions, AFAIK. ElectronAsh).
+		if ( (cpsr&0x1F) == 0b10111)  {fprintf(logfile, "ABORT Detected!  PC: 0x%08X \n", cur_pc); run_enable = 0;};
+		if ( (cpsr&0x20) == 1 ) {fprintf(logfile, "THUMB Detected!  PC: 0x%08X \n", cur_pc); run_enable = 0;};
+
 		ImGui::Text("        CPSR: 0x%08X", cpsr);
 		ImGui::Text("        bits: %d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
 			(cpsr&0x80000000)>>31, (cpsr&0x40000000)>>30, (cpsr&0x20000000)>>29, (cpsr&0x10000000)>>28, (cpsr&0x08000000)>>27, (cpsr&0x04000000)>>26, (cpsr&0x02000000)>>25, (cpsr&0x01000000)>>24,
@@ -1340,51 +1305,51 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("  timer_count_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_9);		// 0x148
 		ImGui::Text(" timer_backup_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_9);		// 0x14c
 		ImGui::Text(" timer_count_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_10);		// 0x150
-		ImGui::Text("timer_backup_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_10);	// 0x154
+		ImGui::Text("timer_backup_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_10);		// 0x154
 		ImGui::Text(" timer_count_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_11);		// 0x158
-		ImGui::Text("timer_backup_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_11);	// 0x15c
+		ImGui::Text("timer_backup_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_11);		// 0x15c
 		ImGui::Text(" timer_count_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_12);		// 0x160
-		ImGui::Text("timer_backup_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_12);	// 0x164
+		ImGui::Text("timer_backup_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_12);		// 0x164
 		ImGui::Text(" timer_count_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_13);		// 0x168
-		ImGui::Text("timer_backup_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_13);	// 0x16c
+		ImGui::Text("timer_backup_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_13);		// 0x16c
 		ImGui::Text(" timer_count_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_14);		// 0x170
-		ImGui::Text("timer_backup_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_14);	// 0x174
+		ImGui::Text("timer_backup_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_14);		// 0x174
 		ImGui::Text(" timer_count_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_count_15);		// 0x178
-		ImGui::Text("timer_backup_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_15);	// 0x17c
+		ImGui::Text("timer_backup_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_backup_15);		// 0x17c
 		ImGui::Separator();
 		ImGui::Text("     timer_ctrl: 0x%016X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_ctrl);		// 0x200,0x204,0x208,0x20c. 64-bits wide?? TODO: How to handle READS of the 64-bit reg?
 		ImGui::End();
 
 		ImGui::Begin("CLIO sel regs");
-		ImGui::Text(" sel_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_0);		// 0x500
-		ImGui::Text(" sel_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_1);		// 0x504
-		ImGui::Text(" sel_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_2);		// 0x508
-		ImGui::Text(" sel_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_3);		// 0x50c
-		ImGui::Text(" sel_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_4);		// 0x510
-		ImGui::Text(" sel_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_5);		// 0x514
-		ImGui::Text(" sel_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_6);		// 0x518
-		ImGui::Text(" sel_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_7);		// 0x51c
-		ImGui::Text(" sel_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_8);		// 0x520
-		ImGui::Text(" sel_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_9);		// 0x524
-		ImGui::Text("sel_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_10);		// 0x528
-		ImGui::Text("sel_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_11);		// 0x52c
-		ImGui::Text("sel_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_12);		// 0x530
-		ImGui::Text("sel_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_13);		// 0x534
-		ImGui::Text("sel_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_14);		// 0x538
-		ImGui::Text("sel_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_15);		// 0x53c
+		ImGui::Text(" sel_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_0);	// 0x500
+		ImGui::Text(" sel_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_1);	// 0x504
+		ImGui::Text(" sel_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_2);	// 0x508
+		ImGui::Text(" sel_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_3);	// 0x50c
+		ImGui::Text(" sel_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_4);	// 0x510
+		ImGui::Text(" sel_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_5);	// 0x514
+		ImGui::Text(" sel_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_6);	// 0x518
+		ImGui::Text(" sel_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_7);	// 0x51c
+		ImGui::Text(" sel_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_8);	// 0x520
+		ImGui::Text(" sel_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_9);	// 0x524
+		ImGui::Text("sel_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_10);	// 0x528
+		ImGui::Text("sel_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_11);	// 0x52c
+		ImGui::Text("sel_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_12);	// 0x530
+		ImGui::Text("sel_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_13);	// 0x534
+		ImGui::Text("sel_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_14);	// 0x538
+		ImGui::Text("sel_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_15);	// 0x53c
 		ImGui::End();
 
 		ImGui::Begin("CLIO poll regs");
-		ImGui::Text(" poll_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_0);		// 0x540
-		ImGui::Text(" poll_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_1);		// 0x544
-		ImGui::Text(" poll_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_2);		// 0x548
-		ImGui::Text(" poll_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_3);		// 0x54c
-		ImGui::Text(" poll_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_4);		// 0x550
-		ImGui::Text(" poll_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_5);		// 0x554
-		ImGui::Text(" poll_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_6);		// 0x558
-		ImGui::Text(" poll_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_7);		// 0x55c
-		ImGui::Text(" poll_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_8);		// 0x560
-		ImGui::Text(" poll_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_9);		// 0x564
+		ImGui::Text(" poll_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_0);	// 0x540
+		ImGui::Text(" poll_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_1);	// 0x544
+		ImGui::Text(" poll_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_2);	// 0x548
+		ImGui::Text(" poll_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_3);	// 0x54c
+		ImGui::Text(" poll_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_4);	// 0x550
+		ImGui::Text(" poll_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_5);	// 0x554
+		ImGui::Text(" poll_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_6);	// 0x558
+		ImGui::Text(" poll_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_7);	// 0x55c
+		ImGui::Text(" poll_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_8);	// 0x560
+		ImGui::Text(" poll_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_9);	// 0x564
 		ImGui::Text("poll_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_10);	// 0x568
 		ImGui::Text("poll_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_11);	// 0x56c
 		ImGui::Text("poll_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_12);	// 0x570
@@ -1420,12 +1385,6 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("   vdl_next: 0x%08X", vdl_next);
 		ImGui::End();
 
-		/*
-		ImGui::Begin("armsim");
-		ImGui::Text("   pc: 0x%08X", top->rootp->core_3do__DOT__arm_pc);
-		ImGui::Text(" inst: 0x%08X", top->rootp->core_3do__DOT__arm_inst);
-		ImGui::End();
-		*/
 
 		uint32_t decode_word[16];
 		uint32_t issue_word[16];
