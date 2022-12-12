@@ -29,7 +29,6 @@
 // --                                                                       --
 // ---------------------------------------------------------------------------
 
-`define DEBUG_EN
 
 module zap_decompile #(parameter [31:0] INS_WDT = 32'd36) ( 
                 input logic      [36-1:0]        i_instruction,  // 36-bit instruction into decode.

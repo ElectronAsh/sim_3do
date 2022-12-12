@@ -25,6 +25,8 @@ module core_3do (
 	output [23:0] rgb_out
 );
 
+`define DEBUG_EN 1
+
 
 zap_top zap_top_inst (
 	.i_clk( sys_clk ),				// input. Should probably be 12.5 MHz, but using sys_clk, for faster simulation.
@@ -46,23 +48,12 @@ zap_top zap_top_inst (
 	.o_wb_cti( o_wb_cti ),			// output [2:0]	not used atm.
 	.o_wb_bte( o_wb_bte ),			// output [1:0]	not used atm.
 	.i_wb_ack( i_wb_ack ),			// input
-	//i_wb_dat( zap_din )			// input [31:0]
+	//.i_wb_dat( zap_din )			// input [31:0]
 	.i_wb_dat( i_wb_dat )			// input [31:0]
 );
 
-wire madam_cs = (o_wb_adr>=32'h03300000 && o_wb_adr<=32'h0330FFFF);
-wire clio_cs  = (o_wb_adr>=32'h03400000 && o_wb_adr<=32'h0340FFFF);
-wire svf_cs   = (o_wb_adr==32'h03206100 || o_wb_adr==32'h03206900);
-wire svf2_cs  = o_wb_adr==32'h032002B4;
+//wire [31:0] zap_din;
 
-/*
-wire [31:0] zap_din = (madam_cs) ? madam_dout :
-					  (clio_cs)  ? clio_dout :
-					  (svf_cs)   ? 32'hBADACCE5 :
-					  (svf2_cs)  ? 32'h00000000 :
-								   i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM etc.)
-*/
-wire [31:0] clio_dout;
 
 clio clio_inst (
 	.clk_25m( sys_clk ),	// input. 
@@ -137,9 +128,6 @@ clio clio_inst (
 	//.uncackr( uncackr )	// inout. Video DMA Read Acknowledge. FMV? UN - Uncle Chip.
 );
 
-
-wire [31:0] madam_dout;
-
 madam madam_inst (
 	.clk_25m( sys_clk ),
 	.reset_n( reset_n ),
@@ -163,6 +151,19 @@ madam madam_inst (
 	.rpsc_n( rpsc_n ) 	// output. Left-hand VRAM SAM strobe.  (pixel or VDL data is on S-bus[15:00]).
 );
 
+wire [31:0] madam_dout;
+wire [31:0] clio_dout;
+
+wire svf_cs   = (o_wb_adr>=32'h03200000 && o_wb_adr<=32'h0320FFFF);
+wire madam_cs = (o_wb_adr>=32'h03300000 && o_wb_adr<=32'h0330FFFF);
+wire clio_cs  = (o_wb_adr>=32'h03400000 && o_wb_adr<=32'h0340FFFF);
+
+
+/*assign zap_din = (madam_cs) ? madam_dout :
+				 (clio_cs)  ? clio_dout :
+				 //(svf_cs)   ? 32'hBADACCE5 :
+								i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM etc.)
+*/
 
 matrix_engine matrix_inst (
 	.clock(sys_clk)

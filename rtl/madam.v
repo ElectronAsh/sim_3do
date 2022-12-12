@@ -181,6 +181,10 @@ reg [31:0] vdl_addr;// 0x580
 
 reg [31:0] vdl_addr_reg;
 
+reg [31:0] pbus_dst;
+reg [31:0] pbus_len;
+reg [31:0] pbus_src;
+reg trig_pbus_dma;
 
 // MADAM register READ driver...
 always @(*) begin
@@ -188,7 +192,7 @@ always @(*) begin
 		16'h0000: cpu_dout = 32'h01020000;	// 0x0000. Revision when read. BIOS Serial debug when written.
 		//16'h0004: cpu_dout = msysbits;	// 0x0004. Memory Configuration. 0x29 = 2MB DRAM, 1MB VRAM.
 		16'h0004: cpu_dout = 32'h00000029;	// 0x0004. Memory Configuration. 0x29 = 2MB DRAM, 1MB VRAM.
-		16'h0008: cpu_dout = mctl;		// 0x0008. DMA channel enables. bit16 = Player Bus. bit20 = Spryte control.
+		16'h0008: cpu_dout = mctl;			// 0x0008. DMA channel enables. bit16 (typo I thinK. Should be "bit 15"?) = Player Bus. bit20 = Spryte control.
 		16'h000c: cpu_dout = sltime;	// 0x000C ? Unsure. “testbin” sets it to 0x00178906.
 										// 0x000D to 0x001C ??
 		16'h0020: cpu_dout = abortbits;	// 0x0020 ? Contains a bitmask of reasons for an abort signal MADAM sent to the CPU.
@@ -208,12 +212,12 @@ always @(*) begin
 		16'h0129: cpu_dout = ppmpc;		// 03300129?? - PPMPC (RW) (note: comment in MAME said 0x0120, case was 0x0129 ?!
 
 		// More MADAM regs...
-		16'h0130: cpu_dout = regctl0;		// 0x0130. struct Bitmap→bm_REGCTL0.
-		16'h0134: cpu_dout = regctl1;		// 0x0134. struct Bitmap→bm_REGCTL1.
-		16'h0138: cpu_dout = regctl2;		// 0x0138. struct Bitmap→bm_REGCTL2.
-		16'h013c: cpu_dout = regctl3;		// 0x013C. struct Bitmap→bm_REGCTL3.
-		16'h0140: cpu_dout = xyposh;		// 0x0140.
-		16'h0144: cpu_dout = xyposl;		// 0x0144.
+		16'h0130: cpu_dout = regctl0;	// 0x0130. struct Bitmap→bm_REGCTL0.
+		16'h0134: cpu_dout = regctl1;	// 0x0134. struct Bitmap→bm_REGCTL1.
+		16'h0138: cpu_dout = regctl2;	// 0x0138. struct Bitmap→bm_REGCTL2.
+		16'h013c: cpu_dout = regctl3;	// 0x013C. struct Bitmap→bm_REGCTL3.
+		16'h0140: cpu_dout = xyposh;	// 0x0140.
+		16'h0144: cpu_dout = xyposl;	// 0x0144.
 		16'h0148: cpu_dout = linedxyh;	// 0x0148.
 		16'h014c: cpu_dout = linedxyl;	// 0x014C.
 		16'h0150: cpu_dout = dxyh;		// 0x0150.
@@ -255,22 +259,22 @@ always @(*) begin
 		16'h04c8: cpu_dout = dmac_nextaddr;	// 0x4C8. CPU RAM to DSP DMA Group 0xC: next address.
 		16'h04cc: cpu_dout = dmac_nextlen;	// 0x4CC. CPU RAM to DSP DMA Group 0xC: next length.
 
-		// 0x04D0 = FMV DMA Group 1?
-		// 0x04D3 = FMV DMA Group 1?
-		// 0x04E0 = FMV DMA Group 1?
-		// 0x04E4 = FMV DMA Group 1?
+		// 16'h04D0 = FMV DMA Group 1?
+		// 16'h04D3 = FMV DMA Group 1?
+		// 16'h04E0 = FMV DMA Group 1?
+		// 16'h04E4 = FMV DMA Group 1?
 
-		// 0x0540 = XBUS DMA: Source / Dest Address.
-		// 0x0544 = XBUX DMA: Length.
+		// 16'h0540 = XBUS DMA: Source / Dest Address.
+		// 16'h0544 = XBUX DMA: Length.
 
-		// 0x0550 = FMV DMA Group 2?
-		// 0x0554 = FMV DMA Group 2?
-		// 0x0560 = FMV DMA Group 2?
-		// 0x0564 = FMV DMA Group 2?
+		// 16'h0550 = FMV DMA Group 2?
+		// 16'h0554 = FMV DMA Group 2?
+		// 16'h0560 = FMV DMA Group 2?
+		// 16'h0564 = FMV DMA Group 2?
 
-		// 0x0570 = Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
-		// 0x0574 = Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
-		// 0x0578 = Player Bus DMA: Source Address.
+		16'h0570: cpu_dout = pbus_dst;	// Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
+		16'h0574: cpu_dout = pbus_len;	// Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
+		16'h0578: cpu_dout = pbus_src;	// Player Bus DMA: Source Address.
 		
 		16'h0580: cpu_dout = vdl_addr;	// 0x580
 
@@ -281,16 +285,18 @@ end
 
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
-	//mctl <= 32'h00002000;
-	mctl <= 32'h00000000;	// This is the first value read from MADAM mctl by the Opera emulator!
+	mctl <= 32'h00000000;
+	trig_pbus_dma <= 1'b0;
 end
 else begin
+	trig_pbus_dma <= 1'b0;
+
 	// Handle MADAM register WRITES...
 	if (cpu_wr) begin
 		case (cpu_addr[15:0])
 			//16'h0000: m_print <= 32'h01020000;	// 0x0000. Revision when read. BIOS Serial debug when written.
-			//16'h0004: msysbits <= cpu_din;	// 0x0004. Memory Configuration. 0x29 = 2MB DRAM, 1MB VRAM.
-			//16'h0008: mctl <= cpu_din;		// 0x0008. DMA channel enables. bit16 = Player Bus. bit20 = Spryte control.
+			//16'h0004: msysbits <= cpu_din;	// 0x0004. Memory Configuration. When read, 0x29 = 2MB DRAM, 1MB VRAM.
+			16'h0008: mctl <= cpu_din; 		// 0x0008. DMA channel enables. bit16 (surely bit 15?) = Player Bus. bit20 = Spryte control.
 			16'h000c: sltime <= cpu_din;	// 0x000C ? Unsure. “testbin” sets it to 0x00178906.
 											// 0x000D to 0x001C ??
 			16'h0020: abortbits <= cpu_din;	// 0x0020 ? Contains a bitmask of reasons for an abort signal MADAM sent to the CPU.
@@ -370,13 +376,18 @@ else begin
 			// 0x0560 = FMV DMA Group 2?
 			// 0x0564 = FMV DMA Group 2?
 
-			// 0x0570 = Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
-			// 0x0574 = Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
-			// 0x0578 = Player Bus DMA: Source Address.
+			16'h0570: pbus_dst <= cpu_din;	// Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
+			16'h0574: pbus_len <= cpu_din;	// Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
+			16'h0578: pbus_src <= cpu_din;	// Player Bus DMA: Source Address.
 			
 			16'h0580: vdl_addr <= cpu_din;	// 0x580
 			default: ;
 		endcase
+	end
+	
+	if (cpu_wr && cpu_addr[15:0]==16'h0008 && cpu_din[15]) begin	// Bit 15 of a mctl triggers a PBUS DMA.
+		trig_pbus_dma <= 1'b1;
+		
 	end
 end
 		

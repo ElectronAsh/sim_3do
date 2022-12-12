@@ -86,11 +86,12 @@ module clio (			// IC140 on FZ1.
 	input vram_busy
 );
 
+wire [31:0] irq0_masked = {any_irq1,irq0_pend[30:0]} & irq0_enable;	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set.
+wire irq0_trig = |irq0_masked;
 
-wire irq0_trig = |({any_irq1,irq0_pend[30:0]} & irq0_enable);	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set. I think irq0_enable[31] can also mask that bit?
-
-wire irq1_trig = |(irq1_pend & irq1_enable); // bitwise OR, after masking irq1_pend with the irq1_enable bits.
-wire any_irq1 = |irq1_pend;	// bitwise OR of irq1_pend, to see if ANY of the bits are set. 
+wire [31:0] irq1_masked = irq1_pend & irq1_enable;
+wire irq1_trig = |irq1_masked;		// bitwise OR, after masking irq1_pend with the irq1_enable bits.
+wire any_irq1  = |irq1_pend;		// bitwise OR of irq1_pend, to see if ANY of the bits are set. 
 
 assign firq_n = !(irq0_trig | irq1_trig);
 
@@ -276,7 +277,7 @@ always @(*) begin
 
 // IRQs...
 												// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.
-	16'h0040,16'h0044: cpu_dout = irq0_pend;	// 0x40/0x44 - Writing to 0x40 SETs irq0_pend bits. Writing to 0x44 CLEARs irq0_pend bits. Reading = PENDING irq0_pend bits.
+	16'h0040,16'h0044: cpu_dout = {any_irq1, irq0_pend[30:0]};	// 0x40/0x44 - Writing to 0x40 SETs irq0_pend bits. Writing to 0x44 CLEARs irq0_pend bits. Reading = PENDING irq0_pend bits.
 	16'h0048,16'h004c: cpu_dout = irq0_enable;	// 0x48/0x4c - Writing to 0x48 SETs irq0_enable bits. Writing to 0x4c CLEARSs irq0_enable bits.
 
 	16'h0050,16'h0054: cpu_dout = mode;			// 0x50/0x54 - Writing to 0x50 SETs mode bits. Writing to 0x54 CLEARs mode bits. Reading = ?
@@ -290,10 +291,7 @@ always @(*) begin
 
 // hdelay / adbio stuff...
 	16'h0080: cpu_dout = hdelay;		// 0x80
-	
-	//16'h0084: cpu_dout = adbio_reg;		// 0x84
-	16'h0084: cpu_dout = 32'h00000000;		// 0x84
-	
+	16'h0084: cpu_dout = adbio_reg;		// 0x84
 	16'h0088: cpu_dout = adbctl;		// 0x88
 
 
@@ -353,7 +351,6 @@ always @(*) begin
 	16'h0410: cpu_dout = dipir1;	// 0x410. DIPIR (Disc Inserted Provide Interrupt Response) 1.
 	16'h0414: cpu_dout = dipir2;	// 0x414. DIPIR (Disc Inserted Provide Interrupt Response) 2.
 
-	// opera_xbus_get_res(); ...
 	16'h0500: cpu_dout = sel_0;		// 0x500
 	16'h0504: cpu_dout = sel_1;		// 0x504
 	16'h0508: cpu_dout = sel_2;		// 0x508
@@ -371,7 +368,6 @@ always @(*) begin
 	16'h0538: cpu_dout = sel_14;	// 0x538
 	16'h053c: cpu_dout = sel_15;	// 0x53c
 
-	// opera_xbus_get_poll(); ...
 	16'h0540: cpu_dout = poll_0;	// 0x540
 	16'h0544: cpu_dout = poll_1;	// 0x544
 	16'h0548: cpu_dout = poll_2;	// 0x548
@@ -389,8 +385,8 @@ always @(*) begin
 	16'h0578: cpu_dout = poll_14;	// 0x578
 	16'h057c: cpu_dout = poll_15;	// 0x57c
 
-	16'h0580: cpu_dout = 32'h00000000;	// In Opera, on a READ, this calls "opera_xbus_fifo_get_status();"
-	16'h05C0: cpu_dout = 32'h00000000;	// In Opera, on a READ, this calls "opera_xbus_fifo_get_data();"
+// 0x580 - 0x5bf. In Opera, on a write, this calls "opera_xbus_fifo_set_cmd(val_)".
+// 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
 
 // DSP...
 	16'h17d0: cpu_dout = sema;		// 0x17d0. DSP/ARM Semaphore. (can't call it "semaphore", because Verilog / Verilator).
@@ -420,12 +416,6 @@ always @(*) begin
 	endcase
 end
 
-reg [11:0] clk_div;
-always @(posedge clk_25m) clk_div <= clk_div + 1;
-
-wire timer_tick = (clk_div==0);
-
-
 wire wdgrst = 0;
 wire dipir = 0;
 
@@ -437,22 +427,14 @@ always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera returns 0x02020000.
 	//revision <= 32'h02022000;		// Latest MAME returns 0x02022000 with panafz10 BIOS.
-	//cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
-	//cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
-	cstatbits <= 32'h00000040;		// This is the first value read from cstatbits by the Opera emulator!
-	
+	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
+	//cstatbits[6] <= 1'b1;			// Set bit 0 (DIPIR). TESTING !!
 	expctl <= 32'h00000080;
-	field <= 1'b1;
+	field <= 1'b0;
 	hcnt <= 32'd0;
 	vcnt <= 32'd0;
 	
-	dipir2 <= 32'h00004000;			// This is the first value read from dipir2 by the Opera emulator!
-	
-	poll_0 <= 32'h0000000F;			// Spoofing value from Opera log atm.
-	
-	//adbio_reg <= 32'h00000062;
-	adbio_reg <= 32'h00000000;			// Spoofing value from Opera log atm.
-										// TESTING - Also forcing it to read back 0x00000000 after a WRITE. See below! 
+	adbio_reg <= 32'h00000062;
 	
 	irq0_pend <= 32'h00000000;
 	irq0_enable <= 32'h00000000;
@@ -484,46 +466,29 @@ else begin
 	if (wdgrst) cstatbits[1] <= 1'b1;		// Set bit 1 (WDT).
 	else if (dipir) cstatbits[6] <= 1'b1;	// Set bit 6 (DIPIR).
 	
-	if (timer_count_0>0  && timer_tick) timer_count_0 <= timer_count_0 - 1;
-	if (timer_count_1>0  && timer_tick) timer_count_1 <= timer_count_1 - 1;
-	if (timer_count_2>0  && timer_tick) timer_count_2 <= timer_count_2 - 1;
-	if (timer_count_3>0  && timer_tick) timer_count_3 <= timer_count_3 - 1;
-	if (timer_count_4>0  && timer_tick) timer_count_4 <= timer_count_4 - 1;
-	if (timer_count_5>0  && timer_tick) timer_count_5 <= timer_count_5 - 1;
-	if (timer_count_6>0  && timer_tick) timer_count_6 <= timer_count_6 - 1;
-	if (timer_count_7>0  && timer_tick) timer_count_7 <= timer_count_7 - 1;
-	if (timer_count_8>0  && timer_tick) timer_count_8 <= timer_count_8 - 1;
-	if (timer_count_9>0  && timer_tick) timer_count_9 <= timer_count_9 - 1;
-	if (timer_count_10>0 && timer_tick) timer_count_10 <= timer_count_10 - 1;
-	if (timer_count_11>0 && timer_tick) timer_count_11 <= timer_count_11 - 1;
-	if (timer_count_12>0 && timer_tick) timer_count_12 <= timer_count_12 - 1;
-	if (timer_count_13>0 && timer_tick) timer_count_13 <= timer_count_13 - 1;
-	if (timer_count_14>0 && timer_tick) timer_count_14 <= timer_count_14 - 1;
-	if (timer_count_15>0 && timer_tick) timer_count_15 <= timer_count_15 - 1;
-	
-// Handle CLIO register WRITES...
-if (cpu_wr) begin
-case ({cpu_addr,2'b00})
-//16'h0000: revision <= cpu_din;	// 0x00 - READ ONLY? CLIO version in High byte. Feature flags in the rest. Opera return 0x02020000. MAME returns 0x01020000.
-16'h0004: csysbits <= cpu_din;	// 0x04
-16'h0008: vint0 <= cpu_din;		// 0x08
-16'h000c: vint1 <= cpu_din;		// 0x0C
-16'h0020: audin <= cpu_din;		// 0x20
-16'h0024: audout <= cpu_din;	// 0x24
-16'h0028: cstatbits <= cpu_din;	// 0x28
-16'h002c: wdog <= cpu_din;		// 0x2c
-16'h0030: hcnt <= cpu_din;		// 0x30 / hpos when read?
-16'h0034: vcnt <= cpu_din;		// 0x34 / vpos when read?
-16'h0038: seed <= cpu_din;		// 0x38
-16'h003c: random <= cpu_din;	// 0x3c - read only?
+	// Handle CLIO register WRITES...
+	if (cpu_wr) begin
+		case ({cpu_addr,2'b00})
+		//16'h0000: revision <= cpu_din;	// 0x00 - READ ONLY? CLIO version in High byte. Feature flags in the rest. Opera return 0x02020000. MAME returns 0x01020000.
+		16'h0004: csysbits <= cpu_din;	// 0x04
+		16'h0008: vint0 <= cpu_din;		// 0x08
+		16'h000c: vint1 <= cpu_din;		// 0x0C
+		16'h0020: audin <= cpu_din;		// 0x20
+		16'h0024: audout <= cpu_din;	// 0x24
+		16'h0028: cstatbits <= cpu_din;	// 0x28
+		16'h002c: wdog <= cpu_din;		// 0x2c
+		16'h0030: hcnt <= cpu_din;		// 0x30 / hpos when read?
+		16'h0034: vcnt <= cpu_din;		// 0x34 / vpos when read?
+		16'h0038: seed <= cpu_din;		// 0x38
+		16'h003c: random <= cpu_din;	// 0x3c - read only?
 
-// IRQs. (FIQ on ARM will be triggered if PENDING and corresponding MASK bits are both SET.)
-													
-16'h0040: begin irq0_pend <= irq0_pend |  cpu_din; $display("Write to irq0_pend SET."); end				// 0x40. Writing to 0x40 SETs irq0_pend bits. 
-16'h0044: begin irq0_pend <= irq0_pend & ~cpu_din; $display("Write to irq0_pend CLR."); end				// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
-
-16'h0048: begin irq0_enable <= irq0_enable |  cpu_din; $display("Write to irq0_enable SET."); end	// 0x48. Writing to 0x48 SETs irq0_enable bits.
-16'h004c: begin irq0_enable <= irq0_enable & ~cpu_din; $display("Write to irq0_enable CLR."); end	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
+		// IRQs. (FIQ on ARM will be triggered if PENDING and corresponding MASK bits are both SET.)
+															
+		16'h0040: begin irq0_pend <= irq0_pend |  cpu_din; $display("Write to irq0_pend SET."); end				// 0x40. Writing to 0x40 SETs irq0_pend bits. 
+		16'h0044: begin irq0_pend <= irq0_pend & ~cpu_din; $display("Write to irq0_pend CLR."); end				// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
+		
+		16'h0048: begin irq0_enable <= irq0_enable |  cpu_din; $display("Write to irq0_enable SET."); end	// 0x48. Writing to 0x48 SETs irq0_enable bits.
+		16'h004c: begin irq0_enable <= irq0_enable & ~cpu_din; $display("Write to irq0_enable CLR."); end	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
 
 		16'h0050: mode <= mode |  cpu_din;		// 0x50. Writing to 0x50 SETs mode bits.
 		16'h0054: mode <= mode & ~cpu_din;		// 0x54. Writing to 0x54 CLEARs mode bits.
@@ -541,7 +506,7 @@ case ({cpu_addr,2'b00})
 
 		// hdelay / adbio stuff...
 		16'h0080: hdelay <= cpu_din;		// 0x80
-		16'h0084: adbio_reg  <= cpu_din;	// 0x84
+		16'h0084: adbio_reg <= cpu_din;		// 0x84
 		16'h0088: adbctl <= cpu_din;		// 0x88
 
 		// Timers...
@@ -618,7 +583,7 @@ case ({cpu_addr,2'b00})
 		16'h0538: sel_14 <= cpu_din;	// 0x538
 		16'h053c: sel_15 <= cpu_din;	// 0x53c
 
-		16'h0540: /*poll_0 <= cpu_din*/;	// 0x540
+		16'h0540: poll_0 <= cpu_din;	// 0x540
 		16'h0544: poll_1 <= cpu_din;	// 0x544
 		16'h0548: poll_2 <= cpu_din;	// 0x548
 		16'h054c: poll_3 <= cpu_din;	// 0x54c

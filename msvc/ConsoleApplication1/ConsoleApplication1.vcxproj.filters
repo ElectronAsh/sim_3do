@@ -51,6 +51,9 @@
     <ClCompile Include="..\..\..\verilator\include\verilated_threads.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\imgui_functions.h">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\out\Vcore_3do.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -132,9 +135,6 @@
     <ClCompile Include="..\..\out\Vcore_3do_zap_tlb__L80_S80_SB80_F80__Slow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\imgui_functions.h">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\bookshelf.h">
@@ -206,19 +206,5 @@
     <ClInclude Include="..\..\out\Vcore_3do_zap_tlb__L80_S80_SB80_F80.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\out\Vcore_3do.mk">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="..\..\out\Vcore_3do__ver.d">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="..\..\out\Vcore_3do__verFiles.dat">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="..\..\out\Vcore_3do_classes.mk">
-      <Filter>Source Files</Filter>
-    </None>
   </ItemGroup>
 </Project>

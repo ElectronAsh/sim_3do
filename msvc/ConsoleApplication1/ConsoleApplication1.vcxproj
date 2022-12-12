@@ -228,12 +228,6 @@
     <ClInclude Include="C:\linux_temp\imgui\imgui_internal.h" />
     <ClInclude Include="C:\linux_temp\imgui\ui_util.h" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\out\Vcore_3do.mk" />
-    <None Include="..\..\out\Vcore_3do_classes.mk" />
-    <None Include="..\..\out\Vcore_3do__ver.d" />
-    <None Include="..\..\out\Vcore_3do__verFiles.dat" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

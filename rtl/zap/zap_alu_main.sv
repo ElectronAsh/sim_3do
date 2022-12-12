@@ -1057,8 +1057,8 @@ begin
         end 
         else if ( uh || sh ) // Halfword. A word = 2 half words.
         begin
-				case ( addr[1] ) 	// 3DO ARM60 Big Endian kludge. fixel / ElectronAsh.
-                0: x = 4'b1100;
+				case ( addr[1] )
+                0: x = 4'b1100; 	// 3DO ARM60 Big Endian kludge. fixel / ElectronAsh.
                 1: x = 4'b0011;
                 endcase
         end

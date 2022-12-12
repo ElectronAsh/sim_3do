@@ -34,6 +34,10 @@ module zap_predecode_main #( parameter PHY_REGS = 46, parameter RAS_DEPTH = 8 )
         input   logic                            i_clk,
         input   logic                            i_reset,
 
+        // Predict. MSB is valid bit.
+        input logic   [32:0]                     i_pred,
+        output logic                             o_clear_btb,
+
         // Branch state.
         input   logic     [1:0]                  i_taken,
         input   logic                            i_force32,
@@ -45,10 +49,6 @@ module zap_predecode_main #( parameter PHY_REGS = 46, parameter RAS_DEPTH = 8 )
         input logic                              i_clear_from_alu,       // |
         input logic                              i_stall_from_shifter,   // |
         input logic                              i_stall_from_issue,     // V
-
-        // Predict. MSB is valid bit.
-        input logic   [32:0]                     i_pred,
-        output logic                             o_clear_btb,
 
         // Interrupt events.
         input   logic                            i_irq,
@@ -130,8 +130,9 @@ logic [1:0]                         taken_nxt;
 logic [31:0]                        ppc_nxt; // Predicted PC.
 logic [34:0]                        skid_instruction;
 logic                               skid_instruction_valid;
-logic [106:0]                       skid;
+logic [139:0]                       skid;
 logic [1:0]                         skid_taken;
+logic [32:0]                        skid_pred;
 logic                               skid_force32;
 logic                               skid_und;
 logic                               skid_irq;
@@ -273,7 +274,8 @@ begin
                         if ( mem_fetch_stall || cp_stall )
                         begin
                                 o_stall_from_decode <= 1'd1;
-                                skid                <= {i_taken,
+                                skid                <= {i_pred,
+                                                        i_taken,
                                                         i_force32,
                                                         i_und,
                                                         i_irq,
@@ -308,6 +310,7 @@ always_comb
 begin
         if ( o_stall_from_decode )
         begin
+                skid_pred              = skid[139:107];
                 skid_taken             = skid[106:105];  
                 skid_force32           = skid[104];
                 skid_und               = skid[103];
@@ -321,6 +324,7 @@ begin
         end
         else
         begin
+                skid_pred               = i_pred;
                 skid_taken              = i_taken;
                 skid_force32            = i_force32;
                 skid_und                = i_und;
@@ -432,9 +436,9 @@ begin:bprblk1
                         w_pc_from_decode    = skid_pc_plus_8_ff + addr_final;
                         ppc_nxt             = w_pc_from_decode;
         
-                        if ( i_pred[32] && i_pred[31:0] != w_pc_from_decode )
+                        if ( skid_pred[32] && skid_pred[31:0] != w_pc_from_decode )
                                 w_clear_from_decode = 1'd1;
-                        else if ( !i_pred[32] )
+                        else if ( !skid_pred[32] )
                                 w_clear_from_decode = 1'd1;
                         else
                                 w_clear_from_decode = 1'd0;
@@ -500,9 +504,9 @@ begin:bprblk1
                         ras_ptr_nxt--;
                         w_pc_from_decode    = ras_ff[ras_ptr_nxt];
 
-                        if ( i_pred[32] && i_pred[31:0] != w_pc_from_decode )
+                        if ( skid_pred[32] && skid_pred[31:0] != w_pc_from_decode )
                                 w_clear_from_decode = 1'd1;
-                        else if (!i_pred[32])
+                        else if (!skid_pred[32])
                                 w_clear_from_decode = 1'd1;
                         else
                                 w_clear_from_decode = 1'd0;
@@ -546,7 +550,7 @@ begin:bprblk1
         begin
                 taken_nxt = SNT;
 
-                if ( i_pred[32] )
+                if ( skid_pred[32] )
                 begin
                         w_clear_from_decode = 1'd1;
                         w_pc_from_decode    = skid_pc_ff + (i_cpu_mode_t ? 32'd2 : 32'd4);
@@ -568,10 +572,10 @@ zap_predecode_uop_sequencer u_zap_uop_sequencer (
         .i_reset(i_reset),
         .i_cpsr_t(i_cpu_mode_t),
 
-        .i_instruction(arm_instruction),
-        .i_instruction_valid(arm_instruction_valid),
-        .i_fiq(arm_fiq),
-        .i_irq(arm_irq),
+        .i_instruction(arm_instruction),                // Skid version
+        .i_instruction_valid(arm_instruction_valid),    // Skid version
+        .i_fiq(arm_fiq),                                // Skid version
+        .i_irq(arm_irq),                                // Skid version
 
         .i_clear_from_writeback(i_clear_from_writeback),
         .i_data_stall(i_data_stall),          
