@@ -55,6 +55,7 @@ module zap_predecode_coproc #(
         input logic              i_clear_from_alu,       // |
         input logic              i_stall_from_shifter,   // |
         input logic              i_stall_from_issue,     // V Low Priority
+        input logic              i_clear_from_decode, 
 
         // Pipeline Valid. Must become 0 when every stage of the pipeline
         // is invalid.
@@ -76,10 +77,10 @@ module zap_predecode_coproc #(
         output logic              o_stall_from_decode,      
 
         // Are we really asking for the coprocessor ?
-        output logic              o_copro_dav_ff,  
+        output logic              o_copro_dav_nxt,  
 
         // The entire instruction is passed to the coprocessor.
-        output logic  [31:0]      o_copro_word_ff  
+        output logic  [31:0]      o_copro_word_nxt  
 );
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -109,11 +110,11 @@ always_comb unused = |{PHY_REGS};
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// Connect output logicisters to output.
+// Connect next state to output.
 always_comb
 begin
-        o_copro_word_ff = cp_word_ff;
-        o_copro_dav_ff  = cp_dav_ff;
+        o_copro_word_nxt = cp_word_nxt;
+        o_copro_dav_nxt  = cp_dav_nxt;
 end
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -250,6 +251,10 @@ begin
         else if ( i_stall_from_issue )
         begin
                 // Preserve values.
+        end
+        else if ( i_clear_from_decode )
+        begin
+                clear;
         end
         else
         begin

@@ -29,6 +29,8 @@
 
 
 module zap_core #(
+        parameter BE_32_ENABLE     = 0,
+
         // Number of branch predictor entries.
         parameter [31:0] BP_ENTRIES = 1024,
 
@@ -67,6 +69,7 @@ output logic [31:0]                      o_data_wb_adr_nxt,
 // Check.
 output logic [31:0]                      o_data_wb_adr_check,
 output logic                             o_data_wb_we_check,
+output logic                             o_data_wb_re_check,
 
 // Force user view.
 output logic                             o_mem_translate,
@@ -508,7 +511,8 @@ end
 always_comb
 begin
         o_data_wb_adr_check  =  {postalu1_address_ff[31:2], 2'd0};
-        o_data_wb_we_check   =   postalu1_data_wb_we;
+        o_data_wb_we_check   =    postalu1_data_wb_we && postalu1_data_wb_cyc;
+        o_data_wb_re_check   =   !postalu1_data_wb_we && postalu1_data_wb_cyc;
         o_code_stall         =   code_stall;
         o_dc_reg_idx         =   64'd1 << {58'd0, postalu_mem_srcdest_index_ff};
 end
@@ -581,7 +585,7 @@ zap_fifo #( .WDT(67 + 33), .DEPTH(FIFO_DEPTH) ) U_ZAP_FIFO (
         .i_stall_from_shifter           (stall_from_shifter && thumb_valid && fifo_valid ),
         .i_stall_from_issue             (stall_from_issue   && thumb_valid && fifo_valid ),  
         .i_stall_from_decode            (stall_from_decode  && thumb_valid && fifo_valid ),
-        .i_clear_from_decode            (clear_from_decode  && thumb_valid && fifo_valid ),
+        .i_clear_from_decode            (clear_from_decode),
 
         .i_instr                        ({fetch_pc_plus_8_ff, fetch_instr_abort, fetch_instruction, fetch_bp_state, fetch_pred}),
         .i_valid                        (fetch_valid),
@@ -1470,7 +1474,7 @@ u_zap_writeback
 // CP15 CB
 // ==================================
 
-zap_cp15_cb u_zap_cp15_cb (
+zap_cp15_cb #(.BE_32_ENABLE(BE_32_ENABLE), .PHY_REGS(PHY_REGS)) u_zap_cp15_cb (
         .i_clk                  (i_clk),
         .i_reset                (i_reset),
         .i_cp_word              (copro_word),

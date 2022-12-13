@@ -31,7 +31,8 @@
 
 module zap_dcache_fsm   #(
         parameter CACHE_SIZE    = 1024,  // Bytes.
-        parameter CACHE_LINE    = 8
+        parameter CACHE_LINE    = 8,
+        parameter BE_32_ENABLE  = 0
 ) 
 
 // ---------------------------------------------- 
@@ -122,6 +123,7 @@ input   logic    [31:0]   i_wb_dat
 
 `include "zap_localparams.svh"
 `include "zap_defines.svh"
+`include "zap_functions.svh"
 
 /* States */
 localparam IDLE                 = 0; /* Resting state. */
@@ -346,15 +348,24 @@ begin:blk1
                 begin
                         if ( !i_cache_en )
                         begin
+                                o_hold          = 1'd1;
                                 state_nxt       = UNCACHEABLE;
                                 o_ack           = 1'd0; /* Wait...*/
                                 o_wb_stb_nxt    = 1'd1;
                                 o_wb_cyc_nxt    = 1'd1;
                                 o_wb_adr_nxt    = i_address;  
-                                o_wb_dat_nxt    = i_din;
                                 o_wb_wen_nxt    = i_wr;
-                                o_wb_sel_nxt    = i_ben; 
                                 o_wb_cti_nxt    = CTI_CLASSIC;
+                                o_wb_dat_nxt    = i_din;
+
+                                if ( BE_32_ENABLE )
+                                begin
+                                        o_wb_sel_nxt = be_sel_32(i_ben);
+                                end
+                                else
+                                begin
+                                        o_wb_sel_nxt = i_ben;
+                                end
                         end
                         else if ( i_cacheable )
                         begin
@@ -464,15 +475,31 @@ begin:blk1
                 o_wb_stb_nxt    = 1'd1;
                 o_wb_cyc_nxt    = 1'd1;
                 o_wb_adr_nxt    = i_phy_addr;
-                o_wb_dat_nxt    = i_din;
                 o_wb_wen_nxt    = i_wr;
-                o_wb_sel_nxt    = i_ben; 
                 o_wb_cti_nxt    = CTI_CLASSIC;
+                o_wb_dat_nxt    = i_din;
+
+                if ( BE_32_ENABLE )
+                begin
+                        o_wb_sel_nxt = be_sel_32(i_ben);
+                end
+                else
+                begin
+                        o_wb_sel_nxt = i_ben;
+                end
         end
 
         UNCACHEABLE: /* Uncacheable reads and writes definitely go through this. */
         begin
-                o_dat  = i_wb_dat;
+                if ( BE_32_ENABLE )
+                begin
+                        o_dat = be_32(i_wb_dat, o_wb_sel_ff);
+                end
+                else
+                begin
+                        o_dat = i_wb_dat;
+                end
+
                 o_ack  = 1'd0;
                 o_hold = 1'd1;
 

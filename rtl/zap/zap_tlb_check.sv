@@ -232,7 +232,7 @@ begin
         apsr   = 4'd0;
         dac    = 2'd0;
 
-        unused = |{dummy, tlb[63:36], tlb[31:16], tlb[3:0]};
+        unused = |{dummy, tlb[63:36], tlb[31:16], tlb[3:2]};
 
         // Get AP and DAC.
 
@@ -289,6 +289,16 @@ begin
         end
 
         endcase
+
+        // If there was an access error, record it.
+        if ( section && (tlb[1:0] == 2'b00) )
+        begin
+                get_fsr = {tlb[`ZAP_L1_SECTION__DAC_SEL], FSR_SECTION_TRANSLATION_FAULT};
+        end
+        else if ( spage && (tlb[1:0] == 2'b00) )
+        begin
+                get_fsr = {tlb[`ZAP_L1_PAGE__DAC_SEL], FSR_PAGE_TRANSLATION_FAULT};
+        end
 end
 
 endfunction

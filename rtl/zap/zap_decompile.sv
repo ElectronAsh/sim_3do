@@ -30,6 +30,7 @@
 // ---------------------------------------------------------------------------
 
 
+
 module zap_decompile #(parameter [31:0] INS_WDT = 32'd36) ( 
                 input logic      [36-1:0]        i_instruction,  // 36-bit instruction into decode.
                 input logic                      i_dav,          // Instruction valid.
@@ -41,13 +42,14 @@ module zap_decompile #(parameter [31:0] INS_WDT = 32'd36) (
 
                         `include "zap_defines.svh"
                         `include "zap_localparams.svh"
+
+                        initial $display("DEBUG_EN defined in ZAP decompile. Use only for Sim.");
                         
                         always @*
                         begin
                                         if ( !i_dav ) 
                                         begin
-                                                //o_decompile = "IGNORE";                                                        
-                                                o_decompile = " ";                                                        
+                                                o_decompile = "IGNORE";                                                        
                                         end
                                         else if ( i_instruction ==? BLX1 )
                                         begin

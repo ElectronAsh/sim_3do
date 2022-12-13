@@ -21,6 +21,33 @@
 // --                                                                         --
 // -----------------------------------------------------------------------------
 
+// Swap data based on SEL. Use on wishbone input.
+function [31:0] be_32 (input [31:0] dat, input [3:0] sel);
+        case(sel)
+        4'b1000: return {24'd0, dat[31:24]};
+        4'b0100: return {16'd0, dat[23:16], 8'd0};
+        4'b0010: return  {8'd0, dat[15:8], 16'd0};
+        4'b0001: return {dat[7:0], 24'd0};
+        4'b1100: return {16'd0, dat[31:16]};
+        4'b0011: return {dat[15:0], 16'd0};
+        default: return dat;
+        endcase
+endfunction
+
+// Swap sel based on value
+function [3:0] be_sel_32 (input [3:0] sel);
+        case(sel)
+        4'b0001: return 4'b1000;
+        4'b0010: return 4'b0100;
+        4'b0100: return 4'b0010;
+        4'b1000: return 4'b0001;
+        4'b0011: return 4'b1100;
+        4'b1100: return 4'b0011;
+        4'b1111: return sel;
+        default: return {4{1'dx}}; // Synthesis will optimize.
+        endcase
+endfunction
+
 //
 // Function to check if condition is satisfied for instruction
 // execution. Returns 1 if satisfied, 0 if not.

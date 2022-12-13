@@ -44,10 +44,8 @@ input   logic            i_reset,
 input   logic    [31:0]  i_address,
 input   logic    [31:0]  i_address_check,
 input   logic            i_wr_check,
-
+input   logic            i_rd_check,
 input   logic    [31:0]  i_address_nxt,
-input   logic            i_rd,
-input   logic            i_wr,
 
 // Hold input
 input   logic            i_hold,
@@ -157,8 +155,7 @@ localparam W = max (
 always_comb unused = |{i_address_nxt[9:0], tlb_address[9:0], i_address_nxt[31:W], 
                        tlb_address[31:W], u0, u1, u2, u3, u4, u5,
                        setlb_rdata, sptlb_rdata, lptlb_rdata, fptlb_rdata, 
-                       setlb_ren, sptlb_ren, lptlb_ren, fptlb_ren,
-                       i_rd, i_wr
+                       setlb_ren, sptlb_ren, lptlb_ren, fptlb_ren
                        };
 
 // ----------------------------------------------------------------------------
@@ -267,7 +264,7 @@ u_zap_tlb_check (
 
 .i_mmu_en       (i_mmu_en),
 .i_va           (i_address_check),
-.i_rd           (!i_wr_check),
+.i_rd           (i_rd_check),
 .i_wr           (i_wr_check),
 
 .i_cpsr         (i_cpsr),

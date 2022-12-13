@@ -88,6 +88,54 @@ begin
         o_rd_data_d = mem [ i_rd_addr_d ];
 end
 
+`ifdef DEBUG_EN
+
+initial $display("DEBUG_EN defined in register file. Use only for Sim.");
+
+wire [31:0] r0   =  mem[0]; 
+wire [31:0] r1   =  mem[1];
+wire [31:0] r2   =  mem[2];
+wire [31:0] r3   =  mem[3];
+wire [31:0] r4   =  mem[4];
+wire [31:0] r5   =  mem[5];
+wire [31:0] r6   =  mem[6];
+wire [31:0] r7   =  mem[7];
+wire [31:0] r8   =  mem[8];
+wire [31:0] r9   =  mem[9];
+wire [31:0] r10  =  mem[10];
+wire [31:0] r11  =  mem[11];
+wire [31:0] r12  =  mem[12];
+wire [31:0] r13  =  mem[13];
+wire [31:0] r14  =  mem[14];
+wire [31:0] r15  =  mem[15];
+wire [31:0] r16  =  mem[16];
+wire [31:0] r17  =  mem[17];
+wire [31:0] r18  =  mem[18];
+wire [31:0] r19  =  mem[19];
+wire [31:0] r20  =  mem[20];
+wire [31:0] r21  =  mem[21];
+wire [31:0] r22  =  mem[22];
+wire [31:0] r23  =  mem[23];
+wire [31:0] r24  =  mem[24];
+wire [31:0] r25  =  mem[25];
+wire [31:0] r26  =  mem[26];
+wire [31:0] r27  =  mem[27];
+wire [31:0] r28  =  mem[28];
+wire [31:0] r29  =  mem[29];
+wire [31:0] r30  =  mem[30];
+wire [31:0] r31  =  mem[31];
+wire [31:0] r32  =  mem[32];
+wire [31:0] r33  =  mem[33];
+wire [31:0] r34  =  mem[34];
+wire [31:0] r35  =  mem[35];
+wire [31:0] r36  =  mem[36];
+wire [31:0] r37  =  mem[37];
+wire [31:0] r38  =  mem[38];
+wire [31:0] r39  =  mem[39];
+
+
+`endif
+
 endmodule
 
 

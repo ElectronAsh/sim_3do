@@ -61,6 +61,7 @@ module zap_predecode_uop_sequencer
         input logic              i_clear_from_alu,
         input logic              i_stall_from_shifter,
         input logic              i_issue_stall,
+        input logic              i_clear_from_decode,
 
         // Instruction output.
         output logic [39:0]       o_instruction,
@@ -847,6 +848,10 @@ begin
         else if ( i_issue_stall )                       
         begin 
                 // Save state
+        end
+        else if ( i_clear_from_decode )
+        begin
+                clear;
         end
         else
         begin

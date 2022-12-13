@@ -47,6 +47,7 @@ input   logic            i_stall,
 // Signals to check (Provide 1 cycle before TLB+cache access).
 input   logic   [31:0]   i_address_check,
 input   logic            i_wr_check,
+input   logic            i_rd_check,
 
 // Address of TLB+Cache access
 input   logic    [31:0]  i_address,
@@ -253,9 +254,8 @@ u_zap_tlb (
         .i_address_check(i_address_check),
         .i_idle         (idle),
         .i_wr_check     (i_wr_check),
+        .i_rd_check     (i_rd_check),
         .i_hold         (hold || i_stall),
-        .i_rd           (i_rd),
-        .i_wr           (i_wr),
         .i_cpsr         (i_cpsr),
         .i_sr           (i_sr),
         .i_dac_reg      (i_dac_reg),

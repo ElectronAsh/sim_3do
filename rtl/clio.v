@@ -434,7 +434,7 @@ if (!reset_n) begin
 	hcnt <= 32'd0;
 	vcnt <= 32'd0;
 	
-	adbio_reg <= 32'h00000062;
+	adbio_reg <= 32'h00000000;
 	
 	irq0_pend <= 32'h00000000;
 	irq0_enable <= 32'h00000000;
@@ -506,7 +506,7 @@ else begin
 
 		// hdelay / adbio stuff...
 		16'h0080: hdelay <= cpu_din;		// 0x80
-		16'h0084: adbio_reg <= cpu_din;		// 0x84
+		16'h0084: /*adbio_reg <= cpu_din*/;		// 0x84
 		16'h0088: adbctl <= cpu_din;		// 0x88
 
 		// Timers...

@@ -33,7 +33,8 @@ parameter [31:0] SPAGE_TLB_ENTRIES      = 8,
 parameter [31:0] LPAGE_TLB_ENTRIES      = 8,
 parameter [31:0] SECTION_TLB_ENTRIES    = 8,
 parameter [31:0] FPAGE_TLB_ENTRIES      = 8,
-parameter [31:0] CACHE_LINE             = 8
+parameter [31:0] CACHE_LINE             = 8,
+parameter        BE_32_ENABLE           = 0
 
 ) /* Port List */ (
 
@@ -47,6 +48,7 @@ input   logic            i_stall,
 // Signals to check (Provide 1 cycle before TLB+cache access).
 input   logic   [31:0]   i_address_check,
 input   logic            i_wr_check,
+input   logic            i_rd_check,
 
 // Address of TLB+Cache access
 input   logic    [31:0]  i_address,
@@ -136,7 +138,7 @@ logic                            idle;
 always_comb wb_cti[2] = 3'd0;
 
 // Basic cache FSM - serves as Master 0.
-zap_dcache_fsm #(.CACHE_SIZE(CACHE_SIZE), .CACHE_LINE(CACHE_LINE)) u_zap_cache_fsm (
+zap_dcache_fsm #(.CACHE_SIZE(CACHE_SIZE), .CACHE_LINE(CACHE_LINE), .BE_32_ENABLE(BE_32_ENABLE)) u_zap_cache_fsm (
         .i_clk                  (i_clk),
         .i_reset                (i_reset),
         .i_address              (i_address),
@@ -261,9 +263,8 @@ u_zap_tlb (
         .i_address_check(i_address_check),
         .i_idle         (idle),
         .i_wr_check     (i_wr_check),
+        .i_rd_check     (i_rd_check),
         .i_hold         (hold || i_stall),
-        .i_rd           (i_rd),
-        .i_wr           (i_wr),
         .i_cpsr         (i_cpsr),
         .i_sr           (i_sr),
         .i_dac_reg      (i_dac_reg),

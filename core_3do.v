@@ -27,6 +27,24 @@ module core_3do (
 
 `define DEBUG_EN 1
 
+/*
+reg i_wb_ack;
+reg stb_1;
+wire stb_rising = (o_wb_stb && !stb_1);
+
+
+always @(posedge sys_clk)
+if (!reset_n) begin
+	i_wb_ack <= 1'b0;
+	stb_1 <= 1'b0;
+end
+else begin
+	i_wb_ack <= 1'b0;
+	stb_1 <= o_wb_stb;
+
+	if (stb_rising) i_wb_ack <= 1'b1;
+end
+*/
 
 zap_top zap_top_inst (
 	.i_clk( sys_clk ),				// input. Should probably be 12.5 MHz, but using sys_clk, for faster simulation.

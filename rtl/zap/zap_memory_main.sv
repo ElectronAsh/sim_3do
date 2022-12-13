@@ -235,10 +235,10 @@ begin: transform_function
         if ( ubyte == 1'd1 )
         begin
                 case ( address[1:0] )
-                0: transform = (d >> 24) & 32'h000000ff;	// 3DO ARM60 Big Endian kludge. fixel / ElectronAsh.
-                1: transform = (d >> 16) & 32'h000000ff;
-                2: transform = (d >> 8)  & 32'h000000ff;
-                3: transform = (d >> 0)  & 32'h000000ff;				
+                0: transform = (d >> 0)  & 32'h000000ff;
+                1: transform = (d >> 8)  & 32'h000000ff;
+                2: transform = (d >> 16) & 32'h000000ff;
+                3: transform = (d >> 24) & 32'h000000ff;
                 endcase
         end
         // Signed byte. Sign extend lower byte.
@@ -246,10 +246,10 @@ begin: transform_function
         begin
                 // Take lower byte.
                 case ( address[1:0] )
-                0: transform = (d >> 24) & 32'h000000ff;	// 3DO ARM60 Big Endian kludge. fixel / ElectronAsh.
-                1: transform = (d >> 16) & 32'h000000ff;
-                2: transform = (d >> 8)  & 32'h000000ff;
-                3: transform = (d >> 0)  & 32'h000000ff;
+                0: transform = (d >> 0)  & 32'h000000ff; 
+                1: transform = (d >> 8)  & 32'h000000ff;
+                2: transform = (d >> 16) & 32'h000000ff;
+                3: transform = (d >> 24) & 32'h000000ff;
                 endcase
 
                 // Sign extend.
@@ -260,7 +260,7 @@ begin: transform_function
         begin
                 case ( address[1] )
                 0: transform = (d >>  0) & 32'h0000ffff;
-                1: transform = (d >> 16) & 32'h0000ffff;			
+                1: transform = (d >> 16) & 32'h0000ffff;
                 endcase
 
                 transform = {{16{transform[15]}}, transform[15:0]}; // 16 + 16 = 32
@@ -278,9 +278,9 @@ begin: transform_function
                 // Rotate data based on byte targetted.
                 case ( address[1:0] )
                 2'b00: transform = data;
-                2'b01: begin transform = {data[7:0],  data[31:8]}; /*(data >> 8)  | (data << 24);*/ /*$display("unaligned 2'b01");*/ end
-                2'b10: begin transform = {data[15:8], data[31:16]}; /*(data >> 16) | (data << 16); /*$display("unaligned 2'b10");*/ end
-                2'b11: begin transform = {data[23:0], data[31:24]}; /*(data >> 24) | (data << 8);  /*$display("unaligned 2'b11");*/ end
+                2'b01: transform = data >> 8  | data << 24;
+                2'b10: transform = data >> 16 | data << 16;
+                2'b11: transform = data >> 24 | data << 8;
                 endcase
         end
 
@@ -293,3 +293,4 @@ end
 endfunction
 
 endmodule
+

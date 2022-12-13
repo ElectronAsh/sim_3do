@@ -255,6 +255,9 @@ logic [31:0]                     w_pc_from_alu_0, w_pc_from_alu_1, w_pc_from_alu
 logic [1:0]                      r_clear_from_alu;
 logic                            w_confirm_from_alu;
 
+// Precompute adder
+logic [31:0]                     quick_sum;
+
 // -------------------------------------------------------------------------------
 // Assigns
 // -------------------------------------------------------------------------------
@@ -262,10 +265,11 @@ logic                            w_confirm_from_alu;
 always_comb opcode = i_alu_operation_ff;
 always_comb not_rm = ~rm;
 always_comb not_rn = ~rn;
+always_comb quick_sum = rm + rn;
 
 /*
    For memory stores, we must generate correct byte enables. This is done
-   by examining access type inputs. For loads, always 1111 is generated.
+   by examining access type inputs.Same for loads too.
    If there is neither a load or a store, the old value is preserved.
 */
 always_comb ben_nxt =                generate_ben (
@@ -768,7 +772,7 @@ begin: flags_bp_feedback
                                         // i.e., MOV and ADD instructions which
                                         // destine to PC.
                                         //
-                                        if ( opcode == {2'd0, ADD} ? (i_ppc_ff == ((rm + rn) & 32'hFFFF_FFFF)) : 
+                                        if ( opcode == {2'd0, ADD} ? (i_ppc_ff == quick_sum) : 
                                              opcode == {2'd0, MOV} ? (i_ppc_ff == rm) : 1'd0 )  
                                         begin
                                                 // No mode change, do not change anything.
@@ -1047,19 +1051,18 @@ logic [3:0] x;
 begin
         if ( ub || sb ) // Byte oriented.
         begin
-				// Based on address lower 2-bits.
-				case ( addr[1:0] )
-                0: x = 1 << 3; 		// 3DO ARM60 Big Endian kludge. fixel / ElectronAsh.
-                1: x = 1 << 2;
-                2: x = 1 << 1;
-                3: x = 1;
+                case ( addr[1:0] ) // Based on address lower 2-bits.
+                0: x = 1;
+                1: x = 1 << 1;
+                2: x = 1 << 2;
+                3: x = 1 << 3;
                 endcase
         end 
         else if ( uh || sh ) // Halfword. A word = 2 half words.
         begin
-				case ( addr[1] )
-                0: x = 4'b1100; 	// 3DO ARM60 Big Endian kludge. fixel / ElectronAsh.
-                1: x = 4'b0011;
+                case ( addr[1] )
+                0: x = 4'b0011;
+                1: x = 4'b1100;
                 endcase
         end
         else

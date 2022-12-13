@@ -240,7 +240,7 @@ begin: blk1
 
                 case ( dff[`ZAP_DESC_ID] )
 
-                SECTION_ID:
+                SECTION_ID, 2'b00:
                 begin
                         /*
                          * It is a section itself so there is no need
@@ -252,15 +252,6 @@ begin: blk1
                                              dff};
                         state_nxt         = IDLE;           
 
-                        // $display($time, " - %m :: #########################################################");
-                        // $display($time, " - %m ::             SECTION DESCRIPTOR DETAILS                  #");
-                        // $display($time, " - %m :: #########################################################");
-                        // $display($time, " - %m :: # BASE ADDRESS  = 0x%x ", o_setlb_wdata[`ZAP_SECTION_TLB__BASE]);
-                        // $display($time, " - %m :: # DAC           = 0b%b",  o_setlb_wdata[`ZAP_SECTION_TLB__DAC_SEL]);
-                        // $display($time, " - %m :: # AP bits       = 0b%b",  o_setlb_wdata[`ZAP_SECTION_TLB__AP]);
-                        // $display($time, " - %m :: # Cacheable     = 0b%b",  o_setlb_wdata[`ZAP_SECTION_TLB__CB] >> 1);
-                        // $display($time, " - %m :: # Bufferable    = 0b%b",  o_setlb_wdata[`ZAP_SECTION_TLB__CB] & 2'b01);
-                        // $display($time, " - %m :: #########################################################");
                 end
 
                 PAGE_ID:
@@ -290,16 +281,6 @@ begin: blk1
                                          address[`ZAP_VA__L2_TABLE_INDEX], 2'd0});
                 end
 
-                default: /* Generate section translation fault. Fault Class II */
-                begin
-                        o_fsr        = {4'd0, FSR_SECTION_TRANSLATION_FAULT};
-                        o_fsr        = {dff[`ZAP_L1_SECTION__DAC_SEL], o_fsr[3:0]};
-                        o_far        = address;
-                        o_fault      = 1'd1;
-                        o_busy       = 1'd0;
-                        state_nxt    = IDLE;
-                end
- 
                 endcase
         end
 
@@ -324,7 +305,7 @@ begin: blk1
 
                 case ( dff[`ZAP_DESC_ID] ) // dff holds L2 descriptor. dac_ff holds L1 descriptor DAC.
 
-                SPAGE_ID:
+                SPAGE_ID, 2'b00:
                 begin
                         /* Update TLB */
                         o_sptlb_wen   = 1'd1;
@@ -336,16 +317,6 @@ begin: blk1
                         o_sptlb_wdata[`ZAP_SPAGE_TLB__CB]      = dff[`ZAP_L2_SPAGE__CB];
                         o_sptlb_wdata[`ZAP_SPAGE_TLB__BASE]    = dff[`ZAP_L2_SPAGE__BASE];
 
-                        // Uncomment the below lines for debugging.
-                        // $display($time, " - %m :: #########################################################");
-                        // $display($time, " - %m ::               SPAGE DESCRIPTOR DETAILS                  #");
-                        // $display($time, " - %m :: #########################################################");
-                        // $display($time, " - %m :: # BASE ADDRESS  = 0x%x ", o_sptlb_wdata[`ZAP_SPAGE_TLB__BASE]);
-                        // $display($time, " - %m :: # DAC           = 0b%b",  o_sptlb_wdata[`ZAP_SPAGE_TLB__DAC_SEL]);
-                        // $display($time, " - %m :: # AP bits       = 0b%b",  o_sptlb_wdata[`ZAP_SPAGE_TLB__AP]);
-                        // $display($time, " - %m :: # Cacheable     = 0b%b",  o_sptlb_wdata[`ZAP_SPAGE_TLB__CB] >> 1);
-                        // $display($time, " - %m :: # Bufferable    = 0b%b",  o_sptlb_wdata[`ZAP_SPAGE_TLB__CB] & 2'b01);
-                        // $display($time, " - %m :: #########################################################");
 
                         /* Go to IDLE */
                         state_nxt   = IDLE;
@@ -363,16 +334,6 @@ begin: blk1
                         o_lptlb_wdata[`ZAP_LPAGE_TLB__CB]      = dff[`ZAP_L2_LPAGE__CB];
                         o_lptlb_wdata[`ZAP_LPAGE_TLB__BASE]    = dff[`ZAP_L2_LPAGE__BASE];
 
-                        // Uncomment the below lines for debugging.
-                        // $display($time, " - %m :: #########################################################");
-                        // $display($time, " - %m ::               LPAGE DESCRIPTOR DETAILS                  #");
-                        // $display($time, " - %m :: #########################################################");
-                        // $display($time, " - %m :: # BASE ADDRESS  = 0x%x ", o_lptlb_wdata[`ZAP_LPAGE_TLB__BASE]);
-                        // $display($time, " - %m :: # DAC           = 0b%b",  o_lptlb_wdata[`ZAP_LPAGE_TLB__DAC_SEL]);
-                        // $display($time, " - %m :: # AP bits       = 0b%b",  o_lptlb_wdata[`ZAP_LPAGE_TLB__AP]);
-                        // $display($time, " - %m :: # Cacheable     = 0b%b",  o_lptlb_wdata[`ZAP_LPAGE_TLB__CB] >> 1);
-                        // $display($time, " - %m :: # Bufferable    = 0b%b",  o_lptlb_wdata[`ZAP_LPAGE_TLB__CB] & 2'b01);
-                        // $display($time, " - %m :: #########################################################");
 
                         /* Go to IDLE */
                         state_nxt   = IDLE;
@@ -390,30 +351,11 @@ begin: blk1
                         o_fptlb_wdata[`ZAP_FPAGE_TLB__CB]      = dff[`ZAP_L2_FPAGE__CB];
                         o_fptlb_wdata[`ZAP_FPAGE_TLB__BASE]    = dff[`ZAP_L2_FPAGE__BASE];
 
-                        // Uncomment the below lines for debugging.
-                        // $display($time, " - %m :: #########################################################");
-                        // $display($time, " - %m ::               FPAGE DESCRIPTOR DETAILS                  #");
-                        // $display($time, " - %m :: #########################################################");
-                        // $display($time, " - %m :: # BASE ADDRESS  = 0x%x ", o_fptlb_wdata[`ZAP_FPAGE_TLB__BASE]);
-                        // $display($time, " - %m :: # DAC           = 0b%b",  o_fptlb_wdata[`ZAP_FPAGE_TLB__DAC_SEL]);
-                        // $display($time, " - %m :: # AP bits       = 0b%b",  o_fptlb_wdata[`ZAP_FPAGE_TLB__AP]);
-                        // $display($time, " - %m :: # Cacheable     = 0b%b",  o_fptlb_wdata[`ZAP_FPAGE_TLB__CB] >> 1);
-                        // $display($time, " - %m :: # Bufferable    = 0b%b",  o_fptlb_wdata[`ZAP_FPAGE_TLB__CB] & 2'b01);
-                        // $display($time, " - %m :: #########################################################");
 
                         /* Go to IDLE */
                         state_nxt   = IDLE;
                 end
 
-                default: /* Fault Class II */
-                begin
-                        o_busy    = 1'd0;
-                        o_fault   = 1'd1;
-                        o_fsr     = {4'd0, FSR_PAGE_TRANSLATION_FAULT};
-                        o_fsr     = {dac_ff, o_fsr[3:0]};
-                        o_far     = address;
-                        state_nxt = IDLE;
-                end
                 endcase
         end
 

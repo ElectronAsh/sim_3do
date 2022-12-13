@@ -109,6 +109,8 @@ module zap_predecode_main #( parameter PHY_REGS = 46, parameter RAS_DEPTH = 8 )
 `include "zap_defines.svh"
 `include "zap_localparams.svh"
 
+logic                               copro_dav_nxt;
+logic [31:0]                        copro_word_nxt;
 logic                               dbg;
 logic                               w_clear_from_decode;
 logic [31:0]                        w_pc_from_decode;
@@ -195,6 +197,8 @@ begin
                 o_taken_ff             <= taken_nxt;
                 o_instruction_ff       <= o_instruction_nxt;
                 o_instruction_valid_ff <= o_instruction_valid_nxt;
+                o_copro_dav_ff         <= copro_dav_nxt;
+                o_copro_word_ff        <= copro_word_nxt;
 
                 if ( mem_fetch_stall == 1'd0 )
                 begin
@@ -222,6 +226,8 @@ begin
                 o_ppc_ff               <= 0;
                 o_clear_from_decode    <= 0;
                 o_pc_from_decode       <= 0;
+                o_copro_word_ff        <= 0;
+                o_copro_dav_ff         <= 0;
 end
 endtask
 
@@ -363,6 +369,7 @@ u_zap_decode_coproc
         .i_clear_from_alu(i_clear_from_alu),      
         .i_stall_from_issue(i_stall_from_issue), 
         .i_stall_from_shifter(i_stall_from_shifter),
+        .i_clear_from_decode(o_clear_from_decode),
 
         // Valid signals.
         .i_pipeline_dav (i_pipeline_dav),
@@ -380,8 +387,8 @@ u_zap_decode_coproc
         .o_stall_from_decode(cp_stall),
 
         // Coprocessor interface.
-        .o_copro_dav_ff(o_copro_dav_ff),
-        .o_copro_word_ff(o_copro_word_ff)
+        .o_copro_dav_nxt(copro_dav_nxt),
+        .o_copro_word_nxt(copro_word_nxt)
 );
 
 
@@ -582,6 +589,7 @@ zap_predecode_uop_sequencer u_zap_uop_sequencer (
         .i_clear_from_alu(i_clear_from_alu),      
         .i_issue_stall(i_stall_from_issue), 
         .i_stall_from_shifter(i_stall_from_shifter),
+        .i_clear_from_decode(o_clear_from_decode),
 
         .o_irq(irq_mask),
         .o_fiq(fiq_mask),
