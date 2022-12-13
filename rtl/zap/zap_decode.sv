@@ -699,14 +699,23 @@ endfunction
 
 // ----------------------------------------------------------------------------
 
+wire [5:0] curr_spsr =  (i_cpsr_ff_mode == FIQ) ? PHY_FIQ_SPSR :
+						(i_cpsr_ff_mode == IRQ) ? PHY_IRQ_SPSR :
+						(i_cpsr_ff_mode == ABT) ? PHY_ABT_SPSR :
+						(i_cpsr_ff_mode == UND) ? PHY_UND_SPSR :
+						(i_cpsr_ff_mode == SVC) ? PHY_SVC_SPSR :
+												  PHY_CPSR;	// USR mode / default.
+
 function void decode_mrs ();
 begin
+
 
         process_immediate ( {instruction[11:0]} );
         
         o_condition_code    = instruction[31:28];
         o_destination_index = {instruction[`ZAP_DP_RD_EXTEND], instruction[`ZAP_DP_RD]};
         o_alu_source        = instruction[22] ? ARCH_CURR_SPSR : ARCH_CPSR;
+        //o_alu_source        = instruction[22] ? curr_spsr : ARCH_CPSR;
         o_alu_source[32]    = INDEX_EN;
         o_alu_operation     = {2'd0, ADD};
 end
@@ -728,11 +737,13 @@ begin
 
         // Destination.
         o_destination_index = instruction[22] ? ARCH_CURR_SPSR : ARCH_CPSR;
+        //o_destination_index = instruction[22] ? curr_spsr : ARCH_CPSR;
 
         o_condition_code = instruction[31:28];
 
         // Make srcdest as SPSR. useful for MMOV.
         o_mem_srcdest_index = ARCH_CURR_SPSR;
+        //o_mem_srcdest_index = curr_spsr;
 
         // Select SPSR or CPSR.
         o_alu_operation  = instruction[22] ? {1'd0, MMOV} : {1'd0, FMOV};
