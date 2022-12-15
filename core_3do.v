@@ -27,24 +27,6 @@ module core_3do (
 
 `define DEBUG_EN 1
 
-/*
-reg i_wb_ack;
-reg stb_1;
-wire stb_rising = (o_wb_stb && !stb_1);
-
-
-always @(posedge sys_clk)
-if (!reset_n) begin
-	i_wb_ack <= 1'b0;
-	stb_1 <= 1'b0;
-end
-else begin
-	i_wb_ack <= 1'b0;
-	stb_1 <= o_wb_stb;
-
-	if (stb_rising) i_wb_ack <= 1'b1;
-end
-*/
 
 zap_top zap_top_inst (
 	.i_clk( sys_clk ),				// input. Should probably be 12.5 MHz, but using sys_clk, for faster simulation.
@@ -66,11 +48,11 @@ zap_top zap_top_inst (
 	.o_wb_cti( o_wb_cti ),			// output [2:0]	not used atm.
 	.o_wb_bte( o_wb_bte ),			// output [1:0]	not used atm.
 	.i_wb_ack( i_wb_ack ),			// input
-	//.i_wb_dat( zap_din )			// input [31:0]
-	.i_wb_dat( i_wb_dat )			// input [31:0]
+	.i_wb_dat( zap_din )			// input [31:0]
+	//.i_wb_dat( i_wb_dat )			// input [31:0]
 );
 
-//wire [31:0] zap_din;
+wire [31:0] zap_din;
 
 
 clio clio_inst (
@@ -174,18 +156,19 @@ wire [31:0] clio_dout;
 
 wire svf_cs   = (o_wb_adr>=32'h03200000 && o_wb_adr<=32'h0320FFFF);
 wire madam_cs = (o_wb_adr>=32'h03300000 && o_wb_adr<=32'h0330FFFF);
+wire unc_cs   = (o_wb_adr>=32'h0340c000 && o_wb_adr<=32'h0340c00f);
 wire clio_cs  = (o_wb_adr>=32'h03400000 && o_wb_adr<=32'h0340FFFF);
 
-
-/*assign zap_din = (madam_cs) ? madam_dout :
+assign zap_din = (madam_cs) ? madam_dout :
+				 (unc_cs) ? 32'h00000000 :
 				 (clio_cs)  ? clio_dout :
-				 //(svf_cs)   ? 32'hBADACCE5 :
-								i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM etc.)
-*/
+								i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM, SVF etc.)
 
+
+/*
 matrix_engine matrix_inst (
 	.clock(sys_clk)
 );
-
+*/
 
 endmodule
