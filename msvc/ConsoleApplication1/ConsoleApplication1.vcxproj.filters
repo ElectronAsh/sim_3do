@@ -16,6 +16,9 @@
     <Filter Include="imgui">
       <UniqueIdentifier>{c2ae8e24-5567-43e0-93c7-d2c34f47dbd3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Vcore">
+      <UniqueIdentifier>{748326c4-bc3d-4f6c-8c34-1663c547131a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\sim_main.cpp">
@@ -54,74 +57,74 @@
     <ClCompile Include="..\..\imgui_functions.h">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__0.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__0__Slow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__1.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__0.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__0__Slow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__1.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__1__Slow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__2.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do___024root__Slow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do__ConstPool_0.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do__Dpi.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do__Syms.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do__Trace__0.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do__Trace__0__Slow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__DepSet_ha55ef60b__0.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__DepSet_ha55ef60b__0__Slow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__DepSet_ha55ef60b__1.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__DepSet_ha55ef60b__2.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__Slow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\verilator\include\verilated_vcd_c.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__0.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__0__Slow.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__1.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__1__Slow.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__2.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__2__Slow.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__3.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__4.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__5.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__6.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__7.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__8.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__0.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__0__Slow.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__Slow.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do__ConstPool_0.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do__Dpi.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do__Syms.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do__Trace__0.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do__Trace__0__Slow.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\bookshelf.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="C:\linux_temp\imgui\imconfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -171,19 +174,16 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\out\Vcore_3do.h">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Vcore</Filter>
     </ClInclude>
     <ClInclude Include="..\..\out\Vcore_3do___024root.h">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Vcore</Filter>
     </ClInclude>
     <ClInclude Include="..\..\out\Vcore_3do__Dpi.h">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Vcore</Filter>
     </ClInclude>
     <ClInclude Include="..\..\out\Vcore_3do__Syms.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\out\Vcore_3do_zap_decompile.h">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Vcore</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

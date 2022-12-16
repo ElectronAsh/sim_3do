@@ -190,7 +190,7 @@ reg trig_pbus_dma;
 always @(*) begin
 	case (cpu_addr[15:0])
 		16'h0000: cpu_dout = 32'h01020000;	// 0x0000. Revision when read. BIOS Serial debug when written.
-		//16'h0004: cpu_dout = msysbits;	// 0x0004. Memory Configuration. 0x29 = 2MB DRAM, 1MB VRAM.
+		//16'h0004: cpu_dout = msysbits;	// 0x0004. Memory Configuration.
 		16'h0004: cpu_dout = 32'h00000029;	// 0x0004. Memory Configuration. 0x29 = 2MB DRAM, 1MB VRAM.
 		16'h0008: cpu_dout = mctl;			// 0x0008. DMA channel enables. bit16 (typo I thinK. Should be "bit 15"?) = Player Bus. bit20 = Spryte control.
 		16'h000c: cpu_dout = sltime;	// 0x000C ? Unsure. “testbin” sets it to 0x00178906.

@@ -176,11 +176,6 @@
     <ClCompile Include="..\..\..\verilator\include\verilated_vcd_c.cpp" />
     <ClCompile Include="..\..\imgui_functions.h" />
     <ClCompile Include="..\..\out\Vcore_3do.cpp" />
-    <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__DepSet_ha55ef60b__0.cpp" />
-    <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__DepSet_ha55ef60b__0__Slow.cpp" />
-    <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__DepSet_ha55ef60b__1.cpp" />
-    <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__DepSet_ha55ef60b__2.cpp" />
-    <ClCompile Include="..\..\out\Vcore_3do_zap_decompile__Slow.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do__ConstPool_0.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do__Dpi.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do__Syms.cpp" />
@@ -189,11 +184,17 @@
     <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__0.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__0__Slow.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__1.cpp" />
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__1__Slow.cpp" />
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__2.cpp" />
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__2__Slow.cpp" />
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__3.cpp" />
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__4.cpp" />
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__5.cpp" />
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__6.cpp" />
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__7.cpp" />
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__8.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__0.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__0__Slow.cpp" />
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__1.cpp" />
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__1__Slow.cpp" />
-    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__2.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do___024root__Slow.cpp" />
     <ClCompile Include="..\..\sim_main.cpp" />
   </ItemGroup>
@@ -209,9 +210,7 @@
     <ClInclude Include="..\..\..\verilator\include\verilated_syms.h" />
     <ClInclude Include="..\..\..\verilator\include\verilated_threads.h" />
     <ClInclude Include="..\..\..\verilator\include\verilated_vcd_c.h" />
-    <ClInclude Include="..\..\bookshelf.h" />
     <ClInclude Include="..\..\out\Vcore_3do.h" />
-    <ClInclude Include="..\..\out\Vcore_3do_zap_decompile.h" />
     <ClInclude Include="..\..\out\Vcore_3do__Dpi.h" />
     <ClInclude Include="..\..\out\Vcore_3do__Syms.h" />
     <ClInclude Include="..\..\out\Vcore_3do___024root.h" />
