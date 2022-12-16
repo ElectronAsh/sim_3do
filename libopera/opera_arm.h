@@ -36,9 +36,13 @@
 
 #include "extern_c.h"
 
+#include "opera_arm_core.h"
+
 EXTERN_C_BEGIN
 
 FILE* logfile;
+
+arm_core_t CPU;
 
 int32_t  opera_arm_execute(void);
 void     opera_arm_init(void);

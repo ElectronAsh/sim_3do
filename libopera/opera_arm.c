@@ -126,7 +126,7 @@ const static uint16_t cond_flags_cross[]=
 #define NVRAM_SIZE (32 * 1024)
 
 static int        g_SWI_HLE;
-static arm_core_t CPU;
+//static arm_core_t CPU;
 static int        CYCLES;	//cycle counter
 
 static uint32_t readusr(uint32_t rn);
