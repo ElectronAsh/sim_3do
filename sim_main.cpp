@@ -96,7 +96,6 @@ uint32_t vint0_reg;
 uint32_t vint1_reg;
 
 uint32_t cur_pc;
-uint32_t cur_pc2;
 uint32_t old_pc;
 
 bool madam_cs;
@@ -546,12 +545,6 @@ void opera_tick() {
 }
 
 int verilate() {
-	if (wait_ticks==0) {
-		opera_tick();	// "operatic"... geddit? lol
-		wait_ticks=5;
-	}
-	else wait_ticks--;
-
 	if (!Verilated::gotFinish()) {
 		if (main_time < 50) {
 			top->reset_n = 0;		// Assert reset (active LOW)
@@ -561,25 +554,22 @@ int verilate() {
 		}
 
 		if (top->sys_clk) {
+			if (wait_ticks==0) {
+				opera_tick();		// "operatic"... geddit? lol
+				wait_ticks=2;
+			}
+			else wait_ticks--;
+
 			pix_count++;
 		
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__pc_from_alu;
-			//cur_pc2 = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__o_pc_plus_8_ff;
-			cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__o_pc_plus_8_ff;
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__o_pc_plus_8_ff;
+			cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_pc_plus_8_ff - 8;
 
 			uint32_t temp_word;
 			uint32_t word_addr = (top->o_wb_adr) >> 2;
 
 			//top->i_wb_ack = 1;
-
-			/*
-			//if (frame_count>60 && top->o_wb_adr==0x00010190 && top->o_wb_we) {
-			if (top->o_wb_adr==0x0000fcb0 && top->o_wb_we) {
-			//if (top->o_wb_adr==0x000016c0 && !top->o_wb_we) {
-					trace = 1;
-					run_enable=1;
-			}
-			*/
 
 			//if (top->o_wb_adr == 0x000117F8) run_enable = 0;
 
@@ -594,7 +584,9 @@ int verilate() {
 					for (int i = 0; i < 40; i++) {
 						arm_reg[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[i];
 					}
-					fprintf(logfile, "PC: 0x%08X  Addr: 0x%08X  dat_i: 0x%08X  dat_o: 0x%08X  write: %d\n", cur_pc, top->o_wb_adr, top->i_wb_dat, top->o_wb_dat, top->o_wb_we);
+					//fprintf(logfile, "PC: 0x%08X  Addr: 0x%08X  dat_i: 0x%08X  dat_o: 0x%08X  write: %d\n", cur_pc, top->o_wb_adr, top->i_wb_dat, top->o_wb_dat, top->o_wb_we);
+					fprintf(logfile, "PC: 0x%08X  Addr: 0x%08X  dat_i: 0x%08X  dat_o: 0x%08X  write: %d\n", cur_pc, top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_address_ff, top->i_wb_dat, top->o_wb_dat, top->o_wb_we);
+
 					//fprintf(logfile, "          PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);
 					/*
 					fprintf(logfile, "          PC: 0x%08X\n", cur_pc);
@@ -618,35 +610,27 @@ int verilate() {
 				}
 			}
 
-			uint8_t rom_byte0 = rom_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;      // rom_ptr is now BYTE addressed.
-			uint8_t rom_byte1 = rom_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;      // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
-			uint8_t rom_byte2 = rom_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
-			uint8_t rom_byte3 = rom_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
-			uint32_t rom_word = rom_byte0 << 24 | rom_byte1 << 16 | rom_byte2 << 8 | rom_byte3;
-
-			uint8_t rom2_byte0 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;    // rom2_ptr is now BYTE addressed.
-			uint8_t rom2_byte1 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;    // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
-			uint8_t rom2_byte2 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
-			uint8_t rom2_byte3 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
-			uint32_t rom2_word = rom2_byte0 << 24 | rom2_byte1 << 16 | rom2_byte2 << 8 | rom2_byte3;
-
-			uint8_t ram_byte0 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] & 0xff;     // ram_ptr is now BYTE addressed.
-			uint8_t ram_byte1 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] & 0xff;     // Mask o_wb_adr to 2MB, ignorring the lower two bits, add the offset.
-			uint8_t ram_byte2 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 2] & 0xff;
-			uint8_t ram_byte3 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] & 0xff;
-			uint32_t ram_word = ram_byte0 << 24 | ram_byte1 << 16 | ram_byte2 << 8 | ram_byte3;
-
-			/*
-			if (top->i_wb_ack) next_ack = 0;
-			top->i_wb_ack = next_ack;
-
-			//if (top->o_wb_stb) next_ack = 1;
-			next_ack = top->o_wb_stb;
-			*/
-
 			top->i_wb_ack = top->o_wb_stb;
 
 			if (top->o_wb_stb && top->i_wb_ack) {
+				uint8_t rom_byte0 = rom_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;      // rom_ptr is now BYTE addressed.
+				uint8_t rom_byte1 = rom_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;      // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
+				uint8_t rom_byte2 = rom_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
+				uint8_t rom_byte3 = rom_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
+				uint32_t rom_word = rom_byte0 << 24 | rom_byte1 << 16 | rom_byte2 << 8 | rom_byte3;
+
+				uint8_t rom2_byte0 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;    // rom2_ptr is now BYTE addressed.
+				uint8_t rom2_byte1 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;    // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
+				uint8_t rom2_byte2 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
+				uint8_t rom2_byte3 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
+				uint32_t rom2_word = rom2_byte0 << 24 | rom2_byte1 << 16 | rom2_byte2 << 8 | rom2_byte3;
+
+				uint8_t ram_byte0 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] & 0xff;     // ram_ptr is now BYTE addressed.
+				uint8_t ram_byte1 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] & 0xff;     // Mask o_wb_adr to 2MB, ignorring the lower two bits, add the offset.
+				uint8_t ram_byte2 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 2] & 0xff;
+				uint8_t ram_byte3 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] & 0xff;
+				uint32_t ram_word = ram_byte0 << 24 | ram_byte1 << 16 | ram_byte2 << 8 | ram_byte3;
+
 				// Handle writes to Main RAM, with byte masking...
 				if (top->o_wb_adr >= 0x00000000 && top->o_wb_adr <= 0x001FFFFF && top->o_wb_we) {                // 2MB masked.
 					//printf("Main RAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
@@ -675,9 +659,12 @@ int verilate() {
 					nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] = top->o_wb_dat & 0xff;       // Only writes the lower byte from the core to 8-bit NVRAM. o_wb_adr is the BYTE address, so shouldn't need shifting.
 				}
 
-				if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Sim   Addr: 0x%08X ", top->o_wb_adr);
+				//if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Sim   Addr: 0x%08X ", top->o_wb_adr);
+				if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Sim   Addr: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_address_ff);
+				
+				//top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_data_wb_we;
 
-						// Tech manual suggests "Any write to this area will unmap the BIOS".
+				// Tech manual suggests "Any write to this area will unmap the BIOS".
 				if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x001FFFFF && top->o_wb_we) map_bios = 0;
 				//if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x00000000 && top->o_wb_we) map_bios = 0;
 
