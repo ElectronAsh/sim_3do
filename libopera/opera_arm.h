@@ -32,10 +32,13 @@
 #define LIBOPERA_ARM_H_INCLUDED
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "extern_c.h"
 
 EXTERN_C_BEGIN
+
+FILE* logfile;
 
 int32_t  opera_arm_execute(void);
 void     opera_arm_init(void);

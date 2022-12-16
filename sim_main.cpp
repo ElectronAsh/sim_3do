@@ -17,9 +17,6 @@
 
 #include "verilated_vcd_c.h"
 
-FILE* logfile;
-
-
 // libopera includes...
 #include "opera_arm.h"
 #include "opera_clio.h"
@@ -32,11 +29,15 @@ FILE* logfile;
 #include "opera_sport.h"
 #include "opera_vdlp.h"
 #include "opera_xbus.h"
-//#include "opera_xbus_cdrom_plugin.h"
+#include "opera_xbus_cdrom_plugin.h"
+//#include "opera_nvram.h"
 #include "inline.h"
+
+#include "opera_3do.h"
 
 int flagtime;
 
+//FILE* logfile;
 
 
 #include <d3d11.h>
@@ -87,6 +88,8 @@ char my_string[1024];
 bool trace = 0;
 
 int pix_count = 0;
+
+uint8_t wait_ticks = 0;
 
 bool field = 1;
 uint32_t vint0_reg;
@@ -512,7 +515,43 @@ void pbus_dma() {
 	}
 }
 
+
+void opera_tick() {
+	//opera_3do_process_frame();
+
+	opera_arm_execute();		// <- This contains all of our Opera fprintfs.
+
+	opera_clock_push_cycles(main_time);
+
+	//if (opera_clock_dsp_queued()) libopera_callback(EXT_DSP_TRIGGER, NULL);
+	//if (opera_clock_dsp_queued()) opera_lr_dsp_process();
+	if (opera_clock_dsp_queued()) {
+		//g_DSP_BUF[g_DSP_BUF_IDX++] = opera_dsp_loop();
+		//g_DSP_BUF_IDX &= DSP_BUF_SIZE_MASK;
+		uint32_t sound_out = opera_dsp_loop();	// Almost certain this is the DSP sound output. ElectronAsh.
+		//fprintf(soundfile, "Sound 0x%08X: ", sound_out);
+	}
+
+	if (opera_clock_timer_queued()) opera_clio_timer_execute();
+
+	if (opera_clock_vdl_queued())
+	{
+		opera_clio_vcnt_update(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt, top->rootp->core_3do__DOT__clio_inst__DOT__field);
+		//opera_vdlp_process_line(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt);
+
+		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint0()) opera_clio_fiq_generate(1 << 0, 0);
+		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint1()) opera_clio_fiq_generate(1 << 1, 0);
+		//(*line_)++;
+	}
+}
+
 int verilate() {
+	if (wait_ticks==0) {
+		opera_tick();	// "operatic"... geddit? lol
+		wait_ticks=5;
+	}
+	else wait_ticks--;
+
 	if (!Verilated::gotFinish()) {
 		if (main_time < 50) {
 			top->reset_n = 0;		// Assert reset (active LOW)
@@ -636,7 +675,7 @@ int verilate() {
 					nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] = top->o_wb_dat & 0xff;       // Only writes the lower byte from the core to 8-bit NVRAM. o_wb_adr is the BYTE address, so shouldn't need shifting.
 				}
 
-				if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Addr: 0x%08X ", top->o_wb_adr);
+				if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Sim   Addr: 0x%08X ", top->o_wb_adr);
 
 						// Tech manual suggests "Any write to this area will unmap the BIOS".
 				if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x001FFFFF && top->o_wb_we) map_bios = 0;
@@ -723,8 +762,8 @@ int verilate() {
 				else if (top->o_wb_adr == 0x03400084 && !top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); }
 				else if (top->o_wb_adr == 0x03400084 && top->o_wb_we) { fprintf(logfile, "CLIO adbio      ");
 																		rom2_select = (top->o_wb_dat & 0x04);				// bit 2 selects Kanji ROM (ROM2).
-																		if (rom2_select) fprintf(logfile, "ROM2 selected!");
-																		else fprintf(logfile, "ROM1 selected!"); }
+																		/*if (rom2_select) fprintf(logfile, "ROM2 selected!");
+																		else fprintf(logfile, "ROM1 selected!");*/ }
 				else if (top->o_wb_adr == 0x03400088) { fprintf(logfile, "CLIO adbctl     "); }
 				else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && !(top->o_wb_adr & 4)) { fprintf(logfile, "CLIO timer_cnt  "); }
 				else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && (top->o_wb_adr & 4)) { fprintf(logfile, "CLIO timer_bkp  "); }
@@ -807,7 +846,7 @@ int verilate() {
 		// Technically this stuff will evaluate while sys_clk is already LOW, because we MUST run eval() in order for zap_din to update correctly for the fprintfs...
 		//
 		uint32_t zap_din = top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat;
-		if ((top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034fffff /*&& top->o_wb_adr != 0x03400034*/) && top->o_wb_stb && top->i_wb_ack && top->sys_clk==0) {
+		if ((top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034fffff && top->o_wb_adr != 0x03400034) && top->o_wb_stb && top->i_wb_ack && top->sys_clk==0) {
 			if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);
 			else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", zap_din, cur_pc);
 		}
@@ -863,74 +902,17 @@ bit 30: ??? An empty handler - possibly even a watchdog (if that interrupt is en
 bit 31 - Indicates that there are more interrupts in register 0x0340 0060
 */
 
-static
-INLINE
-void
-opera_3do_internal_frame(uint32_t  cycles_,
-	uint32_t* line_,
-	int       field_)
-{
-	opera_clock_push_cycles(cycles_);
-	if (opera_clock_dsp_queued())
-		//io_interface(EXT_DSP_TRIGGER, NULL);
 
-	if (opera_clock_timer_queued())
-		opera_clio_timer_execute();
-
-	if (opera_clock_vdl_queued())
-	{
-		opera_clio_vcnt_update(*line_, field_);
-		opera_vdlp_process_line(*line_);
-
-		if (*line_ == opera_clio_line_vint0())
-			opera_clio_fiq_generate(1 << 0, 0);
-
-		if (*line_ == opera_clio_line_vint1())
-			opera_clio_fiq_generate(1 << 1, 0);
-
-		(*line_)++;
-	}
-}
-
-void
-opera_3do_process_frame(void)
-{
-	int32_t cnt;
-	uint32_t line;
-	uint32_t scanlines;
-	static int field = 0;
-
-	if (flagtime)
-		flagtime--;
-
-	cnt = 0;
-	line = 0;
-	//scanlines = opera_region_scanlines();
-	scanlines = top->rootp->core_3do__DOT__clio_inst__DOT__vcnt;
-	do
-	{
-		if (opera_madam_fsm_get() == FSM_INPROCESS)
-		{
-			opera_madam_cel_handle();
-			opera_madam_fsm_set(FSM_IDLE);
-		}
-
-		cnt += opera_arm_execute();
-		if (cnt >= 32)
-		{
-			opera_3do_internal_frame(cnt, &line, field);
-			cnt -= 32;
-		}
-	} while (line < scanlines);
-
-	field = ~field;
-}
-
+uint8_t* dram;
+uint8_t* vram;
 
 static MemoryEditor mem_edit_1;
 static MemoryEditor mem_edit_2;
 static MemoryEditor mem_edit_3;
 static MemoryEditor mem_edit_4;
+
+static MemoryEditor mem_edit_5;
+static MemoryEditor mem_edit_6;
 
 int main(int argc, char** argv, char** env) {
 	Verilated::traceEverOn(true);
@@ -1145,12 +1127,7 @@ int main(int argc, char** argv, char** env) {
 	bool second_stop = 0;
 
 
-
-	uint8_t* dram;
-	uint8_t* vram;
-
 	opera_clock_init();
-
 	opera_arm_init();
 
 	dram = opera_arm_ram_get();
@@ -1159,7 +1136,10 @@ int main(int argc, char** argv, char** env) {
 	opera_vdlp_init(vram);
 	opera_sport_init(vram);
 	opera_madam_init(dram);
+	//opera_nvram_init();
+
 	//opera_xbus_init(xbus_cdrom_plugin);
+	//opera_xbus_device_load(0, NULL);
 
 	/*
 	  0x40 for start from 3D0-CD
@@ -1173,16 +1153,13 @@ int main(int argc, char** argv, char** env) {
 	/* select test, use -1 -- if don't need tests */
 	opera_diag_port_init(-1);
 
+	
 
 	// imgui Main loop stuff...
 	MSG msg;
 	ZeroMemory(&msg, sizeof(msg));
 	while (msg.message != WM_QUIT)
 	{
-		//opera_arm_execute();
-		//opera_3do_process_frame();
-		opera_clio_vcnt_update(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt, top->rootp->core_3do__DOT__clio_inst__DOT__field);
-
 		// Poll and handle messages (inputs, window resize, etc.)
 		// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
 		// - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
@@ -1319,6 +1296,14 @@ int main(int argc, char** argv, char** env) {
 		mem_edit_4.DrawContents(nvram_ptr, nvram_size, 0);
 		ImGui::End();
 
+		ImGui::Begin("Opera DRAM Editor");
+		mem_edit_5.DrawContents(dram, ram_size, 0);
+		ImGui::End();
+
+		ImGui::Begin("Opera VRAM Editor");
+		mem_edit_6.DrawContents(vram, vram_size, 0);
+		ImGui::End();
+
 		ImGui::Begin("ARM Registers");
 
 		ImGui::Text("     reset_n: %d", top->rootp->core_3do__DOT__reset_n);
@@ -1353,12 +1338,6 @@ int main(int argc, char** argv, char** env) {
 					m_trace->flush();
 				}
 				*/
-
-				opera_arm_execute();
-				opera_clock_push_cycles(main_time);
-				//if (opera_clock_dsp_queued()) io_interface(EXT_DSP_TRIGGER, NULL);
-				if (opera_clock_timer_queued()) opera_clio_timer_execute();
-
 				verilate();
 			}
 		}
@@ -1382,8 +1361,6 @@ int main(int argc, char** argv, char** env) {
 				top->sys_clk = 0;
 				top->eval();
 				*/
-
-				opera_arm_execute();
 				verilate();
 			}
 		}
@@ -1406,8 +1383,6 @@ int main(int argc, char** argv, char** env) {
 			top->sys_clk = 0;
 			top->eval();
 			*/
-
-			opera_arm_execute();
 			verilate();
 		}
 

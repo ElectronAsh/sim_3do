@@ -52,6 +52,7 @@ uint32_t old_pc;
 uint16_t old_mode;
 int trace = 0;
 char my_string [100];
+
 FILE *logfile;
 FILE *rom1file;
 FILE *rom2file;
@@ -625,7 +626,7 @@ ROTR(const uint32_t val_,
 void
 opera_arm_init(void)
 {
-   logfile = fopen("c:\\linux_temp\\sim_3do\\out\\opera_trace.txt", "w");
+   //logfile = fopen("c:\\linux_temp\\sim_3do\\out\\opera_trace.txt", "w");
 
    rom1file = fopen("c:\\linux_temp\\sim_3do\\out\\panafz10.bin", "rb");
    rom2file = fopen("c:\\linux_temp\\sim_3do\\out\\panafz1-kanji.bin", "rb");
@@ -2227,7 +2228,7 @@ static void mwritew(uint32_t addr_, uint32_t val_)
       }
    }
 
-   if (addr_>=0x03100000 && addr_<=0x034FFFFF && addr_!=0x03400034) fprintf(logfile, "Addr: 0x%08X ", addr_);
+   if (addr_>=0x03100000 && addr_<=0x034FFFFF && addr_!=0x03400034) fprintf(logfile, "Opera Addr: 0x%08X ", addr_);
    print_to_log(addr_, val_, 1, CPU.USER[15]); // Address, Value, 0=read, 1=write.
    if (addr_ >= 0x03100000 && addr_ <= 0x034FFFFF && addr_!=0x03400034) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", val_, CPU.USER[15]);
 
@@ -2289,7 +2290,7 @@ mreadw(uint32_t addr_)
 
 
   // Can't easily grab read_write before the return, so the fprintf's below will handle printing the read value to the logfile.
-  if (addr_>=0x03100000 && addr_<=0x034FFFFF && addr_!=0x03400034) fprintf(logfile, "Addr: 0x%08X ", addr_);
+  if (addr_>=0x03100000 && addr_<=0x034FFFFF && addr_!=0x03400034) fprintf(logfile, "Opera Addr: 0x%08X ", addr_);
   print_to_log(addr_, 0x00000000, 0, CPU.USER[15]); // Address, Value, 0=read, 1=write.
 
    if(addr_ < 0x00300000) {
@@ -2361,7 +2362,7 @@ static void mwriteb(uint32_t addr_, uint8_t  val_)
 {
   int32_t index;
 
-  if (addr_>=0x03100000 && addr_<=0x034FFFFF && addr_!=0x03400034) fprintf(logfile, "Addr: 0x%08X ", addr_);
+  if (addr_>=0x03100000 && addr_<=0x034FFFFF && addr_!=0x03400034) fprintf(logfile, "Opera Addr: 0x%08X ", addr_);
   print_to_log(addr_, val_, 1, CPU.USER[15]); // Address, Value, 0=read, 1=write.
   if (addr_ >= 0x03100000 && addr_ <= 0x034FFFFF && addr_!=0x03400034) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", val_, CPU.USER[15]);
 
@@ -2378,7 +2379,7 @@ static void mwriteb(uint32_t addr_, uint8_t  val_)
   {
      if((index & 0x40000) == 0x40000)
      {
-        fprintf(logfile, "Addr: 0x%08X ", addr_); /*fprintf(logfile, "NVRAM            Write byte: 0x%08X  (PC: 0x%08X)\n", val_, CPU.USER[15]);*/
+        fprintf(logfile, "Opera Addr: 0x%08X ", addr_); /*fprintf(logfile, "NVRAM            Write byte: 0x%08X  (PC: 0x%08X)\n", val_, CPU.USER[15]);*/
         CPU.nvram[(index >> 2) & 0x7FFF] = val_;
         return;
      }
@@ -2393,12 +2394,12 @@ mreadb(uint32_t addr_)
   int32_t index;
 
   // Can't easily grab read_wrote before the return, so the fprintf's below will handle printing the read value to the logfile.
-  if (addr_>=0x03100000 && addr_<=0x034FFFFF && addr_!=0x03400034) fprintf(logfile, "Addr: 0x%08X ", addr_);
+  if (addr_>=0x03100000 && addr_<=0x034FFFFF && addr_!=0x03400034) fprintf(logfile, "Opera Addr: 0x%08X ", addr_);
   print_to_log(addr_, 0x00000000, 0, CPU.USER[15]); // 0=read, 1=write.
 
   if (addr_ < 0x00300000) {
     uint32_t byte_word = opera_mem_read8(addr_ ^ 3);
-    //fprintf(logfile, "Addr: 0x%08X ", addr_); fprintf(logfile, "???          Read byte: 0x%02X  (PC: 0x%08X)\n", byte_word, CPU.USER[15]);
+    //fprintf(logfile, "Opera Addr: 0x%08X ", addr_); fprintf(logfile, "???          Read byte: 0x%02X  (PC: 0x%08X)\n", byte_word, CPU.USER[15]);
     return byte_word;
   }
 
@@ -2417,7 +2418,7 @@ mreadb(uint32_t addr_)
     {
      if ((index & 0x40000) == 0x40000) {
          uint32_t byte_word = CPU.nvram[(index >> 2) & 0x7FFF];
-         //fprintf(logfile, "Addr: 0x%08X ", addr_); fprintf(logfile, "???          Read byte: 0x%02X  (PC: 0x%08X)\n", byte_word, CPU.USER[15]);
+         //fprintf(logfile, "Opera Addr: 0x%08X ", addr_); fprintf(logfile, "???          Read byte: 0x%02X  (PC: 0x%08X)\n", byte_word, CPU.USER[15]);
          return byte_word;
      }
       else fprintf(logfile, "\n");
@@ -2425,7 +2426,7 @@ mreadb(uint32_t addr_)
 
   /* MAS_Access_Exept = TRUE; */
 
-  fprintf(logfile, "Addr: 0x%08X ", addr_); /*fprintf(logfile, "???          Read byte: 0x%02X  (PC: 0x%08X)\n", 0xBADACCE5, CPU.USER[15]);*/
+  fprintf(logfile, "Opera Addr: 0x%08X ", addr_); /*fprintf(logfile, "???          Read byte: 0x%02X  (PC: 0x%08X)\n", 0xBADACCE5, CPU.USER[15]);*/
   return 0xBADACCE5;
 }
 
