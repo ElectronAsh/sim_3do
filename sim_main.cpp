@@ -554,13 +554,15 @@ int verilate() {
 			top->reset_n = 1;		// Deassert reset./
 		}
 
-		if (top->sys_clk) {
-			if (wait_ticks==0) {
+		if (top->reset_n) {
+			if (wait_ticks == 0) {
 				opera_tick();		// "operatic"... geddit? lol
-				wait_ticks=2;
+				wait_ticks = 4;
 			}
 			else wait_ticks--;
+		}
 
+		if (top->sys_clk) {
 			pix_count++;
 		
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__pc_from_alu;
@@ -1426,7 +1428,7 @@ int main(int argc, char** argv, char** env) {
 		//if ( cpu_mode==0b11111 ) reg_col[99] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// System mode
 
 		ImGui::Separator();
-		ImGui::Text("          PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);  ImGui::SameLine; ImGui::Text(" Opera  PC: 0x%08X", CPU.USER[15]);
+		ImGui::Text("          PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);  ImGui::SameLine(); ImGui::Text(" Opera  PC: 0x%08X", CPU.USER[15]);
 		ImGui::TextColored(ImVec4(reg_col[0]),  "          R0: 0x%08X", arm_reg[0]);  ImGui::SameLine(); ImGui::Text(" Opera  R0: 0x%08X", CPU.USER[0]);
 		ImGui::TextColored(ImVec4(reg_col[1]),  "          R1: 0x%08X", arm_reg[1]);  ImGui::SameLine(); ImGui::Text(" Opera  R1: 0x%08X", CPU.USER[1]);
 		ImGui::TextColored(ImVec4(reg_col[2]),  "          R2: 0x%08X", arm_reg[2]);  ImGui::SameLine(); ImGui::Text(" Opera  R2: 0x%08X", CPU.USER[2]);
