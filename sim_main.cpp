@@ -15,15 +15,34 @@
 #include "Vcore_3do___024root.h"
 #include "Vcore_3do.h"
 
+#include "verilated_vcd_c.h"
+
+FILE* logfile;
+
+
+// libopera includes...
+#include "opera_arm.h"
+#include "opera_clio.h"
+#include "opera_clock.h"
+#include "opera_core.h"
+#include "opera_diag_port.h"
+#include "opera_dsp.h"
+#include "opera_madam.h"
+#include "opera_region.h"
+#include "opera_sport.h"
+#include "opera_vdlp.h"
+#include "opera_xbus.h"
+//#include "opera_xbus_cdrom_plugin.h"
+#include "inline.h"
+
+int flagtime;
+
+
 
 #include <d3d11.h>
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 #include <tchar.h>
-
-#include "verilated_vcd_c.h"
-
-FILE* logfile;
 
 
 // DirectX data
@@ -69,8 +88,6 @@ bool trace = 0;
 
 int pix_count = 0;
 
-uint32_t clio_vcnt = 0;
-//int vcnt_max = 262;
 bool field = 1;
 uint32_t vint0_reg;
 uint32_t vint1_reg;
@@ -220,22 +237,22 @@ double sc_time_stamp() {       // Called by $time in Verilog.
 }
 
 
-static uint16_t SNDDebugFIFO0;
-static uint16_t SNDDebugFIFO1;
-static uint16_t RCVDebugFIFO0;
-static uint16_t RCVDebugFIFO1;
-static uint16_t GetIdx;
-static uint16_t SendIdx;
+static uint16_t sim_SNDDebugFIFO0;
+static uint16_t sim_SNDDebugFIFO1;
+static uint16_t sim_RCVDebugFIFO0;
+static uint16_t sim_RCVDebugFIFO1;
+static uint16_t sim_GetIdx;
+static uint16_t sim_SendIdx;
 
 void
-opera_diag_port_init(const int32_t test_code_)
+sim_diag_port_init(const int32_t test_code_)
 {
 	int32_t test_code = test_code_;
 
-	GetIdx = 16;
-	SendIdx = 16;
-	SNDDebugFIFO0 = 0;
-	SNDDebugFIFO1 = 0;
+	sim_GetIdx = 16;
+	sim_SendIdx = 16;
+	sim_SNDDebugFIFO0 = 0;
+	sim_SNDDebugFIFO1 = 0;
 
 	if (test_code >= 0)
 	{
@@ -247,50 +264,52 @@ opera_diag_port_init(const int32_t test_code_)
 		test_code = 0;
 	}
 
-	RCVDebugFIFO0 = test_code;
-	RCVDebugFIFO1 = test_code;
+	sim_RCVDebugFIFO0 = test_code;
+	sim_RCVDebugFIFO1 = test_code;
 }
 
+
 void
-opera_diag_port_send(const uint32_t val_)
+sim_diag_port_send(const uint32_t val_)
 {
-	if (GetIdx != 16)
+	if (sim_GetIdx != 16)
 	{
-		GetIdx = 16;
-		SendIdx = 16;
-		SNDDebugFIFO0 = 0;
-		SNDDebugFIFO1 = 0;
+		sim_GetIdx = 16;
+		sim_SendIdx = 16;
+		sim_SNDDebugFIFO0 = 0;
+		sim_SNDDebugFIFO1 = 0;
 	}
 
-	SNDDebugFIFO0 |= ((val_ & 1) << (SendIdx - 1));
-	SNDDebugFIFO1 |= (((val_ & 1) >> 1) << (SendIdx - 1));
+	sim_SNDDebugFIFO0 |= ((val_ & 1) << (sim_SendIdx - 1));
+	sim_SNDDebugFIFO1 |= (((val_ & 1) >> 1) << (sim_SendIdx - 1));
 
-	SendIdx--;
+	sim_SendIdx--;
 
-	if (SendIdx == 0)
-		SendIdx = 16;
+	if (sim_SendIdx == 0)
+		sim_SendIdx = 16;
 }
 
 uint32_t
-opera_diag_port_get(void)
+sim_diag_port_get(void)
 {
 	unsigned int val = 0;
 
-	if (SendIdx != 16)
+	if (sim_SendIdx != 16)
 	{
-		GetIdx = 16;
-		SendIdx = 16;
+		sim_GetIdx = 16;
+		sim_SendIdx = 16;
 	}
 
-	val = ((RCVDebugFIFO0 >> (GetIdx - 1)) & 0x1);
-	val |= (((RCVDebugFIFO1 >> (GetIdx - 1)) & 0x1) << 0x1);
-	GetIdx--;
+	val = ((sim_RCVDebugFIFO0 >> (sim_GetIdx - 1)) & 0x1);
+	val |= (((sim_RCVDebugFIFO1 >> (sim_GetIdx - 1)) & 0x1) << 0x1);
+	sim_GetIdx--;
 
-	if (GetIdx == 0)
-		GetIdx = 16;
+	if (sim_GetIdx == 0)
+		sim_GetIdx = 16;
 
 	return val;
 }
+
 
 uint32_t vdl_ctl = 0x000C0000;
 uint32_t vdl_curr = 0x000C0000;
@@ -421,15 +440,15 @@ bool jp_rt = 0;
 bool jp_lt = 0;
 
 void pbus_dma() {
-	uint32_t dst = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_dst;    // 0x570.
+	uint32_t str = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_dst;    // 0x570.
 	uint32_t len = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_len;    // 0x574.
-	uint32_t src = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_src;    // 0x578.
+	uint32_t end = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_src;    // 0x578.
 
 	uint32_t temp_word = 0x00000000;
 
-	dst += 4;
+	str += 4;
 	len -= 4;
-	src += 4;
+	end += 4;
 
 	pbus_idx = 0;
 
@@ -451,7 +470,7 @@ void pbus_dma() {
 	temp_word = (pbus_buf[0] << 24) | (pbus_buf[1] << 16) | (pbus_buf[2] << 8) | (pbus_buf[3] << 0);
 	//ram_ptr[ dst&0x1fffff ] = temp_word;  // ram_ptr is now BYTE addressed!
 
-	fprintf(logfile, "PBUS DMA  dst: 0x%08X  len: 0x%08X  src: 0x%08X\n", dst, len, src);
+	fprintf(logfile, "PBUS DMA  str: 0x%08X  len: 0x%08X  end: 0x%08X\n", str, len, end);
 
 	/*
 	for (int i = 0; i < 8; i+=4) {
@@ -472,27 +491,24 @@ void pbus_dma() {
 
 	//0x8000FFFF 0xFFFFFFFF 0xFFFF0000 0xFFFFFFFF
 	//0xFFFFFFFF 0xFFFFFFFF 0xFFFFFFFF 0xFFFFFFFF
-	ram_ptr[dst + 0] = 0x8000FFFF;
-	ram_ptr[dst + 1] = 0xFFFFFFFF;
-	ram_ptr[dst + 2] = 0xFFFF0000;
-	ram_ptr[dst + 3] = 0xFFFFFFFF;
-	ram_ptr[dst + 4] = 0xFFFFFFFF;
-	ram_ptr[dst + 5] = 0xFFFFFFFF;
-	ram_ptr[dst + 6] = 0xFFFFFFFF;
-	ram_ptr[dst + 7] = 0xFFFFFFFF;
+	ram_ptr[str+0]= 0x80; ram_ptr[str+1]= 0x00; ram_ptr[str+2]= 0xff; ram_ptr[str+3]= 0xff,
+	ram_ptr[str+4]= 0xff; ram_ptr[str+5]= 0xff; ram_ptr[str+6]= 0xff; ram_ptr[str+7]= 0xff;
+	ram_ptr[str+8]= 0xff; ram_ptr[str+9]= 0xff; ram_ptr[str+10]=0xff; ram_ptr[str+11]=0xff,
+	ram_ptr[str+12]=0xff; ram_ptr[str+13]=0xff; ram_ptr[str+14]=0xff; ram_ptr[str+15]=0xff;
+	ram_ptr[str+16]=0xff; ram_ptr[str+17]=0xff; ram_ptr[str+18]=0x00; ram_ptr[str+19]=0x00,
+	ram_ptr[str+20]=0xff; ram_ptr[str+21]=0xff; ram_ptr[str+22]=0xff; ram_ptr[str+23]=0xff;
+	ram_ptr[str+24]=0xff; ram_ptr[str+25]=0xff; ram_ptr[str+26]=0xff; ram_ptr[str+27]=0xff,
+	ram_ptr[str+28]=0xff; ram_ptr[str+29]=0xff; ram_ptr[str+30]=0xff; ram_ptr[str+31]=0xff;
+
+	ram_ptr[str+32]=0xff; ram_ptr[str+33]=0xff; ram_ptr[str+34]=0xff; ram_ptr[str+35]=0xff;
 
 	top->rootp->core_3do__DOT__madam_inst__DOT__pbus_len = 0xfffffffc;      // Set the length count to -4 when done?
-
 	top->rootp->core_3do__DOT__clio_inst__DOT__irq1_pend |= 1;              // Bit 0 of irq1_pend is the PBUS DMA Done bit.
+	top->rootp->core_3do__DOT__madam_inst__DOT__mctl &= ~0x8000;			// Clear bit 15 (PBUS DMA Enable) of mctl reg.
 
-	top->rootp->core_3do__DOT__madam_inst__DOT__mctl &= ~0x8000;    // Clear bit 15 (PBUS DMA Enable) of mctl reg.
-
-	for (int i = 0x2340; i < 0x2440; i += 4) {
+	for (int i=str; i<end; i+=4) {
 		fprintf(logfile, "0x%08X: ", i);
-		fprintf(logfile, "0x%08X ", ram_ptr[i + 0]);
-		fprintf(logfile, "0x%08X ", ram_ptr[i + 1]);
-		fprintf(logfile, "0x%08X ", ram_ptr[i + 2]);
-		fprintf(logfile, "0x%08X \n", ram_ptr[i + 3]);
+		fprintf(logfile, "0x%02X%02X%02X%02X\n", ram_ptr[i+0], ram_ptr[i+1], ram_ptr[i+2], ram_ptr[i+3]);
 	}
 }
 
@@ -620,7 +636,7 @@ int verilate() {
 					nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] = top->o_wb_dat & 0xff;       // Only writes the lower byte from the core to 8-bit NVRAM. o_wb_adr is the BYTE address, so shouldn't need shifting.
 				}
 
-				if ((top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034)) fprintf(logfile, "Addr: 0x%08X ", top->o_wb_adr);
+				if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Addr: 0x%08X ", top->o_wb_adr);
 
 						// Tech manual suggests "Any write to this area will unmap the BIOS".
 				if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x001FFFFF && top->o_wb_we) map_bios = 0;
@@ -647,8 +663,8 @@ int verilate() {
 				//else if (top->o_wb_adr>=0x03100000 && top->o_wb_adr<=0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0x0000006A; /*line_count = 0; vcnt_max=262;*/ }      // Spoof the first read value.
 
 				else if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315FFFF) { fprintf(logfile, "NVRAM           "); top->i_wb_dat = nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] & 0xff; }
-				else if (top->o_wb_adr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); opera_diag_port_send(top->o_wb_dat); }
-				else if (top->o_wb_adr == 0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = opera_diag_port_get(); }
+				else if (top->o_wb_adr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); sim_diag_port_send(top->o_wb_dat); }
+				else if (top->o_wb_adr == 0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = sim_diag_port_get(); }
 				else if (top->o_wb_adr >= 0x03180004 && top->o_wb_adr <= 0x031BFFFF) { fprintf(logfile, "Slow Bus        "); }
 
 				else if (top->o_wb_adr >= 0x03200000 && top->o_wb_adr <= 0x03200fff && !top->o_wb_we) { fprintf(logfile, "VRAM SVF Source "); svf_set_source(); top->i_wb_dat = 0x00000000; }
@@ -671,9 +687,9 @@ int verilate() {
 				else if (top->o_wb_adr == 0x0330000C) { fprintf(logfile, "MADAM sltime    "); }
 				else if (top->o_wb_adr >= 0x03300010 && top->o_wb_adr <= 0x0330001f) { fprintf(logfile, "MADAM MultiChip "); }
 				else if (top->o_wb_adr == 0x03300020) { fprintf(logfile, "MADAM Abortbits "); }
-				else if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PBUS dst  "); }
+				else if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PBUS str  "); }
 				else if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PBUS len  "); }
-				else if (top->o_wb_adr == 0x03300578) { fprintf(logfile, "MADAM PBUS src  "); }
+				else if (top->o_wb_adr == 0x03300578) { fprintf(logfile, "MADAM PBUS end  "); }
 				else if (top->o_wb_adr == 0x03300580) { fprintf(logfile, "MADAM vdl_addr! "); }
 				else if (top->o_wb_adr >= 0x03300000 && top->o_wb_adr <= 0x033FFFFF) { fprintf(logfile, "MADAM ?         "); }
 
@@ -697,11 +713,11 @@ int verilate() {
 				else if (top->o_wb_adr == 0x03400068) { fprintf(logfile, "CLIO mask1 set  "); }
 				else if (top->o_wb_adr == 0x0340006c) { fprintf(logfile, "CLIO mask1 clear"); }
 
-				else if (top->o_wb_adr >= 0x03400040 && top->o_wb_adr <= 0x03400044 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 read  "); }
-				else if (top->o_wb_adr >= 0x03400048 && top->o_wb_adr <= 0x0340004C && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read "); }
+				else if (top->o_wb_adr >= 0x03400040 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 read  "); }
+				else if (top->o_wb_adr >= 0x03400048 && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read "); }
 
-				else if (top->o_wb_adr >= 0x03400060 && top->o_wb_adr <= 0x03400064 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 read  "); }
-				else if (top->o_wb_adr >= 0x03400068 && top->o_wb_adr <= 0x0340006C && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read "); }
+				else if (top->o_wb_adr >= 0x03400060 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 read  "); }
+				else if (top->o_wb_adr >= 0x03400068 && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read "); }
 
 				else if (top->o_wb_adr == 0x03400080) { fprintf(logfile, "CLIO hdelay     "); }
 				else if (top->o_wb_adr == 0x03400084 && !top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); }
@@ -791,7 +807,7 @@ int verilate() {
 		// Technically this stuff will evaluate while sys_clk is already LOW, because we MUST run eval() in order for zap_din to update correctly for the fprintfs...
 		//
 		uint32_t zap_din = top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat;
-		if ((top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034fffff && top->o_wb_adr != 0x03400034) && top->o_wb_stb && top->i_wb_ack && top->sys_clk==0) {
+		if ((top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034fffff /*&& top->o_wb_adr != 0x03400034*/) && top->o_wb_stb && top->i_wb_ack && top->sys_clk==0) {
 			if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);
 			else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", zap_din, cur_pc);
 		}
@@ -847,12 +863,74 @@ bit 30: ??? An empty handler - possibly even a watchdog (if that interrupt is en
 bit 31 - Indicates that there are more interrupts in register 0x0340 0060
 */
 
+static
+INLINE
+void
+opera_3do_internal_frame(uint32_t  cycles_,
+	uint32_t* line_,
+	int       field_)
+{
+	opera_clock_push_cycles(cycles_);
+	if (opera_clock_dsp_queued())
+		//io_interface(EXT_DSP_TRIGGER, NULL);
+
+	if (opera_clock_timer_queued())
+		opera_clio_timer_execute();
+
+	if (opera_clock_vdl_queued())
+	{
+		opera_clio_vcnt_update(*line_, field_);
+		opera_vdlp_process_line(*line_);
+
+		if (*line_ == opera_clio_line_vint0())
+			opera_clio_fiq_generate(1 << 0, 0);
+
+		if (*line_ == opera_clio_line_vint1())
+			opera_clio_fiq_generate(1 << 1, 0);
+
+		(*line_)++;
+	}
+}
+
+void
+opera_3do_process_frame(void)
+{
+	int32_t cnt;
+	uint32_t line;
+	uint32_t scanlines;
+	static int field = 0;
+
+	if (flagtime)
+		flagtime--;
+
+	cnt = 0;
+	line = 0;
+	//scanlines = opera_region_scanlines();
+	scanlines = top->rootp->core_3do__DOT__clio_inst__DOT__vcnt;
+	do
+	{
+		if (opera_madam_fsm_get() == FSM_INPROCESS)
+		{
+			opera_madam_cel_handle();
+			opera_madam_fsm_set(FSM_IDLE);
+		}
+
+		cnt += opera_arm_execute();
+		if (cnt >= 32)
+		{
+			opera_3do_internal_frame(cnt, &line, field);
+			cnt -= 32;
+		}
+	} while (line < scanlines);
+
+	field = ~field;
+}
+
 
 static MemoryEditor mem_edit_1;
 static MemoryEditor mem_edit_2;
 static MemoryEditor mem_edit_3;
 static MemoryEditor mem_edit_4;
-
 
 int main(int argc, char** argv, char** env) {
 	Verilated::traceEverOn(true);
@@ -964,15 +1042,15 @@ int main(int argc, char** argv, char** env) {
 	top->rootp->core_3do__DOT__matrix_inst__DOT__MV2_in = 0x00444444;
 	*/
 
-	//opera_diag_port_init(-1);               // Normal BIOS startup.
-	opera_diag_port_init(0x12);
+	sim_diag_port_init(-1);			// Normal BIOS startup.
+	//sim_diag_port_init(0x71);
 	/*
 	00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
 	01      AUTO-DIAG TEST   (1F,24,25,32,50,51,60,61,62,68,80,81,90)
-	12      DRAM1 DATA TEST
+	12      DRAM1 DATA TEST   * ?
 	1A      DRAM2 DATA TEST
-	1E      EARLY RAM TEST
-	1F      RAM DATA TEST
+	1E      EARLY RAM TEST    
+	1F      RAM DATA TEST     *
 	22      VRAM1 DATA TEST   *
 	24      VRAM1 FLASH TEST  *
 	25      VRAM1 SPORT TEST  *
@@ -1066,11 +1144,45 @@ int main(int argc, char** argv, char** env) {
 
 	bool second_stop = 0;
 
+
+
+	uint8_t* dram;
+	uint8_t* vram;
+
+	opera_clock_init();
+
+	opera_arm_init();
+
+	dram = opera_arm_ram_get();
+	vram = opera_arm_vram_get();
+
+	opera_vdlp_init(vram);
+	opera_sport_init(vram);
+	opera_madam_init(dram);
+	//opera_xbus_init(xbus_cdrom_plugin);
+
+	/*
+	  0x40 for start from 3D0-CD
+	  0x01/0x02 from PhotoCD ??
+	  (NO use 0x40/0x02 for BIOS test)
+	*/
+	//opera_clio_init(0x40);
+	opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits.
+
+	opera_dsp_init();
+	/* select test, use -1 -- if don't need tests */
+	opera_diag_port_init(-1);
+
+
 	// imgui Main loop stuff...
 	MSG msg;
 	ZeroMemory(&msg, sizeof(msg));
 	while (msg.message != WM_QUIT)
 	{
+		//opera_arm_execute();
+		//opera_3do_process_frame();
+		opera_clio_vcnt_update(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt, top->rootp->core_3do__DOT__clio_inst__DOT__field);
+
 		// Poll and handle messages (inputs, window resize, etc.)
 		// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
 		// - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
@@ -1242,6 +1354,11 @@ int main(int argc, char** argv, char** env) {
 				}
 				*/
 
+				opera_arm_execute();
+				opera_clock_push_cycles(main_time);
+				//if (opera_clock_dsp_queued()) io_interface(EXT_DSP_TRIGGER, NULL);
+				if (opera_clock_timer_queued()) opera_clio_timer_execute();
+
 				verilate();
 			}
 		}
@@ -1265,6 +1382,8 @@ int main(int argc, char** argv, char** env) {
 				top->sys_clk = 0;
 				top->eval();
 				*/
+
+				opera_arm_execute();
 				verilate();
 			}
 		}
@@ -1288,6 +1407,7 @@ int main(int argc, char** argv, char** env) {
 			top->eval();
 			*/
 
+			opera_arm_execute();
 			verilate();
 		}
 

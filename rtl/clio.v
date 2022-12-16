@@ -86,12 +86,11 @@ module clio (			// IC140 on FZ1.
 	input vram_busy
 );
 
-wire [31:0] irq0_masked = {any_irq1,irq0_pend[30:0]} & irq0_enable;	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set.
+wire [31:0] irq0_masked = irq0_pend & irq0_enable;	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set. (set in the clocked always block!)
 wire irq0_trig = |irq0_masked;
 
 wire [31:0] irq1_masked = irq1_pend & irq1_enable;
 wire irq1_trig = |irq1_masked;		// bitwise OR, after masking irq1_pend with the irq1_enable bits.
-wire any_irq1  = |irq1_pend;		// bitwise OR of irq1_pend, to see if ANY of the bits are set. 
 
 assign firq_n = !(irq0_trig | irq1_trig);
 
@@ -277,7 +276,7 @@ always @(*) begin
 
 // IRQs...
 												// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.
-	16'h0040,16'h0044: cpu_dout = {any_irq1, irq0_pend[30:0]};	// 0x40/0x44 - Writing to 0x40 SETs irq0_pend bits. Writing to 0x44 CLEARs irq0_pend bits. Reading = PENDING irq0_pend bits.
+	16'h0040,16'h0044: cpu_dout = irq0_pend;	// 0x40/0x44 - Writing to 0x40 SETs irq0_pend bits. Writing to 0x44 CLEARs irq0_pend bits. Reading = PENDING irq0_pend bits.
 	16'h0048,16'h004c: cpu_dout = irq0_enable;	// 0x48/0x4c - Writing to 0x48 SETs irq0_enable bits. Writing to 0x4c CLEARSs irq0_enable bits.
 
 	16'h0050,16'h0054: cpu_dout = mode;			// 0x50/0x54 - Writing to 0x50 SETs mode bits. Writing to 0x54 CLEARs mode bits. Reading = ?
@@ -444,6 +443,10 @@ end
 else begin
 	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF) ) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
 	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF) ) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
+
+	irq0_pend[31] <= |irq1_pend;	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
+	
+	irq0_pend[9] <= 1'b1;	// TESTING !! Spoof Timer 3 rollover bit.
 
 	if (hcnt==hcnt_max) begin
 		hcnt <= 32'd0;

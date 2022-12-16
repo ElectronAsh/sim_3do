@@ -19,6 +19,9 @@
     <Filter Include="Source Files\Vcore">
       <UniqueIdentifier>{748326c4-bc3d-4f6c-8c34-1663c547131a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\libopera">
+      <UniqueIdentifier>{7b3538e8-cb44-4c9e-a81c-46ffe0fd06f5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\sim_main.cpp">
@@ -123,6 +126,60 @@
     <ClCompile Include="..\..\out\Vcore_3do__Trace__0__Slow.cpp">
       <Filter>Source Files\Vcore</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_3do.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_arm.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_bios.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_bitop.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_cdrom.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_clio.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_clock.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_dsp.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_fixedpoint_math.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_madam.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_nvram.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_pbus.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_region.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_sport.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_vdlp.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_xbus.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_xbus_cdrom_plugin.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_diag_port.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\linux_temp\imgui\imconfig.h">
@@ -185,5 +242,109 @@
     <ClInclude Include="..\..\out\Vcore_3do__Syms.h">
       <Filter>Source Files\Vcore</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\libopera\bool.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\endianness.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\extern_c.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\hack_flags.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\inline.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_3do.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_arm.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_arm_core.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_bios.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_bitop.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_cdrom.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_clio.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_clock.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_core.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_dsp.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_dsp2_i.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_fixedpoint_math.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_madam.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_nvram.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_pbus.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_region.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_region_i.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_sport.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_swi_hle_0x5XXXX.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_vdl.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_vdlp.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_vdlp_i.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_xbus.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_xbus_cdrom_plugin.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\static_assert.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\retro_endianness.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\retro_inline.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libopera\opera_diag_port.h">
+      <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\libopera\pbus.txt">
+      <Filter>Source Files\libopera</Filter>
+    </Text>
   </ItemGroup>
 </Project>

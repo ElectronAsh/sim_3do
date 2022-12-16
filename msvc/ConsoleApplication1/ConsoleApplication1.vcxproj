@@ -84,7 +84,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\linux_temp\sim_3do\rtl\amber;C:\linux_temp\sim_3do\rtl;C:\linux_temp\imgui\backends;C:\linux_temp\imgui\examples;C:\linux_temp\imgui\misc;C:\linux_temp\imgui;C:\linux_temp\sim_3do\out;C:\linux_temp\sim_3do;C:\linux_temp\verilator\include\gtkwave;C:\linux_temp\verilator\include\vltstd;C:\linux_temp\verilator\src;C:\linux_temp\verilator\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\linux_temp\sim_3do\libopera;C:\linux_temp\sim_3do\rtl;C:\linux_temp\imgui\backends;C:\linux_temp\imgui\examples;C:\linux_temp\imgui\misc;C:\linux_temp\imgui;C:\linux_temp\sim_3do\out;C:\linux_temp\sim_3do;C:\linux_temp\verilator\include\gtkwave;C:\linux_temp\verilator\include\vltstd;C:\linux_temp\verilator\src;C:\linux_temp\verilator\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -175,6 +175,24 @@
     <ClCompile Include="..\..\..\verilator\include\verilated_threads.cpp" />
     <ClCompile Include="..\..\..\verilator\include\verilated_vcd_c.cpp" />
     <ClCompile Include="..\..\imgui_functions.h" />
+    <ClCompile Include="..\..\libopera\opera_3do.c" />
+    <ClCompile Include="..\..\libopera\opera_arm.c" />
+    <ClCompile Include="..\..\libopera\opera_bios.c" />
+    <ClCompile Include="..\..\libopera\opera_bitop.c" />
+    <ClCompile Include="..\..\libopera\opera_cdrom.c" />
+    <ClCompile Include="..\..\libopera\opera_clio.c" />
+    <ClCompile Include="..\..\libopera\opera_clock.c" />
+    <ClCompile Include="..\..\libopera\opera_diag_port.c" />
+    <ClCompile Include="..\..\libopera\opera_dsp.c" />
+    <ClCompile Include="..\..\libopera\opera_fixedpoint_math.c" />
+    <ClCompile Include="..\..\libopera\opera_madam.c" />
+    <ClCompile Include="..\..\libopera\opera_nvram.c" />
+    <ClCompile Include="..\..\libopera\opera_pbus.c" />
+    <ClCompile Include="..\..\libopera\opera_region.c" />
+    <ClCompile Include="..\..\libopera\opera_sport.c" />
+    <ClCompile Include="..\..\libopera\opera_vdlp.c" />
+    <ClCompile Include="..\..\libopera\opera_xbus.c" />
+    <ClCompile Include="..\..\libopera\opera_xbus_cdrom_plugin.c" />
     <ClCompile Include="..\..\out\Vcore_3do.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do__ConstPool_0.cpp" />
     <ClCompile Include="..\..\out\Vcore_3do__Dpi.cpp" />
@@ -210,6 +228,39 @@
     <ClInclude Include="..\..\..\verilator\include\verilated_syms.h" />
     <ClInclude Include="..\..\..\verilator\include\verilated_threads.h" />
     <ClInclude Include="..\..\..\verilator\include\verilated_vcd_c.h" />
+    <ClInclude Include="..\..\libopera\bool.h" />
+    <ClInclude Include="..\..\libopera\endianness.h" />
+    <ClInclude Include="..\..\libopera\extern_c.h" />
+    <ClInclude Include="..\..\libopera\hack_flags.h" />
+    <ClInclude Include="..\..\libopera\inline.h" />
+    <ClInclude Include="..\..\libopera\opera_3do.h" />
+    <ClInclude Include="..\..\libopera\opera_arm.h" />
+    <ClInclude Include="..\..\libopera\opera_arm_core.h" />
+    <ClInclude Include="..\..\libopera\opera_bios.h" />
+    <ClInclude Include="..\..\libopera\opera_bitop.h" />
+    <ClInclude Include="..\..\libopera\opera_cdrom.h" />
+    <ClInclude Include="..\..\libopera\opera_clio.h" />
+    <ClInclude Include="..\..\libopera\opera_clock.h" />
+    <ClInclude Include="..\..\libopera\opera_core.h" />
+    <ClInclude Include="..\..\libopera\opera_diag_port.h" />
+    <ClInclude Include="..\..\libopera\opera_dsp.h" />
+    <ClInclude Include="..\..\libopera\opera_dsp2_i.h" />
+    <ClInclude Include="..\..\libopera\opera_fixedpoint_math.h" />
+    <ClInclude Include="..\..\libopera\opera_madam.h" />
+    <ClInclude Include="..\..\libopera\opera_nvram.h" />
+    <ClInclude Include="..\..\libopera\opera_pbus.h" />
+    <ClInclude Include="..\..\libopera\opera_region.h" />
+    <ClInclude Include="..\..\libopera\opera_region_i.h" />
+    <ClInclude Include="..\..\libopera\opera_sport.h" />
+    <ClInclude Include="..\..\libopera\opera_swi_hle_0x5XXXX.h" />
+    <ClInclude Include="..\..\libopera\opera_vdl.h" />
+    <ClInclude Include="..\..\libopera\opera_vdlp.h" />
+    <ClInclude Include="..\..\libopera\opera_vdlp_i.h" />
+    <ClInclude Include="..\..\libopera\opera_xbus.h" />
+    <ClInclude Include="..\..\libopera\opera_xbus_cdrom_plugin.h" />
+    <ClInclude Include="..\..\libopera\retro_endianness.h" />
+    <ClInclude Include="..\..\libopera\retro_inline.h" />
+    <ClInclude Include="..\..\libopera\static_assert.h" />
     <ClInclude Include="..\..\out\Vcore_3do.h" />
     <ClInclude Include="..\..\out\Vcore_3do__Dpi.h" />
     <ClInclude Include="..\..\out\Vcore_3do__Syms.h" />
@@ -219,6 +270,9 @@
     <ClInclude Include="C:\linux_temp\imgui\imgui.h" />
     <ClInclude Include="C:\linux_temp\imgui\imgui_internal.h" />
     <ClInclude Include="C:\linux_temp\imgui\ui_util.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\libopera\pbus.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
