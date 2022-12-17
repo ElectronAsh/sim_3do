@@ -252,6 +252,32 @@ double sc_time_stamp() {       // Called by $time in Verilog.
 	return main_time;
 }
 
+void my_opera_init() {
+	opera_clock_init();
+	opera_arm_init();
+
+	dram = opera_arm_ram_get();
+	vram = opera_arm_vram_get();
+
+	opera_vdlp_init(vram);
+	opera_sport_init(vram);
+	opera_madam_init(dram);
+	//opera_nvram_init();
+
+	//opera_xbus_init(xbus_cdrom_plugin);
+	//opera_xbus_device_load(0, NULL);
+
+	/*
+	  0x40 for start from 3D0-CD
+	  0x01/0x02 from PhotoCD ??
+	  (NO use 0x40/0x02 for BIOS test)
+	*/
+	//opera_clio_init(0x40);
+	opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits.
+
+	opera_dsp_init();
+}
+
 
 static uint16_t sim_SNDDebugFIFO0;
 static uint16_t sim_SNDDebugFIFO1;
@@ -979,7 +1005,6 @@ bit 30: ??? An empty handler - possibly even a watchdog (if that interrupt is en
 bit 31 - Indicates that there are more interrupts in register 0x0340 0060
 */
 
-
 static MemoryEditor mem_edit_1;
 static MemoryEditor mem_edit_2;
 static MemoryEditor mem_edit_3;
@@ -1220,29 +1245,7 @@ int main(int argc, char** argv, char** env) {
 	bool second_stop = 0;
 
 
-	opera_clock_init();
-	opera_arm_init();
-
-	dram = opera_arm_ram_get();
-	vram = opera_arm_vram_get();
-
-	opera_vdlp_init(vram);
-	opera_sport_init(vram);
-	opera_madam_init(dram);
-	//opera_nvram_init();
-
-	//opera_xbus_init(xbus_cdrom_plugin);
-	//opera_xbus_device_load(0, NULL);
-
-	/*
-	  0x40 for start from 3D0-CD
-	  0x01/0x02 from PhotoCD ??
-	  (NO use 0x40/0x02 for BIOS test)
-	*/
-	//opera_clio_init(0x40);
-	opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits.
-
-	opera_dsp_init();
+	my_opera_init();
 
 	/* select test, use -1 -- if don't need tests */
 	sim_diag_port_init(-1);			// Normal BIOS startup.
@@ -1331,6 +1334,8 @@ int main(int argc, char** argv, char** env) {
 		//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		//ImGui::PlotLines("Lines", values, IM_ARRAYSIZE(values), values_offset, "sample", -1.0f, 1.0f, ImVec2(0, 80));
 		if (ImGui::Button("RESET")) {
+			my_opera_init();
+
 			main_time = 0;
 			rom2_select = 0;        // Select the BIOS ROM at startup! (not Kanji).
 			map_bios = 1;
