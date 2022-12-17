@@ -1248,8 +1248,8 @@ int main(int argc, char** argv, char** env) {
 	sim_diag_port_init(-1);			// Normal BIOS startup.
 	//sim_diag_port_init(0x90);
 
-	//opera_diag_port_init(-1);		// Normal BIOS startup.
-	opera_diag_port_init(90);
+	opera_diag_port_init(-1);		// Normal BIOS startup.
+	//opera_diag_port_init(90);
 
 	/*
 	00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
