@@ -31,11 +31,14 @@
 #include "opera_xbus.h"
 #include "opera_xbus_cdrom_plugin.h"
 //#include "opera_nvram.h"
+#include "opera_3do.h"
 #include "inline.h"
 
-#include "opera_3do.h"
-
 int flagtime;
+
+uint8_t* dram;
+uint8_t* vram;
+
 
 //FILE* logfile;
 extern arm_core_t CPU;
@@ -59,8 +62,13 @@ static ID3D11InputLayout* g_pInputLayout = NULL;
 static ID3D11Buffer* g_pVertexConstantBuffer = NULL;
 static ID3D10Blob* g_pPixelShaderBlob = NULL;
 static ID3D11PixelShader* g_pPixelShader = NULL;
+
 static ID3D11SamplerState* g_pFontSampler = NULL;
+static ID3D11SamplerState* g_pFontSampler2 = NULL;
+
 static ID3D11ShaderResourceView* g_pFontTextureView = NULL;
+static ID3D11ShaderResourceView* g_pFontTextureView2 = NULL;
+
 static ID3D11RasterizerState* g_pRasterizerState = NULL;
 static ID3D11BlendState* g_pBlendState = NULL;
 static ID3D11DepthStencilState* g_pDepthStencilState = NULL;
@@ -224,9 +232,9 @@ uint8_t* rom2_ptr = (uint8_t*)malloc(rom2_size);
 unsigned int ram_size = 1024 * 2048;            // 2MB. (8-bit wide, 32-bit access).
 uint8_t* ram_ptr = (uint8_t*)malloc(ram_size);
 
-unsigned int vram_size = 1024 * 256 * 4;        // 1MB. (32-bit wide).
-//unsigned int vram_size = 2048 * 256 * 4;        // 2MB. (32-bit wide).
-uint32_t* vram_ptr = (uint32_t*)malloc(vram_size);
+unsigned int vram_size = 1024 * 1024;			// 1MB. (8-bit wide, 32-bit access).
+//unsigned int vram_size = 1024 * 2048;			// 2MB. (8-bit wide, 32-bit access).
+uint8_t* vram_ptr = (uint8_t*)malloc(vram_size);
 
 unsigned int nvram_size = 1024 * 128;           // 128KB?
 uint8_t* nvram_ptr = (uint8_t*)malloc(nvram_size);
@@ -234,6 +242,8 @@ uint8_t* nvram_ptr = (uint8_t*)malloc(nvram_size);
 unsigned int disp_size = 1024 * 1024 * 4;       // 4MB. (32-bit wide). Sim display window.
 uint32_t* disp_ptr = (uint32_t*)malloc(disp_size);
 
+unsigned int disp2_size = 1024 * 1024 * 4;       // 4MB. (32-bit wide). Opera display window.
+uint32_t* disp2_ptr = (uint32_t*)malloc(disp2_size);
 
 double sc_time_stamp() {       // Called by $time in Verilog.
 	return main_time;
@@ -321,7 +331,7 @@ uint32_t vdl_next = 0x000C0000;
 
 uint32_t clut[32];
 
-void process_vdl() {
+void sim_process_vdl() {
 	// Load default CLUT...
 	clut[0x00] = 0x000000; clut[0x01] = 0x080808; clut[0x02] = 0x101010; clut[0x03] = 0x191919; clut[0x04] = 0x212121; clut[0x05] = 0x292929; clut[0x06] = 0x313131; clut[0x07] = 0x3A3A3A;
 	clut[0x08] = 0x424242; clut[0x09] = 0x4A4A4A; clut[0x0A] = 0x525252; clut[0x0B] = 0x5A5A5A; clut[0x0C] = 0x636363; clut[0x0D] = 0x6B6B6B; clut[0x0E] = 0x737373; clut[0x0F] = 0x7B7B7B;
@@ -356,35 +366,94 @@ void process_vdl() {
 
 		if ((i % 320) == 0) my_line++;
 
-		pixel = vram_ptr[(offset >> 2) + i] >> 16;
+		pixel = vram_ptr[offset + (i*4)+0]<<8 | vram_ptr[offset + (i*4)+1];
 		rgb[0] = clut[(pixel & 0x7C00) >> 10] >> 16;
 		rgb[1] = clut[(pixel & 0x03E0) >> 5] >> 8;
 		rgb[2] = clut[(pixel & 0x001F) << 0] >> 0;
-		disp_ptr[i + (my_line * 320)] = 0xff << 24 | rgb[2] << 16 | rgb[1] << 8 | rgb[0];               // Our debugger framebuffer is in the 32-bit ABGR format.
+		disp_ptr[i + (my_line * 320)] = 0xff<<24 | rgb[2]<<16 | rgb[1]<<8 | rgb[0];			// Our debugger framebuffer is in the 32-bit ABGR format.
 
-		pixel = vram_ptr[(offset >> 2) + i] & 0xFFFF;
+		pixel = vram_ptr[offset + (i*4)+2]<<8 | vram_ptr[offset + (i*4)+3];
 		rgb[0] = clut[(pixel & 0x7C00) >> 10] >> 16;
 		rgb[1] = clut[(pixel & 0x03E0) >> 5] >> 8;
 		rgb[2] = clut[(pixel & 0x001F) << 0] >> 0;
-		disp_ptr[i + (my_line * 320) + 320] = 0xff << 24 | rgb[2] << 16 | rgb[1] << 8 | rgb[0];   // Our debugger framebuffer is in the 32-bit ABGR format.
+		disp_ptr[i + (my_line * 320) + 320] = 0xff<<24 | rgb[2]<<16 | rgb[1]<<8 | rgb[0];	// Our debugger framebuffer is in the 32-bit ABGR format.
+	}
+}
+
+void opera_process_vdl() {
+	// Load default CLUT...
+	clut[0x00] = 0x000000; clut[0x01] = 0x080808; clut[0x02] = 0x101010; clut[0x03] = 0x191919; clut[0x04] = 0x212121; clut[0x05] = 0x292929; clut[0x06] = 0x313131; clut[0x07] = 0x3A3A3A;
+	clut[0x08] = 0x424242; clut[0x09] = 0x4A4A4A; clut[0x0A] = 0x525252; clut[0x0B] = 0x5A5A5A; clut[0x0C] = 0x636363; clut[0x0D] = 0x6B6B6B; clut[0x0E] = 0x737373; clut[0x0F] = 0x7B7B7B;
+	clut[0x10] = 0x848484; clut[0x11] = 0x8C8C8C; clut[0x12] = 0x949494; clut[0x13] = 0x9C9C9C; clut[0x14] = 0xA5A5A5; clut[0x15] = 0xADADAD; clut[0x16] = 0xB5B5B5; clut[0x17] = 0xBDBDBD;
+	clut[0x18] = 0xC5C5C5; clut[0x19] = 0xCECECE; clut[0x1A] = 0xD6D6D6; clut[0x1B] = 0xDEDEDE; clut[0x1C] = 0xE6E6E6; clut[0x1D] = 0xEFEFEF; clut[0x1E] = 0xF8F8F8; clut[0x1F] = 0xFFFFFF;
+
+	uint32_t offset = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;
+
+	// Read the VDL / CLUT from vram_ptr...
+	for (int i = 0; i <= 35; i++) {
+		if (i == 0) vdl_ctl = vram[offset+i];
+		else if (i == 1) vdl_curr = vram[offset+i];
+		else if (i == 2) vdl_prev = vram[offset+i];
+		else if (i == 3) vdl_next = vram[offset+i];
+		//else if (i>=4) clut[i-4] = vram_ptr[offset+i];         // TESTING !!!
+	}
+
+	// Copy the VRAM pixels into disp_ptr...
+	// Just a dumb test atm. Assuming 16bpp from vram_ptr, with odd and even pixels in the upper/lower 16 bits.
+	//
+	// vram_ptr is 32-bit wide!
+	// vram_size = 1MB, so needs to be divided by 4 if used as an index.
+	//
+	uint32_t my_line = 0;
+
+	offset = 0xC0000;
+	//offset = vdl_curr & 0xfffff;
+	//offset = vdl_next & 0xfffff;
+
+	for (int i = 0; i < (vram_size / 16); i++) {
+		uint16_t pixel;
+
+		if ((i % 320) == 0) my_line++;
+
+		pixel = vram[offset + (i * 4) + 3] << 8 | vram[offset + (i * 4) + 2];
+		rgb[0] = clut[(pixel & 0x7C00) >> 10] >> 16;
+		rgb[1] = clut[(pixel & 0x03E0) >> 5] >> 8;
+		rgb[2] = clut[(pixel & 0x001F) << 0] >> 0;
+		disp2_ptr[i + (my_line * 320)] = 0xff << 24 | rgb[2] << 16 | rgb[1] << 8 | rgb[0];			// Our debugger framebuffer is in the 32-bit ABGR format.
+
+		pixel = vram[offset + (i * 4) + 1] << 8 | vram[offset + (i * 4) + 0];
+		rgb[0] = clut[(pixel & 0x7C00) >> 10] >> 16;
+		rgb[1] = clut[(pixel & 0x03E0) >> 5] >> 8;
+		rgb[2] = clut[(pixel & 0x001F) << 0] >> 0;
+		disp2_ptr[i + (my_line * 320) + 320] = 0xff << 24 | rgb[2] << 16 | rgb[1] << 8 | rgb[0];	// Our debugger framebuffer is in the 32-bit ABGR format.
 	}
 }
 
 uint32_t svf_src_addr = 00;
 void svf_set_source() {
-	svf_src_addr = (top->o_wb_adr & 0x7ff) << 7;
+	svf_src_addr = (top->o_wb_adr & 0x7ff) << 9;
 }
 
 void svf_page_copy() {
-	uint32_t svf_dst_addr = (top->o_wb_adr & 0x7ff) << 7;   // Remember, the *address* is used here, not o_wb_dat.
-	uint32_t mask = top->o_wb_dat;                                          // The write *data* is used as an mask. I think? ElectronAsh.
+	uint32_t dest_addr = (top->o_wb_adr & 0x7ff) << 9;	// Remember, the *address* is used here, not o_wb_dat.
+	uint32_t mask = top->o_wb_dat;                      // The write *data* is used as an mask. I think? ElectronAsh.
 
-	uint32_t keep_bits = mask ^ 0xffffffff;
+	uint32_t keep = mask ^ 0xffffffff;
+	uint8_t keep0 = (keep >> 24) & 0xff;
+	uint8_t keep1 = (keep >> 16) & 0xff;
+	uint8_t keep2 = (keep >> 8) & 0xff;
+	uint8_t keep3 = (keep >> 0) & 0xff;
+	uint8_t mask0 = (mask >> 24) & 0xff;
+	uint8_t mask1 = (mask >> 16) & 0xff;
+	uint8_t mask2 = (mask >> 8) & 0xff;
+	uint8_t mask3 = (mask >> 0) & 0xff;
 
-	for (int i = 0; i < 512; i++)   // Block size is 2KB ?? Doing 2048/4, because word address.
+	for(int i = 0; i < 2048; i += 4)   // Block size is 2KB. Copying a WORD at a time, so i+=4.
 	{
-		// WORD addresses.
-		vram_ptr[svf_dst_addr + i] = (vram_ptr[svf_dst_addr + i] & keep_bits) | (vram_ptr[svf_src_addr + i] & mask);
+		vram_ptr[dest_addr+i+0] = (vram_ptr[dest_addr+i+0] & keep0) | (vram_ptr[svf_src_addr+i+0] & mask0);
+		vram_ptr[dest_addr+i+1] = (vram_ptr[dest_addr+i+1] & keep1) | (vram_ptr[svf_src_addr+i+1] & mask1);
+		vram_ptr[dest_addr+i+2] = (vram_ptr[dest_addr+i+2] & keep2) | (vram_ptr[svf_src_addr+i+2] & mask2);
+		vram_ptr[dest_addr+i+3] = (vram_ptr[dest_addr+i+3] & keep3) | (vram_ptr[svf_src_addr+i+3] & mask3);
 	}
 }
 
@@ -394,14 +463,25 @@ void svf_set_color() {
 }
 
 void svf_flash_write() {        // "Color fill", basically.
-	uint32_t dest_addr = (top->o_wb_adr & 0x7ff) << 7;
-	uint32_t mask = top->o_wb_dat;                                          // The write *data* is used as an mask. I think? ElectronAsh.
+	uint32_t dest_addr = (top->o_wb_adr & 0x7ff) << 9;	// Remember, the *address* is used here, not o_wb_dat.
+	uint32_t mask = top->o_wb_dat;						// The write *data* is used as an mask. I think? ElectronAsh.
 
-	uint32_t keep_bits = mask ^ 0xffffffff;
+	uint32_t keep = mask ^ 0xffffffff;
+	uint8_t keep0 = (keep>>24) & 0xff;
+	uint8_t keep1 = (keep>>16) & 0xff;
+	uint8_t keep2 = (keep>>8)  & 0xff;
+	uint8_t keep3 = (keep>>0)  & 0xff;
+	uint8_t mask0 = (mask>>24) & 0xff;
+	uint8_t mask1 = (mask>>16) & 0xff;
+	uint8_t mask2 = (mask>>8) & 0xff;
+	uint8_t mask3 = (mask>>0) & 0xff;
 
-	for (int i = 0; i < 512; i++)   // Block size is 2KB ?? Doing 2048/4, because word address.
+	for (int i = 0; i < 2048; i+=4)   // Block size is 2KB. Writing a WORD at a time, so i+=4.
 	{
-		vram_ptr[dest_addr + i] = (vram_ptr[dest_addr + i] & keep_bits) | (svf_color & mask);       // WORD address.
+		vram_ptr[dest_addr+i+0] = (vram_ptr[dest_addr+i+0] & keep0) | ((svf_color>>24) & mask0);
+		vram_ptr[dest_addr+i+1] = (vram_ptr[dest_addr+i+1] & keep1) | ((svf_color>>16) & mask1);
+		vram_ptr[dest_addr+i+2] = (vram_ptr[dest_addr+i+2] & keep2) | ((svf_color>>8)  & mask2);
+		vram_ptr[dest_addr+i+3] = (vram_ptr[dest_addr+i+3] & keep3) | ((svf_color>>0)  & mask3);
 	}
 }
 
@@ -613,6 +693,29 @@ int verilate() {
 			top->i_wb_ack = top->o_wb_stb;
 
 			if (top->o_wb_stb && top->i_wb_ack) {
+				// Handle writes to Main RAM, with byte masking...
+				if (top->o_wb_adr >= 0x00000000 && top->o_wb_adr <= 0x001FFFFF && top->o_wb_we) {                // 2MB masked.
+					//printf("Main RAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
+					if (top->o_wb_sel & 8) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // ram_ptr is now BYTE addressed.
+					if (top->o_wb_sel & 4) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 2MB, ignore the lower two bits, add the offset.
+					if (top->o_wb_sel & 2) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
+					if (top->o_wb_sel & 1) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
+				}
+
+				// Handle writes to VRAM, with byte masking...
+				if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x002FFFFF && top->o_wb_we) {                // 1MB masked.
+					//printf("VRAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
+					if (top->o_wb_sel & 8) vram_ptr[(top->o_wb_adr & 0xffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // vram_ptr is now BYTE addressed.
+					if (top->o_wb_sel & 4) vram_ptr[(top->o_wb_adr & 0xffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 1MB, ignore the lower two bits, add the offset.
+					if (top->o_wb_sel & 2) vram_ptr[(top->o_wb_adr & 0xffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
+					if (top->o_wb_sel & 1) vram_ptr[(top->o_wb_adr & 0xffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
+				}
+
+				// Handle writes to NVRAM...
+				if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315ffff && top->o_wb_we) {          // 128KB Masked.
+					nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] = top->o_wb_dat & 0xff;       // Only writes the lower byte from the core to 8-bit NVRAM. o_wb_adr is the BYTE address, so shouldn't need shifting.
+				}
+
 				uint8_t rom_byte0 = rom_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;      // rom_ptr is now BYTE addressed.
 				uint8_t rom_byte1 = rom_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;      // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
 				uint8_t rom_byte2 = rom_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
@@ -631,33 +734,11 @@ int verilate() {
 				uint8_t ram_byte3 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] & 0xff;
 				uint32_t ram_word = ram_byte0 << 24 | ram_byte1 << 16 | ram_byte2 << 8 | ram_byte3;
 
-				// Handle writes to Main RAM, with byte masking...
-				if (top->o_wb_adr >= 0x00000000 && top->o_wb_adr <= 0x001FFFFF && top->o_wb_we) {                // 2MB masked.
-					//printf("Main RAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
-					if (top->o_wb_sel & 8) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // ram_ptr is now BYTE addressed.
-					if (top->o_wb_sel & 4) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 2MB, ignore the lower two bits, add the offset.
-					if (top->o_wb_sel & 2) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 2] = (top->o_wb_dat >> 8) & 0xff;
-					if (top->o_wb_sel & 1) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] = (top->o_wb_dat >> 0) & 0xff;
-				}
-
-				// Handle writes to VRAM, with byte masking...
-				if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x002FFFFF && top->o_wb_we) {                // 1MB Masked.
-				//if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x003FFFFF && top->o_wb_we) {                // 2MB Masked.
-					//printf("VRAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
-					temp_word = vram_ptr[word_addr & 0x3FFFF];
-					if (top->o_wb_sel & 8) vram_ptr[word_addr & 0x3FFFF] = temp_word & 0x00FFFFFF | top->o_wb_dat & 0xFF000000;   // MSB byte.
-					temp_word = vram_ptr[word_addr & 0x3FFFF];
-					if (top->o_wb_sel & 4) vram_ptr[word_addr & 0x3FFFF] = temp_word & 0xFF00FFFF | top->o_wb_dat & 0x00FF0000;
-					temp_word = vram_ptr[word_addr & 0x3FFFF];
-					if (top->o_wb_sel & 2) vram_ptr[word_addr & 0x3FFFF] = temp_word & 0xFFFF00FF | top->o_wb_dat & 0x0000FF00;
-					temp_word = vram_ptr[word_addr & 0x3FFFF];
-					if (top->o_wb_sel & 1) vram_ptr[word_addr & 0x3FFFF] = temp_word & 0xFFFFFF00 | top->o_wb_dat & 0x000000FF;   // LSB byte.
-				}
-
-				// Handle writes to NVRAM...
-				if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315ffff && top->o_wb_we) {          // 128KB Masked.
-					nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] = top->o_wb_dat & 0xff;       // Only writes the lower byte from the core to 8-bit NVRAM. o_wb_adr is the BYTE address, so shouldn't need shifting.
-				}
+				uint8_t vram_byte0 = vram_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;     // vram_ptr is now BYTE addressed.
+				uint8_t vram_byte1 = vram_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;     // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
+				uint8_t vram_byte2 = vram_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
+				uint8_t vram_byte3 = vram_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
+				uint32_t vram_word = vram_byte0 << 24 | vram_byte1 << 16 | vram_byte2 << 8 | vram_byte3;
 
 				//if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Sim   Addr: 0x%08X ", top->o_wb_adr);
 				if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Sim   Addr: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_address_ff);
@@ -674,7 +755,7 @@ int verilate() {
 					else top->i_wb_dat = ram_word;
 				}
 
-				else if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x003FFFFF) { /*fprintf(logfile, "VRAM            ");*/ top->i_wb_dat = vram_ptr[word_addr & 0x3FFFF]; }
+				else if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x003FFFFF) { /*fprintf(logfile, "VRAM            ");*/ top->i_wb_dat = vram_word; }
 
 				// BIOS reads...
 				//else if (top->o_wb_adr >= 0x03000510 && top->o_wb_adr <= 0x03000510) top->i_wb_dat = 0xE1A00000;  // NOP ! (MOV R0,R0) Skip another delay.
@@ -813,7 +894,10 @@ int verilate() {
 			}
 
 			if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == top->rootp->core_3do__DOT__clio_inst__DOT__vcnt_max && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) frame_count++;
-			if ( (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt & 0x7)==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) process_vdl();
+			if ( (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt & 0x7)==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) {
+				sim_process_vdl();
+				opera_process_vdl();
+			}
 
 			if (old_fiq_n == 1 && top->rootp->core_3do__DOT__clio_inst__DOT__firq_n == 0) { // firq_n falling edge.
 				fprintf(logfile, "FIQ triggered!  (PC: 0x%08X)\n", cur_pc);
@@ -890,9 +974,6 @@ bit 31 - Indicates that there are more interrupts in register 0x0340 0060
 */
 
 
-uint8_t* dram;
-uint8_t* vram;
-
 static MemoryEditor mem_edit_1;
 static MemoryEditor mem_edit_2;
 static MemoryEditor mem_edit_3;
@@ -964,6 +1045,7 @@ int main(int argc, char** argv, char** env) {
 	memset(nvram_ptr, 0x00, nvram_size);
 
 	memset(disp_ptr, 0xff444444, disp_size);
+	memset(disp2_ptr, 0xff444444, disp2_size);
 
 	//memset(vga_ptr,  0xAA, vga_size);
 
@@ -1012,7 +1094,7 @@ int main(int argc, char** argv, char** env) {
 	*/
 
 	sim_diag_port_init(-1);			// Normal BIOS startup.
-	//sim_diag_port_init(0x71);
+	//sim_diag_port_init(0x90);
 	/*
 	00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
 	01      AUTO-DIAG TEST   (1F,24,25,32,50,51,60,61,62,68,80,81,90)
@@ -1059,8 +1141,6 @@ int main(int argc, char** argv, char** env) {
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
 	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	//desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	//desc.Format = DXGI_FORMAT_B5G5R5A1_UNORM;
 	desc.SampleDesc.Count = 1;
 	desc.Usage = D3D11_USAGE_DEFAULT;
 	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -1087,14 +1167,13 @@ int main(int argc, char** argv, char** env) {
 	// Store our identifier
 	ImTextureID my_tex_id = (ImTextureID)g_pFontTextureView;
 
-
 	// Create texture sampler
 	{
 		D3D11_SAMPLER_DESC desc;
 		ZeroMemory(&desc, sizeof(desc));
 		//desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;        // LERP.
-		desc.Filter = D3D11_FILTER_ANISOTROPIC;
-		//desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;         // Point sampling.
+		//desc.Filter = D3D11_FILTER_ANISOTROPIC;
+		desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;         // Point sampling.
 		desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 		desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
 		desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -1105,6 +1184,58 @@ int main(int argc, char** argv, char** env) {
 		g_pd3dDevice->CreateSamplerState(&desc, &g_pFontSampler);
 	}
 
+
+
+	// Upload texture to graphics system
+	D3D11_TEXTURE2D_DESC desc2;
+	ZeroMemory(&desc2, sizeof(desc2));
+	desc2.Width = width;
+	desc2.Height = height;
+	desc2.MipLevels = 1;
+	desc2.ArraySize = 1;
+	desc2.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc2.SampleDesc.Count = 1;
+	desc2.Usage = D3D11_USAGE_DEFAULT;
+	desc2.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	desc2.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	ID3D11Texture2D* pTexture2 = NULL;
+	D3D11_SUBRESOURCE_DATA subResource2;
+	subResource2.pSysMem = disp2_ptr;
+	//subResource2.pSysMem = vga_ptr;
+	subResource2.SysMemPitch = desc2.Width * 4;
+	subResource2.SysMemSlicePitch = 0;
+	g_pd3dDevice->CreateTexture2D(&desc2, &subResource2, &pTexture2);
+
+	// Create texture view
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc2;
+	ZeroMemory(&srvDesc2, sizeof(srvDesc2));
+	srvDesc2.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc2.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc2.Texture2D.MipLevels = desc.MipLevels;
+	srvDesc2.Texture2D.MostDetailedMip = 0;
+	g_pd3dDevice->CreateShaderResourceView(pTexture2, &srvDesc2, &g_pFontTextureView2);
+	pTexture2->Release();
+
+	// Store our identifier
+	ImTextureID my_tex_id2 = (ImTextureID)g_pFontTextureView2;
+
+	// Create texture sampler
+	{
+		D3D11_SAMPLER_DESC desc2;
+		ZeroMemory(&desc2, sizeof(desc2));
+		//desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;        // LERP.
+		//desc.Filter = D3D11_FILTER_ANISOTROPIC;
+		desc2.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;         // Point sampling.
+		desc2.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+		desc2.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+		desc2.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+		desc2.MipLODBias = 0.f;
+		desc2.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+		desc2.MinLOD = 0.f;
+		desc2.MaxLOD = 0.f;
+		g_pd3dDevice->CreateSamplerState(&desc2, &g_pFontSampler2);
+	}
 
 	bool follow_writes = 0;
 	int write_address = 0;
@@ -1139,6 +1270,35 @@ int main(int argc, char** argv, char** env) {
 	opera_dsp_init();
 	/* select test, use -1 -- if don't need tests */
 	opera_diag_port_init(-1);
+	//opera_diag_port_init(90);
+	/*
+	00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
+	01      AUTO-DIAG TEST   (1F,24,25,32,50,51,60,61,62,68,80,81,90)
+	12      DRAM1 DATA TEST   * ?
+	1A      DRAM2 DATA TEST
+	1E      EARLY RAM TEST
+	1F      RAM DATA TEST     *
+	22      VRAM1 DATA TEST   *
+	24      VRAM1 FLASH TEST  *
+	25      VRAM1 SPORT TEST  *
+	32      SRAM DATA TEST    *
+	50      MADAM TEST
+	51      CLIO TEST
+	60      CD-ROM POLL TEST
+	61      CD-ROM PATH TEST
+	62      CD-ROM READ TEST        ???
+	63      CD-ROM AutoAdjustValue TEST
+	67      CD-ROM#2 AutoAdjustValue TEST
+	68  DEV#15 POLL TEST
+	71      JOYPAD1 PRESS TEST
+	75      JOYPAD1 AUDIO TEST
+	80      SIN WAVE TEST
+	81      MUTING TEST
+	90      COLORBAR
+	F0      CHECK TESTTOOL  ???
+	F1      REVISION TEST
+	FF      TEST END (halt)
+	*/
 
 
 	// imgui Main loop stuff...
@@ -1258,7 +1418,11 @@ int main(int argc, char** argv, char** env) {
 		//bool firq_button_pressed = ImGui::Button("Tickle FIRQ");
 		//if (trig_fiq==0 && firq_button_pressed) trig_fiq = 1;
 
-		ImGui::Image(my_tex_id, ImVec2(width * 2, height * 2), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
+		ImGui::Image(my_tex_id, ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
+
+		ImGui::SameLine();
+		ImGui::Image(my_tex_id2, ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
+
 		ImGui::End();
 
 		/*
@@ -1750,6 +1914,8 @@ int main(int argc, char** argv, char** env) {
 		// D3D11_USAGE_DEFAULT MUST be set in the texture description (somewhere above) for this to work.
 		// (D3D11_USAGE_DYNAMIC is for use with map / unmap.) ElectronAsh.
 		g_pd3dDeviceContext->UpdateSubresource(pTexture, 0, NULL, disp_ptr, width * 4, 0);
+
+		g_pd3dDeviceContext->UpdateSubresource(pTexture2, 0, NULL, disp2_ptr, width * 4, 0);
 
 		// Rendering
 		ImGui::Render();
