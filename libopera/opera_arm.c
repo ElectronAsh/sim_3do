@@ -626,7 +626,7 @@ ROTR(const uint32_t val_,
 void
 opera_arm_init(void)
 {
-   //logfile = fopen("c:\\linux_temp\\sim_3do\\out\\opera_trace.txt", "w");
+   logfile = fopen("c:\\linux_temp\\sim_3do\\out\\opera_trace.txt", "w");
 
    rom1file = fopen("c:\\linux_temp\\sim_3do\\out\\panafz10.bin", "rb");
    rom2file = fopen("c:\\linux_temp\\sim_3do\\out\\panafz1-kanji.bin", "rb");

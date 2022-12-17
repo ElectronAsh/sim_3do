@@ -40,7 +40,7 @@
 
 EXTERN_C_BEGIN
 
-FILE* logfile;
+//FILE* logfile;
 
 arm_core_t CPU;
 

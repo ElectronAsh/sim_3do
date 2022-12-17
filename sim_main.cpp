@@ -18,6 +18,8 @@
 #include "verilated_vcd_c.h"
 
 // libopera includes...
+#include "opera_3do.h"
+
 #include "opera_arm.h"
 #include "opera_clio.h"
 #include "opera_clock.h"
@@ -31,17 +33,18 @@
 #include "opera_xbus.h"
 #include "opera_xbus_cdrom_plugin.h"
 //#include "opera_nvram.h"
-#include "opera_3do.h"
+
 #include "inline.h"
 
-int flagtime;
 
 uint8_t* dram;
 uint8_t* vram;
-
-
-//FILE* logfile;
+int flagtime;
 extern arm_core_t CPU;
+
+
+
+FILE* logfile;
 
 
 #include <d3d11.h>
@@ -595,12 +598,12 @@ void pbus_dma() {
 	}
 }
 
+int opera_line = 0;
 
 void opera_tick() {
 	//opera_3do_process_frame();
 
 	opera_arm_execute();		// <- This contains all of our Opera fprintfs.
-
 	opera_clock_push_cycles(main_time);
 
 	//if (opera_clock_dsp_queued()) libopera_callback(EXT_DSP_TRIGGER, NULL);
@@ -616,8 +619,11 @@ void opera_tick() {
 
 	if (opera_clock_vdl_queued())
 	{
-		opera_clio_vcnt_update(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt, top->rootp->core_3do__DOT__clio_inst__DOT__field);
-		//opera_vdlp_process_line(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt);
+		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt>=240) opera_line = 200;
+		else opera_line = top->rootp->core_3do__DOT__clio_inst__DOT__vcnt;
+
+		opera_clio_vcnt_update(opera_line, top->rootp->core_3do__DOT__clio_inst__DOT__field);
+		//opera_vdlp_process_line(opera_line);
 
 		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint0()) opera_clio_fiq_generate(1 << 0, 0);
 		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint1()) opera_clio_fiq_generate(1 << 1, 0);
@@ -1093,37 +1099,6 @@ int main(int argc, char** argv, char** env) {
 	top->rootp->core_3do__DOT__matrix_inst__DOT__MV2_in = 0x00444444;
 	*/
 
-	sim_diag_port_init(-1);			// Normal BIOS startup.
-	//sim_diag_port_init(0x90);
-	/*
-	00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
-	01      AUTO-DIAG TEST   (1F,24,25,32,50,51,60,61,62,68,80,81,90)
-	12      DRAM1 DATA TEST   * ?
-	1A      DRAM2 DATA TEST
-	1E      EARLY RAM TEST    
-	1F      RAM DATA TEST     *
-	22      VRAM1 DATA TEST   *
-	24      VRAM1 FLASH TEST  *
-	25      VRAM1 SPORT TEST  *
-	32      SRAM DATA TEST    *
-	50      MADAM TEST
-	51      CLIO TEST
-	60      CD-ROM POLL TEST
-	61      CD-ROM PATH TEST
-	62      CD-ROM READ TEST        ???
-	63      CD-ROM AutoAdjustValue TEST
-	67      CD-ROM#2 AutoAdjustValue TEST
-	68  DEV#15 POLL TEST
-	71      JOYPAD1 PRESS TEST
-	75      JOYPAD1 AUDIO TEST
-	80      SIN WAVE TEST
-	81      MUTING TEST
-	90      COLORBAR
-	F0      CHECK TESTTOOL  ???
-	F1      REVISION TEST
-	FF      TEST END (halt)
-	*/
-
 	// Our state
 	bool show_demo_window = true;
 	bool show_another_window = false;
@@ -1268,9 +1243,14 @@ int main(int argc, char** argv, char** env) {
 	opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits.
 
 	opera_dsp_init();
+
 	/* select test, use -1 -- if don't need tests */
-	opera_diag_port_init(-1);
-	//opera_diag_port_init(90);
+	sim_diag_port_init(-1);			// Normal BIOS startup.
+	//sim_diag_port_init(0x90);
+
+	//opera_diag_port_init(-1);		// Normal BIOS startup.
+	opera_diag_port_init(90);
+
 	/*
 	00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
 	01      AUTO-DIAG TEST   (1F,24,25,32,50,51,60,61,62,68,80,81,90)
@@ -1299,7 +1279,7 @@ int main(int argc, char** argv, char** env) {
 	F1      REVISION TEST
 	FF      TEST END (halt)
 	*/
-
+	
 
 	// imgui Main loop stuff...
 	MSG msg;
@@ -1359,13 +1339,12 @@ int main(int argc, char** argv, char** env) {
 			field = 1;
 			frame_count = 0;
 			line_count = 0;
-			//vcnt_max = 262;
 			memset(disp_ptr, 0xff444444, disp_size);        // Clear the DISPLAY buffer.
 			memset(ram_ptr, 0x00, ram_size);                // Clear Main RAM.
 			memset(vram_ptr, 0x00000000, vram_size);        // Clear VRAM.
 			memset(nvram_ptr, 0x00000000, nvram_size);      // Clear NVRAM (SRAM).
 		}
-		ImGui::Text("main_time %d", main_time);
+		ImGui::SameLine(); ImGui::Text("main_time %d", main_time);
 		//ImGui::Text("field: %d  frame_count: %d  line_count: %d", field, frame_count, line_count);
 		ImGui::Text("frame_count: %d  field: %d  hcnt: %04d  vcnt: %d", frame_count, top->rootp->core_3do__DOT__clio_inst__DOT__field, top->rootp->core_3do__DOT__clio_inst__DOT__hcnt, top->rootp->core_3do__DOT__clio_inst__DOT__vcnt);
 
