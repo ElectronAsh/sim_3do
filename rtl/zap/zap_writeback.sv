@@ -395,7 +395,8 @@ begin
                 // supervisor mode.
                 shelve_ff                  <= 1'd0;
 
-                pc_ff                      <= {1'd1, 32'd0};
+                //pc_ff                      <= {1'd1, 32'd0};
+                pc_ff                      <= {1'd1, 32'h03000000};
                 pc_del_ff                  <= 33'd0;
                 pc_del2_ff                 <= 33'd0;
                 pc_del3_ff                 <= 33'd0;
