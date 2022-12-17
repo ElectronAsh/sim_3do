@@ -127,7 +127,7 @@ module zap_writeback #(
 // Variables
 // ----------------------------------------------------------------------------
 
-logic     [31:0]                  cpsr_ff, cpsr_nxt;
+logic  [31:0]                     cpsr_ff, cpsr_nxt;
 logic [$clog2(PHY_REGS)-1:0]      wa1, wa2;
 logic [31:0]                      wdata1, wdata2;
 logic                             wen;
@@ -403,8 +403,11 @@ begin
                 // CPSR reset logic.
                 cpsr_ff                    <= 32'd0;
                 cpsr_ff[`ZAP_CPSR_MODE]    <= SVC;
-                cpsr_ff[I]                 <= 1'd1; // Mask IRQ.
-                cpsr_ff[F]                 <= 1'd1; // Mask FIQ.
+                //cpsr_ff[I]                 <= 1'd1; // Mask IRQ.
+                //cpsr_ff[F]                 <= 1'd1; // Mask FIQ.
+				cpsr_ff[I]                 <= 1'd0; // Mask IRQ.
+                cpsr_ff[F]                 <= 1'd0; // Mask FIQ.
+				
                 cpsr_ff[T]                 <= 1'd0; // Start CPU in ARM mode.
         end
         else
