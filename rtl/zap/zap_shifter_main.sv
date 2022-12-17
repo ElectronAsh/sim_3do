@@ -262,7 +262,7 @@ begin
         end
         else
         begin
-           o_condition_code_ff               <= i_condition_code_ff;                                     
+           o_condition_code_ff               <= o_stall_from_shifter ? NV : i_condition_code_ff;                                     
            o_destination_index_ff            <= i_destination_index_ff;
            o_alu_operation_ff                <= (
                                                  i_alu_operation_ff == {1'd0, UMLALL} || 
@@ -305,10 +305,10 @@ begin
            o_mem_signed_halfword_enable_ff   <= i_mem_signed_halfword_enable_ff;  
            o_mem_unsigned_halfword_enable_ff <= i_mem_unsigned_halfword_enable_ff;
            o_mem_translate_ff                <= i_mem_translate_ff;               
-           o_irq_ff                          <= i_irq_ff;                         
-           o_fiq_ff                          <= i_fiq_ff;                         
-           o_abt_ff                          <= i_abt_ff;                         
-           o_swi_ff                          <= i_swi_ff;   
+           o_irq_ff                          <= o_stall_from_shifter ? '0 : i_irq_ff;                         
+           o_fiq_ff                          <= o_stall_from_shifter ? '0 : i_fiq_ff;                         
+           o_abt_ff                          <= o_stall_from_shifter ? '0 : i_abt_ff;                         
+           o_swi_ff                          <= o_stall_from_shifter ? '0 : i_swi_ff;   
            o_pc_plus_8_ff                    <= i_pc_plus_8_ff;
            o_mem_srcdest_value_ff            <= mem_srcdest_value;
            o_alu_source_value_ff             <= rn;

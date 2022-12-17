@@ -22,13 +22,17 @@
 // -----------------------------------------------------------------------------
 
 module zap_writeback #(
-        parameter BP_ENTRIES = 1024,
-        parameter FLAG_WDT = 32, // Flags width a.k.a CPSR.
-        parameter PHY_REGS = 46  // Number of physical registers.
+        parameter BP_ENTRIES = 1024,    // BP entries.
+        parameter FLAG_WDT = 32,        // Flags width a.k.a CPSR.
+        parameter PHY_REGS = 46,        // Number of physical registers.
+        parameter CPSR_INIT = 0,        // Initial value of CPSR.
+        parameter RESET_VECTOR = 0      // Reset vector.
 )
 (
         // Decompile.
         input   logic    [64*8-1:0]           i_decompile,
+        input   logic                         i_decompile_valid,
+
         output  logic    [64*8-1:0]           o_decompile,
 
         // Shelve output.
@@ -117,7 +121,11 @@ module zap_writeback #(
 
         // STB and CYC
         output logic                         o_wb_stb,
-        output logic                         o_wb_cyc
+        output logic                         o_wb_cyc,
+
+        // Trace
+        output logic [2047:0]                o_trace,
+        output logic                         o_trace_trigger
 );
 
 `include "zap_defines.svh"
@@ -127,7 +135,7 @@ module zap_writeback #(
 // Variables
 // ----------------------------------------------------------------------------
 
-logic  [31:0]                     cpsr_ff, cpsr_nxt;
+logic     [31:0]                  cpsr_ff, cpsr_nxt;
 logic [$clog2(PHY_REGS)-1:0]      wa1, wa2;
 logic [31:0]                      wdata1, wdata2;
 logic                             wen;
@@ -395,21 +403,13 @@ begin
                 // supervisor mode.
                 shelve_ff                  <= 1'd0;
 
-                //pc_ff                      <= {1'd1, 32'd0};
-                pc_ff                      <= {1'd1, 32'h03000000};
+                pc_ff                      <= {1'd1, RESET_VECTOR};
                 pc_del_ff                  <= 33'd0;
                 pc_del2_ff                 <= 33'd0;
                 pc_del3_ff                 <= 33'd0;
 
                 // CPSR reset logic.
-                cpsr_ff                    <= 32'd0;
-                cpsr_ff[`ZAP_CPSR_MODE]    <= SVC;
-                //cpsr_ff[I]                 <= 1'd1; // Mask IRQ.
-                //cpsr_ff[F]                 <= 1'd1; // Mask FIQ.
-				cpsr_ff[I]                 <= 1'd0; // Mask IRQ.
-                cpsr_ff[F]                 <= 1'd0; // Mask FIQ.
-				
-                cpsr_ff[T]                 <= 1'd0; // Start CPU in ARM mode.
+                cpsr_ff                    <= CPSR_INIT;
         end
         else
         begin
@@ -482,6 +482,130 @@ begin
         cpsr_nxt[T]             = 1'd0; // Go to ARM mode.
 end
 endfunction
+
+`ifdef DEBUG_EN
+
+        /* For simulation only */
+        logic [1023:0] msg_nxt;
+
+        always @*
+        begin
+                msg_nxt = o_trace;
+
+                if ( i_reset )
+                begin
+                        msg_nxt = "IGNORE";
+                end
+                else if ( i_data_abt[1] )
+                begin
+                        // Empty.
+                end
+                else if ( i_data_abt[0] )
+                begin
+                        msg_nxt = "DABT";
+                end
+                else if ( i_fiq )
+                begin
+                        msg_nxt = "FIQ";
+                end
+                else if ( i_irq  )
+                begin
+                        msg_nxt = "IRQ";
+                end
+                else if ( i_instr_abt  )
+                begin
+                        msg_nxt = "IABT";
+                end
+                else if ( i_swi )
+                begin
+                        msg_nxt = "SWI";
+                end
+                else if ( i_und )
+                begin
+                        msg_nxt = "UND";
+                end
+                else if ( i_copro_reg_en  )
+                begin
+                        $sformat(msg_nxt, 
+                                "CP Write idx=%x data=%x", i_copro_reg_wr_index,
+                                                      i_copro_reg_wr_data);
+                end
+                else if ( i_valid )
+                begin
+                        $sformat(msg_nxt, 
+                        "%x:<%s> %x@%x %x@%x %x", 
+                        i_pc_plus_8_buf_ff - 8, i_decompile, wa1, wdata1, wa2, wdata2, i_flags);
+                end              
+                else if ( i_decompile_valid )
+                begin
+                         $sformat(msg_nxt, 
+                        "%x:<%s>*", 
+                        i_pc_plus_8_buf_ff - 8, i_decompile);
+                end 
+        end
+
+        always @ ( posedge i_clk ) 
+        begin
+                o_trace <= msg_nxt;
+        end
+
+        always @ (posedge i_clk)
+        begin
+                if ( i_reset )
+                begin
+                        o_trace_trigger <= 0;
+                end
+                else if ( i_data_abt[1] )
+                begin
+                        // Empty.
+                end
+                else if ( i_data_abt[0] )
+                begin
+                        o_trace_trigger <= o_trace_trigger + 1;
+                end
+                else if ( i_fiq )
+                begin
+                        o_trace_trigger <= o_trace_trigger + 1;
+                end
+                else if ( i_irq  )
+                begin
+                        o_trace_trigger <= o_trace_trigger + 1;
+                end
+                else if ( i_instr_abt  )
+                begin
+                        o_trace_trigger <= o_trace_trigger + 1;
+                end
+                else if ( i_swi )
+                begin
+                        o_trace_trigger <= o_trace_trigger + 1;
+                end
+                else if ( i_und )
+                begin
+                        o_trace_trigger <= o_trace_trigger + 1;
+                end
+                else if ( i_copro_reg_en  )
+                begin
+                        o_trace_trigger <= o_trace_trigger + 1;
+                end
+                else if ( i_valid )
+                begin
+                        o_trace_trigger <= o_trace_trigger + 1;
+                end
+                else if ( i_decompile_valid )
+                begin
+                        o_trace_trigger <= o_trace_trigger + 1;
+                end
+        end
+
+        /* Above block is for simulation only */ 
+`else
+
+// Tie off trace to 0.
+assign o_trace         = '0;
+assign o_trace_trigger = '0;
+wire   unused          = i_decompile_valid;
+
+`endif
 
 endmodule // zap_register_file.v
 

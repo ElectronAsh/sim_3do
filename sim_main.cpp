@@ -43,8 +43,8 @@ int flagtime;
 extern arm_core_t CPU;
 
 
-
 FILE* logfile;
+FILE* inst_file;
 
 
 #include <d3d11.h>
@@ -98,6 +98,7 @@ bool toggle = 1;
 char my_string[1024];
 
 bool trace = 0;
+bool inst_trace = 0;
 
 int pix_count = 0;
 
@@ -657,6 +658,8 @@ void opera_tick() {
 	}
 }
 
+uint32_t arm_skip = 40;
+
 int verilate() {
 	if (!Verilated::gotFinish()) {
 		if (main_time < 50) {
@@ -666,15 +669,22 @@ int verilate() {
 			top->reset_n = 1;		// Deassert reset./
 		}
 
-		if (top->reset_n) {
-			if (wait_ticks == 0) {
-				opera_tick();		// "operatic"... geddit? lol
-				wait_ticks = 4;
-			}
-			else wait_ticks--;
-		}
-
 		if (top->sys_clk) {
+			if (top->reset_n) {
+				/*
+				if (wait_ticks == 0) {
+					if (arm_skip == 0) arm_skip = 40;
+					else arm_skip--;
+
+					if (arm_skip > 0) opera_tick();		// "operatic"... geddit? lol
+					wait_ticks = 2;
+				}
+				else wait_ticks--;
+				*/
+
+				if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_valid) opera_tick();
+			}
+
 			pix_count++;
 		
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__pc_from_alu;
@@ -690,7 +700,10 @@ int verilate() {
 
 			//if (top->o_wb_adr == 0x0340C004 && top->o_wb_we) trace = 1;     // CLIO unc_soft_rv.
 
-			if (top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0 && frame_count==30) run_enable = 0;
+			if (frame_count==30 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0 && top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==9) {
+				run_enable = 0;
+				inst_trace = 1;
+			}
 
 			if (trace) {
 				if ( (cur_pc < (old_pc-8)) || (cur_pc > (old_pc+8)) ) {
@@ -906,9 +919,9 @@ int verilate() {
 				else if (top->o_wb_adr == 0x03400000) { fprintf(logfile, "CLIO ?          "); }
 				//else { fprintf(logfile, "UNKNOWN ?? Addr: 0x%08X  o_wb_we: %d\n", top->o_wb_adr, top->o_wb_we); top->i_wb_dat = 0xBADACCE5; }
 
-				// Setting an upper nibble bit of the adbio reg will set the corresponding lower bits.
+				// Setting an upper nibble bit of the adbio reg will set the corresponding lower bit.
 				// (opera source code). The upper nibble is not kept, AFAIK. ElectronAsh.
-				// The ADBIO pins on CLIO are all unconnected, aside from bit 3 being routed via a diode to the WatchDog Reset pin.
+				// The ADBIO pins on CLIO are all unconnected, aside from bit 3 being routed via a diode to the WatchDog Reset pin (also on CLIO).
 				uint32_t adbio_temp = top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg;
 				if (adbio_temp & 0x10) top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg |= 0x01;
 				if (adbio_temp & 0x20) top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg |= 0x02;
@@ -1083,6 +1096,7 @@ int main(int argc, char** argv, char** env) {
 	//memset(vga_ptr,  0xAA, vga_size);
 
 	logfile = fopen("sim_trace.txt", "w");
+	inst_file = fopen("sim_inst_trace.txt", "w");
 
 	FILE* romfile;
 	//romfile = fopen("panafz1.bin", "rb");
@@ -1919,6 +1933,10 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("    memory: %s", memory_string);
 		ImGui::Text("        rb: %s", rb_string);
 		ImGui::End();
+
+		if (inst_trace && decode_string != "IGNORE") {
+			fprintf(inst_file, "PC: 0x%08X   Inst: %s\n", cur_pc, decode_string);
+		}
 
 		/*
 		ImGui::Begin("Matrix Engine");

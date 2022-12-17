@@ -46,6 +46,7 @@ module zap_postalu_main #(
         // -----------------------------------------------------------------
 
         input logic [64*8-1:0]                   i_decompile,
+        input logic                              i_decompile_valid,
         input logic [31:0]                       i_alu_result_ff,                       // ALU result flopped version.
         input logic                              i_dav_ff,                              // Instruction valid.
         input logic [FLAG_WDT-1:0]               i_flags_ff,                            // Output flags (CPSR).
@@ -75,6 +76,7 @@ module zap_postalu_main #(
         // -----------------------------------------------------------------
 
         output logic      [64*8-1:0]              o_decompile,                   // Debugging output.
+        output logic                              o_decompile_valid,             // Decompile EXCL valid.
         output logic [31:0]                       o_alu_result_ff,               // ALU result flopped version.
         output logic                              o_dav_ff,                      // Instruction valid.
         output logic [FLAG_WDT-1:0]               o_flags_ff,                    // Output flags (CPSR).
@@ -108,6 +110,7 @@ begin
         begin
                 o_alu_result_ff                  <= 0; 
                 o_dav_ff                         <= 0; 
+                o_decompile_valid                <= 0;
                 o_pc_plus_8_ff                   <= 0; 
                 o_destination_index_ff           <= 0; 
                 o_abt_ff                         <= 0; 
@@ -135,6 +138,7 @@ begin
         begin
                 sleep_ff                         <= 'd1; 
                 o_dav_ff                         <= 'd0; 
+                o_decompile_valid                <= 'd0;
                 o_mem_load_ff                    <= 'd0;
                 o_dav_ff                         <= 'd0;
                 o_flags_ff                       <= 'd0;
@@ -155,6 +159,7 @@ begin
                         o_dav_ff                         <= 'd0; 
                         o_mem_load_ff                    <= 'd0;
                         o_dav_ff                         <= 'd0;
+                        o_decompile_valid                <= 'd0;
                         o_flags_ff                       <= 'd0;
                         o_abt_ff                         <= 'd0;
                         o_irq_ff                         <= 'd0;
@@ -169,6 +174,7 @@ begin
                 else
                 begin
                         o_decompile                      <= i_decompile;
+                        o_decompile_valid                <= i_decompile_valid;
                         o_alu_result_ff                  <= i_alu_result_ff;
                         o_dav_ff                         <= i_dav_ff;          
                         o_flags_ff                       <= i_flags_ff;

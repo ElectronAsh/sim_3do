@@ -40,7 +40,9 @@ module zap_memory_main
 (
         // Debug
         input   logic    [64*8-1:0]          i_decompile,
+        input   logic                        i_decompile_valid,
         output  logic    [64*8-1:0]          o_decompile,
+        output  logic                        o_decompile_valid,
 
         // Clock and reset.
         input logic                          i_clk,
@@ -135,6 +137,7 @@ task automatic clear;
 begin
         // Invalidate stage.
         o_dav_ff                  <= 0;
+        o_decompile_valid         <= 0;
 
         // Clear interrupts.
         o_irq_ff                  <= 0;
@@ -160,8 +163,9 @@ begin
         end
         else if ( i_data_stall )
         begin
-                // Stall unit. Outputs do not change.
-                o_dav_ff <= 1'd0;
+                // Invalidate when data stall.
+                o_dav_ff          <= 1'd0;
+                o_decompile_valid <= 1'd0;
         end
         else
         begin
@@ -183,6 +187,7 @@ begin
         
                 // Debug.
                 o_decompile           <= i_decompile;
+                o_decompile_valid     <= i_decompile_valid;
         end
 end
 

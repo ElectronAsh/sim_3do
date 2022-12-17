@@ -699,15 +699,9 @@ endfunction
 
 // ----------------------------------------------------------------------------
 
-wire [5:0] curr_spsr =  (i_cpsr_ff_mode == FIQ) ? PHY_FIQ_SPSR :
-						(i_cpsr_ff_mode == IRQ) ? PHY_IRQ_SPSR :
-						(i_cpsr_ff_mode == ABT) ? PHY_ABT_SPSR :
-						(i_cpsr_ff_mode == UND) ? PHY_UND_SPSR :
-						(i_cpsr_ff_mode == SVC) ? PHY_SVC_SPSR :
-												  PHY_CPSR;	// USR mode / default.
-
 function void decode_mrs ();
 begin
+
         process_immediate ( {instruction[11:0]} );
         
         o_condition_code    = instruction[31:28];

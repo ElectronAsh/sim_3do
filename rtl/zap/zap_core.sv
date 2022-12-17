@@ -29,6 +29,9 @@
 
 
 module zap_core #(
+        parameter [31:0] RESET_VECTOR     = 32'd0,
+        parameter [31:0] CPSR_INIT        = {24'd0, 1'd1,1'd1,1'd0,5'b10011},
+
         parameter BE_32_ENABLE     = 0,
 
         // Number of branch predictor entries.
@@ -41,6 +44,13 @@ module zap_core #(
         parameter [31:0] RAS_DEPTH = 4
 ) 
 (
+
+// ------------------------------------------------
+// Trace port
+// ------------------------------------------------
+
+output logic [2047:0]                    o_trace,
+output logic                             o_trace_trigger,
 
 // ------------------------------------------------
 // Clock and reset. Reset is synchronous.
@@ -356,6 +366,7 @@ logic                            alu_data_wb_cyc;
 logic                            alu_data_wb_stb;
 logic [31:0]                     alu_data_wb_dat;
 logic [3:0]                      alu_data_wb_sel;
+logic                            alu_decompile_valid;
 
 // Post ALU 0
 logic [31:0]                     postalu0_alu_result_ff;
@@ -381,6 +392,7 @@ logic                            postalu0_data_wb_cyc;
 logic                            postalu0_data_wb_stb;
 logic [31:0]                     postalu0_data_wb_dat;
 logic [3:0]                      postalu0_data_wb_sel;
+logic                            postalu0_decompile_valid;
 
 // Post ALU 1
 logic [31:0]                     postalu1_alu_result_ff;
@@ -406,8 +418,7 @@ logic                            postalu1_data_wb_cyc;
 logic                            postalu1_data_wb_stb;
 logic [31:0]                     postalu1_data_wb_dat;
 logic [3:0]                      postalu1_data_wb_sel;
-
-
+logic                            postalu1_decompile_valid;
 
 // Post ALU
 logic [31:0]                     postalu_alu_result_ff;
@@ -428,6 +439,7 @@ logic                            postalu_shalf_ff;
 logic                            postalu_uhalf_ff;
 logic [31:0]                     postalu_address_ff;
 logic                            postalu_mem_translate_ff;
+logic                            postalu_decompile_valid;
 
 // Memory
 logic [31:0]                     memory_alu_result_ff;
@@ -444,6 +456,7 @@ logic  [FLAG_WDT-1:0]            memory_flags_ff;
 logic  [31:0]                    memory_mem_rd_data;
 logic                            memory_und_ff;
 logic  [1:0]                     memory_data_abt_ff;
+logic                            memory_decompile_valid;
 
 // Writeback
 logic [31:0]                     rd_data_0;
@@ -961,7 +974,7 @@ u_zap_shifter_main
         .i_clear_from_writeback         (clear_from_writeback),
         .i_data_stall                   (data_stall), 
         .i_clear_from_alu               (clear_from_alu),
-        .i_condition_code_ff            (issue_condition_code_ff),
+        .i_condition_code_ff            (stall_from_issue ? NV : issue_condition_code_ff),
         .i_destination_index_ff         (issue_destination_index_ff),
         .i_alu_operation_ff             (issue_alu_operation_ff),
         .i_shift_operation_ff           (issue_shift_operation_ff),
@@ -974,11 +987,11 @@ u_zap_shifter_main
         .i_mem_signed_byte_enable_ff    (issue_mem_signed_byte_enable_ff),
         .i_mem_signed_halfword_enable_ff(issue_mem_signed_halfword_enable_ff),     
         .i_mem_unsigned_halfword_enable_ff(issue_mem_unsigned_halfword_enable_ff),
-        .i_mem_translate_ff             (issue_mem_translate_ff),
-        .i_irq_ff                       (issue_irq_ff),
-        .i_fiq_ff                       (issue_fiq_ff),
-        .i_abt_ff                       (issue_abt_ff),
-        .i_swi_ff                       (issue_swi_ff),
+        .i_mem_translate_ff             (stall_from_issue ? '0 : issue_mem_translate_ff),
+        .i_irq_ff                       (stall_from_issue ? '0 : issue_irq_ff),
+        .i_fiq_ff                       (stall_from_issue ? '0 : issue_fiq_ff),
+        .i_abt_ff                       (stall_from_issue ? '0 : issue_abt_ff),
+        .i_swi_ff                       (stall_from_issue ? '0 : issue_swi_ff),
         .i_alu_source_ff                (issue_alu_source_ff),
         .i_shift_source_ff              (issue_shift_source_ff),
         .i_alu_source_value_ff          (issue_alu_source_value_ff),
@@ -1045,54 +1058,56 @@ u_zap_shifter_main
 
 zap_alu_main #(
         .PHY_REGS(PHY_REGS),
-        .ALU_OPS(ALU_OPS) 
+        .ALU_OPS(ALU_OPS),
+        .CPSR_INIT(CPSR_INIT)
 )
 u_zap_alu_main
 (
+         .i_clk                          (i_clk),
+         .i_reset                        (reset),
          .i_decompile                    (shifter_decompile),
          .i_taken_ff                     (shifter_taken_ff),
          .i_ppc_ff                       (shifter_ppc_ff),
-         .o_confirm_from_alu             (confirm_from_alu),
          .i_pc_ff                        (shifter_pc_ff),
          .i_und_ff                       (shifter_und_ff),
          .i_nozero_ff                    ( shifter_nozero_ff ),
-         .i_clk                          (i_clk),
-         .i_reset                        (reset),
          .i_clear_from_writeback         (clear_from_writeback),   
          .i_data_stall                   (data_stall), 
          .i_cpsr_nxt                     (cpsr_nxt), 
          .i_flag_update_ff               (shifter_flag_update_ff),
          .i_switch_ff                    (shifter_switch_ff),
          .i_force32align_ff              (shifter_force32_ff),
-         .i_mem_srcdest_value_ff        (shifter_mem_srcdest_value_ff),
-         .i_alu_source_value_ff         (shifter_alu_source_value_ff), 
-         .i_shifted_source_value_ff     (shifter_shifted_source_value_ff),
-         .i_shift_carry_ff              (shifter_shift_carry_ff),
-         .i_shift_sat_ff                (shifter_shift_sat_ff),
-         .i_pc_plus_8_ff                (shifter_pc_plus_8_ff),
-         .i_abt_ff                      (shifter_abt_ff), 
-         .i_irq_ff                      (shifter_irq_ff), 
-         .i_fiq_ff                      (shifter_fiq_ff), 
-         .i_swi_ff                      (shifter_swi_ff),
-         .i_mem_srcdest_index_ff        (shifter_mem_srcdest_index_ff),     
-         .i_mem_load_ff                 (shifter_mem_load_ff),                     
-         .i_mem_store_ff                (shifter_mem_store_ff),                         
-         .i_mem_pre_index_ff            (shifter_mem_pre_index_ff),                
-         .i_mem_unsigned_byte_enable_ff (shifter_mem_unsigned_byte_enable_ff),     
-         .i_mem_signed_byte_enable_ff   (shifter_mem_signed_byte_enable_ff),       
+         .i_mem_srcdest_value_ff         (shifter_mem_srcdest_value_ff),
+         .i_alu_source_value_ff          (shifter_alu_source_value_ff), 
+         .i_shifted_source_value_ff      (shifter_shifted_source_value_ff),
+         .i_shift_carry_ff               (shifter_shift_carry_ff),
+         .i_shift_sat_ff                 (shifter_shift_sat_ff),
+         .i_pc_plus_8_ff                 (shifter_pc_plus_8_ff),
+         .i_abt_ff                       (shifter_abt_ff), 
+         .i_irq_ff                       (shifter_irq_ff), 
+         .i_fiq_ff                       (shifter_fiq_ff), 
+         .i_swi_ff                       (shifter_swi_ff),
+         .i_mem_srcdest_index_ff         (shifter_mem_srcdest_index_ff),     
+         .i_mem_load_ff                  (shifter_mem_load_ff),                     
+         .i_mem_store_ff                 (shifter_mem_store_ff),                         
+         .i_mem_pre_index_ff             (shifter_mem_pre_index_ff),                
+         .i_mem_unsigned_byte_enable_ff  (shifter_mem_unsigned_byte_enable_ff),     
+         .i_mem_signed_byte_enable_ff    (shifter_mem_signed_byte_enable_ff),       
          .i_mem_signed_halfword_enable_ff(shifter_mem_signed_halfword_enable_ff),        
          .i_mem_unsigned_halfword_enable_ff(shifter_mem_unsigned_halfword_enable_ff),      
-         .i_mem_translate_ff            (shifter_mem_translate_ff),  
-         .i_condition_code_ff           (shifter_condition_code_ff),
-         .i_destination_index_ff        (shifter_destination_index_ff),
-         .i_alu_operation_ff            (shifter_alu_operation_ff),  // {OP,S}
-         .i_data_mem_fault              (i_data_wb_err | i_dcache_err2),
-         .o_alu_result_nxt              (alu_alu_result_nxt),
-         .o_pc_from_alu                 (pc_from_alu),
-         .o_flags_nxt                   (alu_cpsr_nxt),
-         .o_clear_from_alu              (clear_from_alu),
+         .i_mem_translate_ff               (shifter_mem_translate_ff),  
+         .i_condition_code_ff              (shifter_condition_code_ff),
+         .i_destination_index_ff           (shifter_destination_index_ff),
+         .i_alu_operation_ff               (shifter_alu_operation_ff),  // {OP,S}
+         .i_data_mem_fault                 (i_data_wb_err | i_dcache_err2),
 
+         .o_alu_result_nxt                 (alu_alu_result_nxt),
+         .o_pc_from_alu                    (pc_from_alu),
+         .o_flags_nxt                      (alu_cpsr_nxt),
+         .o_clear_from_alu                 (clear_from_alu),
+         .o_confirm_from_alu               (confirm_from_alu),
          .o_decompile                      (alu_decompile),             
+         .o_decompile_valid                (alu_decompile_valid),
          .o_alu_result_ff                  (alu_alu_result_ff),         
          .o_und_ff                         (alu_und_ff),                
          .o_abt_ff                         (alu_abt_ff),
@@ -1113,7 +1128,6 @@ u_zap_alu_main
          .o_mem_signed_halfword_enable_ff  (alu_shalf_ff),        
          .o_mem_unsigned_halfword_enable_ff(alu_uhalf_ff),      
          .o_mem_translate_ff               (alu_mem_translate_ff),           // Must go to post ALU.
-
          .o_data_wb_we_ff                  (alu_data_wb_we),
          .o_data_wb_cyc_ff                 (alu_data_wb_cyc),
          .o_data_wb_stb_ff                 (alu_data_wb_stb),
@@ -1136,6 +1150,7 @@ zap_postalu_main #(
          .i_clear_from_writeback           (clear_from_writeback),
          .i_data_mem_fault                 (i_data_wb_err | i_dcache_err2),
 
+         .i_decompile_valid                (alu_decompile_valid),
          .i_decompile                      (alu_decompile),             
          .i_alu_result_ff                  (alu_alu_result_ff),         
          .i_und_ff                         (alu_und_ff),                
@@ -1163,6 +1178,7 @@ zap_postalu_main #(
          .i_data_wb_sel_ff                 (alu_data_wb_sel),
 
          .o_decompile                      (postalu0_decompile),             
+         .o_decompile_valid                (postalu0_decompile_valid),
          .o_alu_result_ff                  (postalu0_alu_result_ff),         
          .o_und_ff                         (postalu0_und_ff),                
          .o_abt_ff                         (postalu0_abt_ff),
@@ -1203,6 +1219,7 @@ zap_postalu_main #(
          .i_data_mem_fault                 (i_data_wb_err | i_dcache_err2),
 
          .i_decompile                      (postalu0_decompile),             
+         .i_decompile_valid                (postalu0_decompile_valid),
          .i_alu_result_ff                  (postalu0_alu_result_ff),         
          .i_und_ff                         (postalu0_und_ff),                
          .i_abt_ff                         (postalu0_abt_ff),
@@ -1228,6 +1245,7 @@ zap_postalu_main #(
          .i_data_wb_sel_ff                 (postalu0_data_wb_sel),
 
          .o_decompile                      (postalu1_decompile),             
+         .o_decompile_valid                (postalu1_decompile_valid),
          .o_alu_result_ff                  (postalu1_alu_result_ff),         
          .o_und_ff                         (postalu1_und_ff),                
          .o_abt_ff                         (postalu1_abt_ff),
@@ -1270,6 +1288,7 @@ zap_postalu_main #(
          .i_data_mem_fault                 (i_data_wb_err | i_dcache_err2),
 
          .i_decompile                      (postalu1_decompile),             
+         .i_decompile_valid                (postalu1_decompile_valid),
          .i_alu_result_ff                  (postalu1_alu_result_ff),         
          .i_und_ff                         (postalu1_und_ff),                
          .i_abt_ff                         (postalu1_abt_ff),
@@ -1295,6 +1314,7 @@ zap_postalu_main #(
          .i_data_wb_sel_ff                 (postalu1_data_wb_sel),
 
          .o_decompile                      (postalu_decompile),             
+         .o_decompile_valid                (postalu_decompile_valid),
          .o_alu_result_ff                  (postalu_alu_result_ff),         
          .o_und_ff                         (postalu_und_ff),                
          .o_abt_ff                         (postalu_abt_ff),
@@ -1331,15 +1351,13 @@ zap_memory_main #(
 u_zap_memory_main
 (
         .o_decompile                    (memory_decompile),
-        .o_und_ff                       (memory_und_ff),
-
-       
+        .o_decompile_valid              (memory_decompile_valid),
+        .i_decompile                    (postalu_decompile),    
+        .i_decompile_valid              (postalu_decompile_valid),
         .i_clk                          (i_clk),                      
         .i_reset                        (reset),
         .i_clear_from_writeback         (clear_from_writeback),
         .i_data_stall                   (data_stall),
-
-        .i_decompile                    (postalu_decompile),
         .i_alu_result_ff                (postalu_alu_result_ff),
         .i_und_ff                       (postalu_und_ff),
         .i_mem_address_ff               (postalu_address_ff[1:0]),
@@ -1377,6 +1395,7 @@ u_zap_memory_main
         .o_irq_ff                       (memory_irq_ff),
         .o_fiq_ff                       (memory_fiq_ff),
         .o_swi_ff                       (memory_swi_ff),
+        .o_und_ff                       (memory_und_ff),
         .o_instr_abort_ff               (memory_instr_abort_ff),
          
         .o_mem_load_ff                  (memory_mem_load_ff),
@@ -1390,12 +1409,19 @@ u_zap_memory_main
 zap_writeback #(
         .BP_ENTRIES(BP_ENTRIES),
         .PHY_REGS(PHY_REGS),
-        .FLAG_WDT(FLAG_WDT)
+        .FLAG_WDT(FLAG_WDT),
+        .RESET_VECTOR(RESET_VECTOR),
+        .CPSR_INIT(CPSR_INIT)
 )
 u_zap_writeback
 (
+        .o_trace                (o_trace),
+        .o_trace_trigger        (o_trace_trigger),
+
         .i_decompile            (memory_decompile),
-        .o_decompile            (rb_decompile),
+        .i_decompile_valid      (memory_decompile_valid),
+
+        .o_decompile            (rb_decompile), // Unused.
 
         .i_clear_btb            (predecode_clear_btb),
 
@@ -1405,9 +1431,9 @@ u_zap_writeback
 
         .o_shelve               (shelve),
 
-        .i_clk                  (i_clk), // ZAP clock.
+        .i_clk                  (i_clk),        // ZAP clock.
+        .i_reset                (reset),        // ZAP reset.
 
-        .i_reset                (reset),           // ZAP reset.
         .i_valid                (memory_dav_ff),
         .i_clear_from_alu       (clear_from_alu),
         .i_pc_from_alu          (pc_from_alu),
