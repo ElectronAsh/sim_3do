@@ -270,38 +270,38 @@ always @(*) begin
 
 
 // Timers... (16-bit wide?)
-	16'h0100: cpu_dout = tmr_read_mux;	// 0x100
-	16'h0104: cpu_dout = tmr_read_mux;	// 0x104
-	16'h0108: cpu_dout = tmr_read_mux;	// 0x108
-	16'h010c: cpu_dout = tmr_read_mux;	// 0x10c
-	16'h0110: cpu_dout = tmr_read_mux;	// 0x110
-	16'h0114: cpu_dout = tmr_read_mux;	// 0x114
-	16'h0118: cpu_dout = tmr_read_mux;	// 0x118
-	16'h011c: cpu_dout = tmr_read_mux;	// 0x11c
-	16'h0120: cpu_dout = tmr_read_mux;	// 0x120
-	16'h0124: cpu_dout = tmr_read_mux;	// 0x124
-	16'h0128: cpu_dout = tmr_read_mux;	// 0x128
-	16'h012c: cpu_dout = tmr_read_mux;	// 0x12c
-	16'h0130: cpu_dout = tmr_read_mux;	// 0x130
-	16'h0134: cpu_dout = tmr_read_mux;	// 0x134
-	16'h0138: cpu_dout = tmr_read_mux;	// 0x138
-	16'h013c: cpu_dout = tmr_read_mux;	// 0x13c
-	16'h0140: cpu_dout = tmr_read_mux;	// 0x140
-	16'h0144: cpu_dout = tmr_read_mux;	// 0x144
-	16'h0148: cpu_dout = tmr_read_mux;	// 0x148
-	16'h014c: cpu_dout = tmr_read_mux;	// 0x14c
-	16'h0150: cpu_dout = tmr_read_mux;	// 0x150
-	16'h0154: cpu_dout = tmr_read_mux;	// 0x154
-	16'h0158: cpu_dout = tmr_read_mux;	// 0x158
-	16'h015c: cpu_dout = tmr_read_mux;	// 0x15c
-	16'h0160: cpu_dout = tmr_read_mux;	// 0x160
-	16'h0164: cpu_dout = tmr_read_mux;	// 0x164
-	16'h0168: cpu_dout = tmr_read_mux;	// 0x168
-	16'h016c: cpu_dout = tmr_read_mux;	// 0x16c
-	16'h0170: cpu_dout = tmr_read_mux;	// 0x170
-	16'h0174: cpu_dout = tmr_read_mux;	// 0x174
-	16'h0178: cpu_dout = tmr_read_mux;	// 0x178
-	16'h017c: cpu_dout = tmr_read_mux;	// 0x17c
+	16'h0100: cpu_dout = {16'h0000, tmr_read_mux};	// 0x100
+	16'h0104: cpu_dout = {16'h0000, tmr_read_mux};	// 0x104
+	16'h0108: cpu_dout = {16'h0000, tmr_read_mux};	// 0x108
+	16'h010c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x10c
+	16'h0110: cpu_dout = {16'h0000, tmr_read_mux};	// 0x110
+	16'h0114: cpu_dout = {16'h0000, tmr_read_mux};	// 0x114
+	16'h0118: cpu_dout = {16'h0000, tmr_read_mux};	// 0x118
+	16'h011c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x11c
+	16'h0120: cpu_dout = {16'h0000, tmr_read_mux};	// 0x120
+	16'h0124: cpu_dout = {16'h0000, tmr_read_mux};	// 0x124
+	16'h0128: cpu_dout = {16'h0000, tmr_read_mux};	// 0x128
+	16'h012c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x12c
+	16'h0130: cpu_dout = {16'h0000, tmr_read_mux};	// 0x130
+	16'h0134: cpu_dout = {16'h0000, tmr_read_mux};	// 0x134
+	16'h0138: cpu_dout = {16'h0000, tmr_read_mux};	// 0x138
+	16'h013c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x13c
+	16'h0140: cpu_dout = {16'h0000, tmr_read_mux};	// 0x140
+	16'h0144: cpu_dout = {16'h0000, tmr_read_mux};	// 0x144
+	16'h0148: cpu_dout = {16'h0000, tmr_read_mux};	// 0x148
+	16'h014c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x14c
+	16'h0150: cpu_dout = {16'h0000, tmr_read_mux};	// 0x150
+	16'h0154: cpu_dout = {16'h0000, tmr_read_mux};	// 0x154
+	16'h0158: cpu_dout = {16'h0000, tmr_read_mux};	// 0x158
+	16'h015c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x15c
+	16'h0160: cpu_dout = {16'h0000, tmr_read_mux};	// 0x160
+	16'h0164: cpu_dout = {16'h0000, tmr_read_mux};	// 0x164
+	16'h0168: cpu_dout = {16'h0000, tmr_read_mux};	// 0x168
+	16'h016c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x16c
+	16'h0170: cpu_dout = {16'h0000, tmr_read_mux};	// 0x170
+	16'h0174: cpu_dout = {16'h0000, tmr_read_mux};	// 0x174
+	16'h0178: cpu_dout = {16'h0000, tmr_read_mux};	// 0x178
+	16'h017c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x17c
 
 // Writing to 0x200 SETs the LOWER 32-bits of timer_ctrl.
 // Writing to 0x204 CLEARs the LOWER 32-bits of timer_ctrl.
@@ -415,6 +415,8 @@ if (!reset_n) begin
 	
 	slack <= 10'd64;
 	adbio_reg <= 32'h00000000;
+	
+	poll_0 <= 32'h00000030;			// Spoofing a value for now, to force the BIOS to read from the expansion / CD-ROM Status FIFO. ElectronAsh.
 	
 	irq0_pend <= 32'h00000000;
 	irq0_enable <= 32'h00000000;

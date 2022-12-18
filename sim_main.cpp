@@ -698,7 +698,7 @@ int verilate() {
 
 			pix_count++;
 		
-			//jp_a = top->rootp->core_3do__DOT__clio_inst__DOT__field;
+			//jp_a = top->rootp->core_3do__DOT__clio_inst__DOT__field;	// Toggling "A" button, to test joypad. (works in BIOS joypad test)
 
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__pc_from_alu;
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__o_pc_plus_8_ff;
@@ -707,14 +707,10 @@ int verilate() {
 			uint32_t temp_word;
 			uint32_t word_addr = (top->o_wb_adr) >> 2;
 
-			//if (top->o_wb_adr == 0x000117F8) run_enable = 0;
-
-			//if (top->o_wb_adr >=0x000101ec && top->o_wb_adr <=0x00010460 && !top->o_wb_we) run_enable = 0;    // Function that crashes to 0x1971C due to lower 2 bits of SPSR begin non-zero. 
-
 			/*
 			if (frame_count==30 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0 && top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==9) {
 				run_enable = 0;
-				inst_trace = 1;
+				//inst_trace = 1;
 			}
 			*/
 
@@ -749,11 +745,9 @@ int verilate() {
 			strrev(memory_string);
 			strrev(rb_string);
 
-			/*
 			if (inst_trace && decode_string != "IGNORE" && top->o_wb_stb && top->i_wb_ack) {
 				fprintf(inst_file, "PC: 0x%08X   Inst: %s\n", cur_pc, decode_string);
 			}
-			*/
 
 			/*
 			if (top->o_wb_adr == 0x03400000 && top->o_wb_we) {
@@ -975,7 +969,7 @@ int verilate() {
 				else if (top->o_wb_adr == 0x0340C008) { fprintf(logfile, "CLIO unc_addr   "); }
 				else if (top->o_wb_adr == 0x0340C00c) { fprintf(logfile, "CLIO unc_rom    "); }
 				else if (top->o_wb_adr == 0x03400000) { fprintf(logfile, "CLIO ?          "); }
-				else { fprintf(logfile, "UNKNOWN ?? Addr: 0x%08X  o_wb_we: %d\n", top->o_wb_adr, top->o_wb_we); top->i_wb_dat = 0xBADACCE5; }
+				//else { fprintf(logfile, "UNKNOWN ?? Addr: 0x%08X  o_wb_we: %d\n", top->o_wb_adr, top->o_wb_we); top->i_wb_dat = 0xBADACCE5; }
 
 				/*
 				uint32_t zap_din = top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat;
@@ -1000,13 +994,11 @@ int verilate() {
 			}
 			old_fiq_n = top->rootp->core_3do__DOT__clio_inst__DOT__firq_n;
 
-			/*
 			uint32_t instruction = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction;
 			if ( ((instruction & 0xF000000)>>24 == 0b1111) && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction_valid) {
 				fprintf(logfile, "SWI 0x%08X  (PC: 0x%08X)\n", instruction, cur_pc);
 				//run_enable = 0;
 			}
-			*/
 		}
 
 		top->sys_clk = !(top->sys_clk&1);
@@ -1311,11 +1303,11 @@ int main(int argc, char** argv, char** env) {
 	my_opera_init();
 
 	/* select test, use -1 -- if don't need tests */
-	sim_diag_port_init(-1);		// Normal BIOS startup.
-	//sim_diag_port_init(0x80);
+	//sim_diag_port_init(-1);	// Normal BIOS startup.
+	sim_diag_port_init(0x60);
 
-	opera_diag_port_init(-1);		// Normal BIOS startup.
-	//opera_diag_port_init(0x80);
+	//opera_diag_port_init(-1);	// Normal BIOS startup.
+	opera_diag_port_init(0x60);
 
 	/*
 	0z00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)

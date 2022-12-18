@@ -499,7 +499,7 @@ begin
         begin 
                 // Save state.
         end
-        else if ( i_data_mem_fault || sleep_ff ) 
+        else if ( i_data_mem_fault || sleep_ff || o_clear_from_alu ) 
         begin
                 o_data_wb_cyc_nxt = 0;
                 o_data_wb_stb_nxt = 0;
