@@ -654,8 +654,11 @@ void opera_tick() {
 
 	if (opera_clock_vdl_queued())
 	{
+		/*
 		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt>=240) opera_line = 200;
 		else opera_line = top->rootp->core_3do__DOT__clio_inst__DOT__vcnt;
+		*/
+		opera_line = top->rootp->core_3do__DOT__clio_inst__DOT__vcnt;
 
 		opera_clio_vcnt_update(opera_line, top->rootp->core_3do__DOT__clio_inst__DOT__field);
 		//opera_vdlp_process_line(opera_line);
@@ -868,7 +871,7 @@ int verilate() {
 				}
 
 				//else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0xBADACCE5; }
-				else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0x0000006A; }
+				else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0xBADACCE5; }
 
 				else if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315FFFF) { fprintf(logfile, "NVRAM           "); top->i_wb_dat = nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] & 0xff; }
 				else if (top->o_wb_adr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); sim_diag_port_send(top->o_wb_dat); }
@@ -934,12 +937,12 @@ int verilate() {
 																		/*if (rom2_select) fprintf(logfile, "ROM2 selected!");
 																		else fprintf(logfile, "ROM1 selected!");*/ }
 				else if (top->o_wb_adr == 0x03400088) { fprintf(logfile, "CLIO adbctl     "); }
-				else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && !(top->o_wb_adr & 4)) { fprintf(logfile, "CLIO tmr_cnt  "); }
-				else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && (top->o_wb_adr & 4)) { fprintf(logfile, "CLIO tmr_bkp  "); }
-				else if (top->o_wb_adr == 0x03400200) { fprintf(logfile, "CLIO tmr_ctrl_l set   "); }
-				else if (top->o_wb_adr == 0x03400204) { fprintf(logfile, "CLIO tmr_ctrl_l clr   "); }
-				else if (top->o_wb_adr == 0x03400208) { fprintf(logfile, "CLIO tmr_ctrl_u set   "); }
-				else if (top->o_wb_adr == 0x0340020C) { fprintf(logfile, "CLIO tmr_ctrl_u clr   "); }
+				else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && !(top->o_wb_adr & 4)) { fprintf(logfile, "CLIO tmr_cnt    "); }
+				else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && (top->o_wb_adr & 4)) { fprintf(logfile, "CLIO tmr_bkp    "); }
+				else if (top->o_wb_adr == 0x03400200) { fprintf(logfile, "CLIO tmr_lwr set"); }
+				else if (top->o_wb_adr == 0x03400204) { fprintf(logfile, "CLIO tmr_lwr clr"); }
+				else if (top->o_wb_adr == 0x03400208) { fprintf(logfile, "CLIO tmr_upr set"); }
+				else if (top->o_wb_adr == 0x0340020C) { fprintf(logfile, "CLIO tmr_upr clr"); }
 				else if (top->o_wb_adr == 0x03400220) { fprintf(logfile, "CLIO TmrSlack   "); }
 				else if (top->o_wb_adr == 0x03400304) { fprintf(logfile, "CLIO dma        "); }
 				else if (top->o_wb_adr == 0x03400308) { fprintf(logfile, "CLIO dmareqdis  "); }
@@ -971,7 +974,7 @@ int verilate() {
 				else if (top->o_wb_adr == 0x0340C008) { fprintf(logfile, "CLIO unc_addr   "); }
 				else if (top->o_wb_adr == 0x0340C00c) { fprintf(logfile, "CLIO unc_rom    "); top->i_wb_dat = 0x00000000; }
 				else if (top->o_wb_adr == 0x03400000) { fprintf(logfile, "CLIO ?          "); }
-				//else { fprintf(logfile, "UNKNOWN ?? Addr: 0x%08X  o_wb_we: %d\n", top->o_wb_adr, top->o_wb_we); top->i_wb_dat = 0xBADACCE5; }
+				else { fprintf(logfile, "UNKNOWN ?? Addr: 0x%08X  o_wb_we: %d\n", top->o_wb_adr, top->o_wb_we); top->i_wb_dat = 0xBADACCE5; }
 
 				// Setting an upper nibble bit of the adbio reg will set the corresponding lower bit.
 				// (opera source code). The upper nibble is not kept, AFAIK. ElectronAsh.
@@ -1005,11 +1008,13 @@ int verilate() {
 			}
 			old_fiq_n = top->rootp->core_3do__DOT__clio_inst__DOT__firq_n;
 
+			/*
 			uint32_t instruction = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction;
 			if ( ((instruction & 0xF000000)>>24 == 0b1111) && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction_valid) {
 				fprintf(logfile, "SWI 0x%08X  (PC: 0x%08X)\n", instruction, cur_pc);
 				//run_enable = 0;
 			}
+			*/
 		}
 
 		top->sys_clk = !(top->sys_clk&1);
@@ -1876,8 +1881,6 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Separator();
 		ImGui::Text("  tmr_ctrl_l: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr_ctrl_l);		// TODO !!
 		ImGui::Text("  tmr_ctrl_u: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr_ctrl_u);		// Not 100% sure how this should read back!!
-
-		//ImGui::Text("     timer_ctrl: 0x%016X", top->rootp->core_3do__DOT__clio_inst__DOT__timer_ctrl);	// 0x200,0x204,0x208,0x20c. 64-bits wide?? TODO: How to handle READS of the 64-bit reg?
 		ImGui::End();
 
 		ImGui::Begin("CLIO sel regs");

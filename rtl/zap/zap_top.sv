@@ -46,7 +46,7 @@ parameter   [31:0]       RESET_VECTOR      = 32'h03000000,	// For 3DO.
 // Set initial value of CPSR here.
 // -----------------------------------
 
-parameter [31:0]        CPSR_INIT          = {24'd0, 1'd0,1'd0,1'd0,5'b10011},	// Bit[7]=IRQ mask. Bit[6]=FIQ mask. Bits[4:0]=CPU Mode.
+parameter [31:0]        CPSR_INIT          = {24'd0, 1'd0,1'd0,1'd0,5'b10011},	// Bit[7]=IRQ mask. Bit[6]=FIQ mask. Bit[5]=Thumb. Bits[4:0]=CPU Mode.
 
 // -----------------------------------
 // Enable BE-32

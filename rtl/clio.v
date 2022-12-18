@@ -270,26 +270,26 @@ always @(*) begin
 
 
 // Timers... (16-bit wide?)
-	16'h0100: cpu_dout = tmr_read_mux;		// 0x100
-	16'h0104: cpu_dout = tmr_read_mux;		// 0x104
-	16'h0108: cpu_dout = tmr_read_mux;		// 0x108
-	16'h010c: cpu_dout = tmr_read_mux;		// 0x10c
-	16'h0110: cpu_dout = tmr_read_mux;		// 0x110
-	16'h0114: cpu_dout = tmr_read_mux;		// 0x114
-	16'h0118: cpu_dout = tmr_read_mux;		// 0x118
-	16'h011c: cpu_dout = tmr_read_mux;		// 0x11c
-	16'h0120: cpu_dout = tmr_read_mux;		// 0x120
-	16'h0124: cpu_dout = tmr_read_mux;		// 0x124
-	16'h0128: cpu_dout = tmr_read_mux;		// 0x128
-	16'h012c: cpu_dout = tmr_read_mux;		// 0x12c
-	16'h0130: cpu_dout = tmr_read_mux;		// 0x130
-	16'h0134: cpu_dout = tmr_read_mux;		// 0x134
-	16'h0138: cpu_dout = tmr_read_mux;		// 0x138
-	16'h013c: cpu_dout = tmr_read_mux;		// 0x13c
-	16'h0140: cpu_dout = tmr_read_mux;		// 0x140
-	16'h0144: cpu_dout = tmr_read_mux;		// 0x144
-	16'h0148: cpu_dout = tmr_read_mux;		// 0x148
-	16'h014c: cpu_dout = tmr_read_mux;		// 0x14c
+	16'h0100: cpu_dout = tmr_read_mux;	// 0x100
+	16'h0104: cpu_dout = tmr_read_mux;	// 0x104
+	16'h0108: cpu_dout = tmr_read_mux;	// 0x108
+	16'h010c: cpu_dout = tmr_read_mux;	// 0x10c
+	16'h0110: cpu_dout = tmr_read_mux;	// 0x110
+	16'h0114: cpu_dout = tmr_read_mux;	// 0x114
+	16'h0118: cpu_dout = tmr_read_mux;	// 0x118
+	16'h011c: cpu_dout = tmr_read_mux;	// 0x11c
+	16'h0120: cpu_dout = tmr_read_mux;	// 0x120
+	16'h0124: cpu_dout = tmr_read_mux;	// 0x124
+	16'h0128: cpu_dout = tmr_read_mux;	// 0x128
+	16'h012c: cpu_dout = tmr_read_mux;	// 0x12c
+	16'h0130: cpu_dout = tmr_read_mux;	// 0x130
+	16'h0134: cpu_dout = tmr_read_mux;	// 0x134
+	16'h0138: cpu_dout = tmr_read_mux;	// 0x138
+	16'h013c: cpu_dout = tmr_read_mux;	// 0x13c
+	16'h0140: cpu_dout = tmr_read_mux;	// 0x140
+	16'h0144: cpu_dout = tmr_read_mux;	// 0x144
+	16'h0148: cpu_dout = tmr_read_mux;	// 0x148
+	16'h014c: cpu_dout = tmr_read_mux;	// 0x14c
 	16'h0150: cpu_dout = tmr_read_mux;	// 0x150
 	16'h0154: cpu_dout = tmr_read_mux;	// 0x154
 	16'h0158: cpu_dout = tmr_read_mux;	// 0x158
@@ -422,15 +422,10 @@ else begin
 	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF) ) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
 
 	irq0_pend[31] <= |irq1_pend;	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
-	
-	irq0_pend[9] <= 1'b1;	// TESTING !! Spoof Timer 3 rollover bit.
 
 	if (hcnt==hcnt_max) begin
 		hcnt <= 32'd0;
 		
-		//if ( irq0_enable[0] && vcnt==(vint0&32'h000007FF) ) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
-		//if ( irq0_enable[1] && vcnt==(vint1&32'h000007FF) ) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
-
 		if (vcnt==vcnt_max) begin
 			vcnt <= 32'd0;
 			field <= !field;
@@ -655,22 +650,23 @@ wire [3:0] tmr15_ctrl = tmr_ctrl_u[31:28];
 
 wire timer_cs = {cpu_addr,2'b00}>=16'h0100 && {cpu_addr,2'b00}<=16'h017c;
 
-wire tmr0_cs  = timer_cs && (cpu_addr[15:3]==13'd0);
-wire tmr1_cs  = timer_cs && (cpu_addr[15:3]==13'd1);
-wire tmr2_cs  = timer_cs && (cpu_addr[15:3]==13'd2);
-wire tmr3_cs  = timer_cs && (cpu_addr[15:3]==13'd3);
-wire tmr4_cs  = timer_cs && (cpu_addr[15:3]==13'd4);
-wire tmr5_cs  = timer_cs && (cpu_addr[15:3]==13'd5);
-wire tmr6_cs  = timer_cs && (cpu_addr[15:3]==13'd6);
-wire tmr7_cs  = timer_cs && (cpu_addr[15:3]==13'd7);
-wire tmr8_cs  = timer_cs && (cpu_addr[15:3]==13'd8);
-wire tmr9_cs  = timer_cs && (cpu_addr[15:3]==13'd9);
-wire tmr10_cs = timer_cs && (cpu_addr[15:3]==13'd10);
-wire tmr11_cs = timer_cs && (cpu_addr[15:3]==13'd11);
-wire tmr12_cs = timer_cs && (cpu_addr[15:3]==13'd12);
-wire tmr13_cs = timer_cs && (cpu_addr[15:3]==13'd13);
-wire tmr14_cs = timer_cs && (cpu_addr[15:3]==13'd14);
-wire tmr15_cs = timer_cs && (cpu_addr[15:3]==13'd15);
+// cpu_addr[2] goes to all timer blocks, to select either tmr_cnt, or tmr_bkp.
+wire tmr0_cs  = timer_cs && (cpu_addr[6:3]==4'd0);		// 0x100, 0x104
+wire tmr1_cs  = timer_cs && (cpu_addr[6:3]==4'd1);		// 0x108, 0x10c
+wire tmr2_cs  = timer_cs && (cpu_addr[6:3]==4'd2);		// 0x110, 0x114
+wire tmr3_cs  = timer_cs && (cpu_addr[6:3]==4'd3);		// 0x118, 0x11c
+wire tmr4_cs  = timer_cs && (cpu_addr[6:3]==4'd4);		// 0x120, 0x124
+wire tmr5_cs  = timer_cs && (cpu_addr[6:3]==4'd5);		// 0x128, 0x12c
+wire tmr6_cs  = timer_cs && (cpu_addr[6:3]==4'd6);		// 0x130, 0x134
+wire tmr7_cs  = timer_cs && (cpu_addr[6:3]==4'd7);		// 0x138, 0x13c
+wire tmr8_cs  = timer_cs && (cpu_addr[6:3]==4'd8);		// 0x140, 0x144
+wire tmr9_cs  = timer_cs && (cpu_addr[6:3]==4'd9);		// 0x148, 0x14c
+wire tmr10_cs = timer_cs && (cpu_addr[6:3]==4'd10);		// 0x150, 0x154
+wire tmr11_cs = timer_cs && (cpu_addr[6:3]==4'd11);		// 0x158, 0x15c
+wire tmr12_cs = timer_cs && (cpu_addr[6:3]==4'd12);		// 0x160, 0x164
+wire tmr13_cs = timer_cs && (cpu_addr[6:3]==4'd13);		// 0x168, 0x16c
+wire tmr14_cs = timer_cs && (cpu_addr[6:3]==4'd14);		// 0x170, 0x174
+wire tmr15_cs = timer_cs && (cpu_addr[6:3]==4'd15);		// 0x178, 0x17c
 
 wire tmr0_ena_clr;
 wire tmr1_ena_clr;
