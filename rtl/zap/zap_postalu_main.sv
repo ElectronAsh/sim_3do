@@ -45,6 +45,7 @@ module zap_postalu_main #(
         // Inputs
         // -----------------------------------------------------------------
 
+        input logic                              i_uop_last,
         input logic [64*8-1:0]                   i_decompile,
         input logic                              i_decompile_valid,
         input logic [31:0]                       i_alu_result_ff,                       // ALU result flopped version.
@@ -75,6 +76,7 @@ module zap_postalu_main #(
         // Outputs
         // -----------------------------------------------------------------
 
+        output logic                              o_uop_last,
         output logic      [64*8-1:0]              o_decompile,                   // Debugging output.
         output logic                              o_decompile_valid,             // Decompile EXCL valid.
         output logic [31:0]                       o_alu_result_ff,               // ALU result flopped version.
@@ -111,6 +113,7 @@ begin
                 o_alu_result_ff                  <= 0; 
                 o_dav_ff                         <= 0; 
                 o_decompile_valid                <= 0;
+                o_uop_last                       <= 0;
                 o_pc_plus_8_ff                   <= 0; 
                 o_destination_index_ff           <= 0; 
                 o_abt_ff                         <= 0; 
@@ -139,6 +142,7 @@ begin
                 sleep_ff                         <= 'd1; 
                 o_dav_ff                         <= 'd0; 
                 o_decompile_valid                <= 'd0;
+                o_uop_last                       <= 'd0;
                 o_mem_load_ff                    <= 'd0;
                 o_dav_ff                         <= 'd0;
                 o_flags_ff                       <= 'd0;
@@ -160,6 +164,7 @@ begin
                         o_mem_load_ff                    <= 'd0;
                         o_dav_ff                         <= 'd0;
                         o_decompile_valid                <= 'd0;
+                        o_uop_last                       <= 'd0;
                         o_flags_ff                       <= 'd0;
                         o_abt_ff                         <= 'd0;
                         o_irq_ff                         <= 'd0;
@@ -175,6 +180,7 @@ begin
                 begin
                         o_decompile                      <= i_decompile;
                         o_decompile_valid                <= i_decompile_valid;
+                        o_uop_last                       <= i_uop_last;
                         o_alu_result_ff                  <= i_alu_result_ff;
                         o_dav_ff                         <= i_dav_ff;          
                         o_flags_ff                       <= i_flags_ff;

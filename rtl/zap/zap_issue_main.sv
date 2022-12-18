@@ -50,6 +50,10 @@ module zap_issue_main
         input  logic                             i_clk,    // ZAP clock.
         input  logic                             i_reset, // Active high sync.
 
+        // UOP
+        input   logic                            i_uop_last,
+        output  logic                            o_uop_last,
+
         // MISC signals.
 
         input logic       [31:0]                 i_cpu_mode,
@@ -275,7 +279,7 @@ logic [31:0] o_alu_source_value_nxt,
            o_shift_length_value_nxt, 
            o_mem_srcdest_value_nxt;
 
-logic [32+32+1+2+64*8+4+$clog2(PHY_REGS)+33+$clog2(ALU_OPS)+33+$clog2(SHIFT_OPS)
+logic [32+32+1+2+64*8+1+4+$clog2(PHY_REGS)+33+$clog2(ALU_OPS)+33+$clog2(SHIFT_OPS)
 +33+1+$clog2(PHY_REGS)+14+32-1:0] skid;
 
 // Individual lock signals. These are ORed to get the final lock.
@@ -291,6 +295,7 @@ logic  [31:0]                      skid_pc_ff;
 logic                              skid_switch_ff;
 logic    [1:0]                     skid_taken_ff;
 logic      [64*8-1:0]              skid_decompile;
+logic                              skid_uop_last;
 logic      [3:0]                   skid_condition_code_ff;
 logic      [$clog2(PHY_REGS )-1:0] skid_destination_index_ff;
 logic      [32:0]                  skid_alu_source_ff;
@@ -394,6 +399,7 @@ begin
                 
                 // For debug
                 o_decompile                       <= skid_decompile;
+                o_uop_last                        <= skid_uop_last;
         end
 end
 
@@ -709,6 +715,7 @@ begin
                                         i_switch_ff,
                                         i_taken_ff,
                                         i_decompile,
+                                        i_uop_last,
                                         i_condition_code_ff,
                                         i_destination_index_ff,
                                         i_alu_source_ff,
@@ -757,6 +764,7 @@ begin
                  skid_switch_ff,
                  skid_taken_ff,
                  skid_decompile,
+                 skid_uop_last,
                  skid_condition_code_ff,
                  skid_destination_index_ff,
                  skid_alu_source_ff,
@@ -789,6 +797,7 @@ begin
                  skid_switch_ff,
                  skid_taken_ff,
                  skid_decompile,
+                 skid_uop_last,
                  skid_condition_code_ff,
                  skid_destination_index_ff,
                  skid_alu_source_ff,
@@ -818,6 +827,7 @@ begin
                  i_switch_ff,
                  i_taken_ff,
                  i_decompile,
+                 i_uop_last,
                  i_condition_code_ff,
                  i_destination_index_ff,
                  i_alu_source_ff,

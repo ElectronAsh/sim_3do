@@ -135,8 +135,7 @@ opera_3do_internal_frame(uint32_t  cycles_,
                          int       field_)
 {
   opera_clock_push_cycles(cycles_);
-  if(opera_clock_dsp_queued())
-    io_interface(EXT_DSP_TRIGGER,NULL);
+  //if(opera_clock_dsp_queued()) io_interface(EXT_DSP_TRIGGER,NULL);
 
   if(opera_clock_timer_queued())
     opera_clio_timer_execute();

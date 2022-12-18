@@ -138,44 +138,19 @@ reg [31:0] adbctl;		// 0x88
 
 
 // Timers...
-reg [31:0] timer_count_0;	 // 0x100
-reg [31:0] timer_backup_0;	 // 0x104
-reg [31:0] timer_count_1;	 // 0x108
-reg [31:0] timer_backup_1;	 // 0x10c
-reg [31:0] timer_count_2;	 // 0x110
-reg [31:0] timer_backup_2;	 // 0x114
-reg [31:0] timer_count_3;	 // 0x118
-reg [31:0] timer_backup_3;	 // 0x11c
-reg [31:0] timer_count_4;	 // 0x120
-reg [31:0] timer_backup_4;	 // 0x124
-reg [31:0] timer_count_5;	 // 0x128
-reg [31:0] timer_backup_5;	 // 0x12c
-reg [31:0] timer_count_6;	 // 0x130
-reg [31:0] timer_backup_6;	 // 0x134
-reg [31:0] timer_count_7;	 // 0x138
-reg [31:0] timer_backup_7;	 // 0x13c
-reg [31:0] timer_count_8;	 // 0x140
-reg [31:0] timer_backup_8;	 // 0x144
-reg [31:0] timer_count_9;	 // 0x148
-reg [31:0] timer_backup_9;	 // 0x14c
-reg [31:0] timer_count_10;	 // 0x150
-reg [31:0] timer_backup_10;	 // 0x154
-reg [31:0] timer_count_11;	 // 0x158
-reg [31:0] timer_backup_11;	 // 0x15c
-reg [31:0] timer_count_12;	 // 0x160
-reg [31:0] timer_backup_12;	 // 0x164
-reg [31:0] timer_count_13;	 // 0x168
-reg [31:0] timer_backup_13;	 // 0x16c
-reg [31:0] timer_count_14;	 // 0x170
-reg [31:0] timer_backup_14;	 // 0x174
-reg [31:0] timer_count_15;	 // 0x178
-reg [31:0] timer_backup_15;	 // 0x17c
+// (timers are handled by their own modules now.)
+/*
+reg [15:0] tmr_cnt_0;	 // 0x100
+// ....
+reg [15:0] tmr_bkp_15;	 // 0x17c
+*/
 
 // Writing to 0x200 SETs the LOWER 32-bits of timer_ctrl.
 // Writing to 0x204 CLEARs the LOWER 32-bits of timer_ctrl.
 // Writing to 0x208 SETs the UPPER 32-bits of timer_ctrl.
 // Writing to 0x20c CLEARs the UPPER 32-bits of timer_ctrl.
-reg [63:0] timer_ctrl;		// 0x200,0x204,0x208,0x20c. 64-bits wide??
+reg [31:0] tmr_ctrl_l;		// 0x200,0x204. Controls the lower timers 0 (lowermost nibble) through 7 (uppermost nibble).
+reg [31:0] tmr_ctrl_u;		// 0x208,0x20c. Controls the lower timers 8 (lowermost nibble) through f (uppermost nibble).
 
 reg [9:0] slack;			// 0x220. Only the lower 10 bits get written?
 
@@ -294,45 +269,48 @@ always @(*) begin
 	16'h0088: cpu_dout = adbctl;		// 0x88
 
 
-// Timers...
-	16'h0100: cpu_dout = timer_count_0;		// 0x100
-	16'h0104: cpu_dout = timer_backup_0;	// 0x104
-	16'h0108: cpu_dout = timer_count_1;		// 0x108
-	16'h010c: cpu_dout = timer_backup_1;	// 0x10c
-	16'h0110: cpu_dout = timer_count_2;		// 0x110
-	16'h0114: cpu_dout = timer_backup_2;	// 0x114
-	16'h0118: cpu_dout = timer_count_3;		// 0x118
-	16'h011c: cpu_dout = timer_backup_3;	// 0x11c
-	16'h0120: cpu_dout = timer_count_4;		// 0x120
-	16'h0124: cpu_dout = timer_backup_4;	// 0x124
-	16'h0128: cpu_dout = timer_count_5;		// 0x128
-	16'h012c: cpu_dout = timer_backup_5;	// 0x12c
-	16'h0130: cpu_dout = timer_count_6;		// 0x130
-	16'h0134: cpu_dout = timer_backup_6;	// 0x134
-	16'h0138: cpu_dout = timer_count_7;		// 0x138
-	16'h013c: cpu_dout = timer_backup_7;	// 0x13c
-	16'h0140: cpu_dout = timer_count_8;		// 0x140
-	16'h0144: cpu_dout = timer_backup_8;	// 0x144
-	16'h0148: cpu_dout = timer_count_9;		// 0x148
-	16'h014c: cpu_dout = timer_backup_9;	// 0x14c
-	16'h0150: cpu_dout = timer_count_10;	// 0x150
-	16'h0154: cpu_dout = timer_backup_10;	// 0x154
-	16'h0158: cpu_dout = timer_count_11;	// 0x158
-	16'h015c: cpu_dout = timer_backup_11;	// 0x15c
-	16'h0160: cpu_dout = timer_count_12;	// 0x160
-	16'h0164: cpu_dout = timer_backup_12;	// 0x164
-	16'h0168: cpu_dout = timer_count_13;	// 0x168
-	16'h016c: cpu_dout = timer_backup_13;	// 0x16c
-	16'h0170: cpu_dout = timer_count_14;	// 0x170
-	16'h0174: cpu_dout = timer_backup_14;	// 0x174
-	16'h0178: cpu_dout = timer_count_15;	// 0x178
-	16'h017c: cpu_dout = timer_backup_15;	// 0x17c
+// Timers... (16-bit wide?)
+	16'h0100: cpu_dout = tmr_read_mux;		// 0x100
+	16'h0104: cpu_dout = tmr_read_mux;		// 0x104
+	16'h0108: cpu_dout = tmr_read_mux;		// 0x108
+	16'h010c: cpu_dout = tmr_read_mux;		// 0x10c
+	16'h0110: cpu_dout = tmr_read_mux;		// 0x110
+	16'h0114: cpu_dout = tmr_read_mux;		// 0x114
+	16'h0118: cpu_dout = tmr_read_mux;		// 0x118
+	16'h011c: cpu_dout = tmr_read_mux;		// 0x11c
+	16'h0120: cpu_dout = tmr_read_mux;		// 0x120
+	16'h0124: cpu_dout = tmr_read_mux;		// 0x124
+	16'h0128: cpu_dout = tmr_read_mux;		// 0x128
+	16'h012c: cpu_dout = tmr_read_mux;		// 0x12c
+	16'h0130: cpu_dout = tmr_read_mux;		// 0x130
+	16'h0134: cpu_dout = tmr_read_mux;		// 0x134
+	16'h0138: cpu_dout = tmr_read_mux;		// 0x138
+	16'h013c: cpu_dout = tmr_read_mux;		// 0x13c
+	16'h0140: cpu_dout = tmr_read_mux;		// 0x140
+	16'h0144: cpu_dout = tmr_read_mux;		// 0x144
+	16'h0148: cpu_dout = tmr_read_mux;		// 0x148
+	16'h014c: cpu_dout = tmr_read_mux;		// 0x14c
+	16'h0150: cpu_dout = tmr_read_mux;	// 0x150
+	16'h0154: cpu_dout = tmr_read_mux;	// 0x154
+	16'h0158: cpu_dout = tmr_read_mux;	// 0x158
+	16'h015c: cpu_dout = tmr_read_mux;	// 0x15c
+	16'h0160: cpu_dout = tmr_read_mux;	// 0x160
+	16'h0164: cpu_dout = tmr_read_mux;	// 0x164
+	16'h0168: cpu_dout = tmr_read_mux;	// 0x168
+	16'h016c: cpu_dout = tmr_read_mux;	// 0x16c
+	16'h0170: cpu_dout = tmr_read_mux;	// 0x170
+	16'h0174: cpu_dout = tmr_read_mux;	// 0x174
+	16'h0178: cpu_dout = tmr_read_mux;	// 0x178
+	16'h017c: cpu_dout = tmr_read_mux;	// 0x17c
 
 // Writing to 0x200 SETs the LOWER 32-bits of timer_ctrl.
 // Writing to 0x204 CLEARs the LOWER 32-bits of timer_ctrl.
 // Writing to 0x208 SETs the UPPER 32-bits of timer_ctrl.
 // Writing to 0x20c CLEARs the UPPER 32-bits of timer_ctrl.
-	16'h0200: cpu_dout = timer_ctrl;		// 0x200,0x204,0x208,0x20c. 64-bits wide?? TODO: How to handle READS of the 64-bit reg?
+	16'h0200: cpu_dout = tmr_ctrl_l;	// TODO. Not 100% sure what should get read back for these? ElectronAsh.
+	16'h0204: cpu_dout = tmr_ctrl_l;
+	16'h0208: cpu_dout = tmr_ctrl_u;
+	16'h020c: cpu_dout = tmr_ctrl_u;
 
 	16'h0220: cpu_dout = slack;				// 0x220. Only the lower 10 bits get written?
 
@@ -486,8 +464,8 @@ else begin
 
 		// IRQs. (FIQ on ARM will be triggered if PENDING and corresponding MASK bits are both SET.)
 															
-		16'h0040: begin irq0_pend <= irq0_pend |  cpu_din; $display("Write to irq0_pend SET."); end				// 0x40. Writing to 0x40 SETs irq0_pend bits. 
-		16'h0044: begin irq0_pend <= irq0_pend & ~cpu_din; $display("Write to irq0_pend CLR."); end				// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
+		16'h0040: begin irq0_pend <= irq0_pend |  cpu_din; $display("Write to irq0_pend SET."); end			// 0x40. Writing to 0x40 SETs irq0_pend bits. 
+		16'h0044: begin irq0_pend <= irq0_pend & ~cpu_din; $display("Write to irq0_pend CLR."); end			// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
 		
 		16'h0048: begin irq0_enable <= irq0_enable |  cpu_din; $display("Write to irq0_enable SET."); end	// 0x48. Writing to 0x48 SETs irq0_enable bits.
 		16'h004c: begin irq0_enable <= irq0_enable & ~cpu_din; $display("Write to irq0_enable CLR."); end	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
@@ -511,45 +489,18 @@ else begin
 		16'h0084: /*adbio_reg <= cpu_din*/;		// 0x84
 		16'h0088: adbctl <= cpu_din;		// 0x88
 
-		// Timers...
-		16'h0100: timer_count_0   <= cpu_din;	// 0x100
-		16'h0104: timer_backup_0  <= cpu_din;	// 0x104
-		16'h0108: timer_count_1   <= cpu_din;	// 0x108
-		16'h010c: timer_backup_1  <= cpu_din;	// 0x10c
-		16'h0110: timer_count_2   <= cpu_din;	// 0x110
-		16'h0114: timer_backup_2  <= cpu_din;	// 0x114
-		16'h0118: timer_count_3   <= cpu_din;	// 0x118
-		16'h011c: timer_backup_3  <= cpu_din;	// 0x11c
-		16'h0120: timer_count_4   <= cpu_din;	// 0x120
-		16'h0124: timer_backup_4  <= cpu_din;	// 0x124
-		16'h0128: timer_count_5   <= cpu_din;	// 0x128
-		16'h012c: timer_backup_5  <= cpu_din;	// 0x12c
-		16'h0130: timer_count_6   <= cpu_din;	// 0x130
-		16'h0134: timer_backup_6  <= cpu_din;	// 0x134
-		16'h0138: timer_count_7   <= cpu_din;	// 0x138
-		16'h013c: timer_backup_7  <= cpu_din;	// 0x13c
-		16'h0140: timer_count_8   <= cpu_din;	// 0x140
-		16'h0144: timer_backup_8  <= cpu_din;	// 0x144
-		16'h0148: timer_count_9   <= cpu_din;	// 0x148
-		16'h014c: timer_backup_9  <= cpu_din;	// 0x14c
-		16'h0150: timer_count_10  <= cpu_din;	// 0x150
-		16'h0154: timer_backup_10 <= cpu_din;	// 0x154
-		16'h0158: timer_count_11  <= cpu_din;	// 0x158
-		16'h015c: timer_backup_11 <= cpu_din;	// 0x15c
-		16'h0160: timer_count_12  <= cpu_din;	// 0x160
-		16'h0164: timer_backup_12 <= cpu_din;	// 0x164
-		16'h0168: timer_count_13  <= cpu_din;	// 0x168
-		16'h016c: timer_backup_13 <= cpu_din;	// 0x16c
-		16'h0170: timer_count_14  <= cpu_din;	// 0x170
-		16'h0174: timer_backup_14 <= cpu_din;	// 0x174
-		16'h0178: timer_count_15  <= cpu_din;	// 0x178
-		16'h017c: timer_backup_15 <= cpu_din;	// 0x17c
+		// Timers... (timers are handled in each timer module now).
+		/*
+		16'h0100: tmr_cnt_0  <= cpu_din[15:0];	// 0x100
+		// ....
+		16'h017c: tmr_bkp_15 <= cpu_din[15:0];	// 0x17c
+		*/
+		
+		16'h0200: tmr_ctrl_l <= (tmr_ctrl_l | cpu_din);		// Writing to 0x200 SETs the LOWER 32-bits of timer_ctrl.
+		16'h0204: tmr_ctrl_l <= (tmr_ctrl_l & ~cpu_din);	// Writing to 0x204 CLEARs the LOWER 32-bits of timer_ctrl.
 
-		16'h0200: timer_ctrl[31:00] <= (timer_ctrl[31:00] | cpu_din);	// Writing to 0x200 SETs the LOWER 32-bits of timer_ctrl.
-		16'h0204: timer_ctrl[31:00] <= (timer_ctrl[31:00] & ~cpu_din);	// Writing to 0x204 CLEARs the LOWER 32-bits of timer_ctrl.
-
-		16'h0208: timer_ctrl[63:32] <= (timer_ctrl[63:32] | cpu_din);	// Writing to 0x208 SETs the UPPER 32-bits of timer_ctrl.
-		16'h020c: timer_ctrl[63:32] <= (timer_ctrl[63:32] & ~cpu_din);	// Writing to 0x20c CLEARs the UPPER 32-bits of timer_ctrl.
+		16'h0208: tmr_ctrl_u <= (tmr_ctrl_u | cpu_din);		// Writing to 0x208 SETs the UPPER 32-bits of timer_ctrl.
+		16'h020c: tmr_ctrl_u <= (tmr_ctrl_u & ~cpu_din);	// Writing to 0x20c CLEARs the UPPER 32-bits of timer_ctrl.
 		
 		16'h0220: slack <= cpu_din;				// 0x220. Only the lower 10 bits get written?
 
@@ -631,6 +582,456 @@ else begin
 		default: ;
 		endcase
 	end
+
+
+	// Timer stuff...	
+	if (tmr0_ena_clr)  tmr_ctrl_l[0]  <= 1'b0;
+	if (tmr1_ena_clr)  tmr_ctrl_l[4]  <= 1'b0;
+	if (tmr2_ena_clr)  tmr_ctrl_l[8]  <= 1'b0;
+	if (tmr3_ena_clr)  tmr_ctrl_l[12] <= 1'b0;
+	if (tmr4_ena_clr)  tmr_ctrl_l[16] <= 1'b0;
+	if (tmr5_ena_clr)  tmr_ctrl_l[20] <= 1'b0;
+	if (tmr6_ena_clr)  tmr_ctrl_l[24] <= 1'b0;
+	if (tmr7_ena_clr)  tmr_ctrl_l[28] <= 1'b0;
+	
+	if (tmr8_ena_clr)  tmr_ctrl_u[0]  <= 1'b0;
+	if (tmr9_ena_clr)  tmr_ctrl_u[4]  <= 1'b0;
+	if (tmr10_ena_clr) tmr_ctrl_u[8]  <= 1'b0;
+	if (tmr11_ena_clr) tmr_ctrl_u[12] <= 1'b0;
+	if (tmr12_ena_clr) tmr_ctrl_u[16] <= 1'b0;
+	if (tmr13_ena_clr) tmr_ctrl_u[20] <= 1'b0;
+	if (tmr14_ena_clr) tmr_ctrl_u[24] <= 1'b0;
+	if (tmr15_ena_clr) tmr_ctrl_u[27] <= 1'b0;
+	
+
+	// irq0_pend bits...
+	// Interrupts from timers, only possible from odd (highest in pairs)	
+	//
+	// bit 10: Timer.1
+	// bit 09: Timer.3
+	// bit 08: Timer.5
+	// bit 07: Timer.7
+	// bit 06: Timer.9
+	// bit 05: Timer.11
+	// bit 04: Timer.13
+	// bit 03: Timer.15
+
+	if (tmr1_wrap)  irq0_pend[10] <= 1'b1;
+	if (tmr3_wrap)  irq0_pend[09] <= 1'b1;
+	if (tmr5_wrap)  irq0_pend[08] <= 1'b1;
+	if (tmr7_wrap)  irq0_pend[07] <= 1'b1;
+	if (tmr9_wrap)  irq0_pend[06] <= 1'b1;
+	if (tmr11_wrap) irq0_pend[05] <= 1'b1;
+	if (tmr13_wrap) irq0_pend[04] <= 1'b1;
+	if (tmr15_wrap) irq0_pend[03] <= 1'b1;
 end
+
+// reg [31:0] tmr_ctrl_l;        // 0x200,0x204. Controls the lower timers 7  (uppermost nibble) through 0 (lowermost nibble).
+// reg [31:0] tmr_ctrl_u;        // 0x208,0x20c. Controls the lower timers 15 (uppermost nibble) through 8 (lowermost nibble).
+
+// Bits of each nibble...
+//bit 0: decrement / enable
+//bit 1: reload - When timer counter reaches zero reload count with “reload” value. If not set then set counter to 0xFFFF and clear decrement / enable bit.
+//bit 2: cascade - decremented when the previous timer underflows
+//bit 3: flabcode - ?? unknown
+
+wire [3:0] tmr0_ctrl  = tmr_ctrl_l[3:0];
+wire [3:0] tmr1_ctrl  = tmr_ctrl_l[7:4];
+wire [3:0] tmr2_ctrl  = tmr_ctrl_l[11:8];
+wire [3:0] tmr3_ctrl  = tmr_ctrl_l[15:12];
+wire [3:0] tmr4_ctrl  = tmr_ctrl_l[19:16];
+wire [3:0] tmr5_ctrl  = tmr_ctrl_l[23:20];
+wire [3:0] tmr6_ctrl  = tmr_ctrl_l[27:24];
+wire [3:0] tmr7_ctrl  = tmr_ctrl_l[31:28];
+
+wire [3:0] tmr8_ctrl  = tmr_ctrl_u[3:0];
+wire [3:0] tmr9_ctrl  = tmr_ctrl_u[7:4];
+wire [3:0] tmr10_ctrl = tmr_ctrl_u[11:8];
+wire [3:0] tmr11_ctrl = tmr_ctrl_u[15:12];
+wire [3:0] tmr12_ctrl = tmr_ctrl_u[19:16];
+wire [3:0] tmr13_ctrl = tmr_ctrl_u[23:20];
+wire [3:0] tmr14_ctrl = tmr_ctrl_u[27:24];
+wire [3:0] tmr15_ctrl = tmr_ctrl_u[31:28];
+
+wire timer_cs = {cpu_addr,2'b00}>=16'h0100 && {cpu_addr,2'b00}<=16'h017c;
+
+wire tmr0_cs  = timer_cs && (cpu_addr[15:3]==13'd0);
+wire tmr1_cs  = timer_cs && (cpu_addr[15:3]==13'd1);
+wire tmr2_cs  = timer_cs && (cpu_addr[15:3]==13'd2);
+wire tmr3_cs  = timer_cs && (cpu_addr[15:3]==13'd3);
+wire tmr4_cs  = timer_cs && (cpu_addr[15:3]==13'd4);
+wire tmr5_cs  = timer_cs && (cpu_addr[15:3]==13'd5);
+wire tmr6_cs  = timer_cs && (cpu_addr[15:3]==13'd6);
+wire tmr7_cs  = timer_cs && (cpu_addr[15:3]==13'd7);
+wire tmr8_cs  = timer_cs && (cpu_addr[15:3]==13'd8);
+wire tmr9_cs  = timer_cs && (cpu_addr[15:3]==13'd9);
+wire tmr10_cs = timer_cs && (cpu_addr[15:3]==13'd10);
+wire tmr11_cs = timer_cs && (cpu_addr[15:3]==13'd11);
+wire tmr12_cs = timer_cs && (cpu_addr[15:3]==13'd12);
+wire tmr13_cs = timer_cs && (cpu_addr[15:3]==13'd13);
+wire tmr14_cs = timer_cs && (cpu_addr[15:3]==13'd14);
+wire tmr15_cs = timer_cs && (cpu_addr[15:3]==13'd15);
+
+wire tmr0_ena_clr;
+wire tmr1_ena_clr;
+wire tmr2_ena_clr;
+wire tmr3_ena_clr;
+wire tmr4_ena_clr;
+wire tmr5_ena_clr;
+wire tmr6_ena_clr;
+wire tmr7_ena_clr;
+wire tmr8_ena_clr;
+wire tmr9_ena_clr;
+wire tmr10_ena_clr;
+wire tmr11_ena_clr;
+wire tmr12_ena_clr;
+wire tmr13_ena_clr;
+wire tmr14_ena_clr;
+wire tmr15_ena_clr;
+
+wire tmr0_wrap;
+wire tmr1_wrap;
+wire tmr2_wrap;
+wire tmr3_wrap;
+wire tmr4_wrap;
+wire tmr5_wrap;
+wire tmr6_wrap;
+wire tmr7_wrap;
+wire tmr8_wrap;
+wire tmr9_wrap;
+wire tmr10_wrap;
+wire tmr11_wrap;
+wire tmr12_wrap;
+wire tmr13_wrap;
+wire tmr14_wrap;
+wire tmr15_wrap;
+
+
+wire [15:0] tmr0_dout;
+wire [15:0] tmr1_dout;
+wire [15:0] tmr2_dout;
+wire [15:0] tmr3_dout;
+wire [15:0] tmr4_dout;
+wire [15:0] tmr5_dout;
+wire [15:0] tmr6_dout;
+wire [15:0] tmr7_dout;
+wire [15:0] tmr8_dout;
+wire [15:0] tmr9_dout;
+wire [15:0] tmr10_dout;
+wire [15:0] tmr11_dout;
+wire [15:0] tmr12_dout;
+wire [15:0] tmr13_dout;
+wire [15:0] tmr14_dout;
+wire [15:0] tmr15_dout;
+
+wire [15:0] tmr_read_mux = (tmr0_cs)  ? tmr0_dout :
+						   (tmr1_cs)  ? tmr1_dout :
+						   (tmr2_cs)  ? tmr2_dout :
+						   (tmr3_cs)  ? tmr3_dout :
+						   (tmr4_cs)  ? tmr4_dout :
+						   (tmr5_cs)  ? tmr5_dout :
+						   (tmr6_cs)  ? tmr6_dout :
+						   (tmr7_cs)  ? tmr7_dout :
+						   (tmr8_cs)  ? tmr8_dout :
+						   (tmr9_cs)  ? tmr9_dout :
+						   (tmr10_cs) ? tmr10_dout :
+						   (tmr11_cs) ? tmr11_dout :
+						   (tmr12_cs) ? tmr12_dout :
+						   (tmr13_cs) ? tmr13_dout :
+						   (tmr14_cs) ? tmr14_dout :
+										tmr15_dout;
+
+
+
+clio_timer  tmr0_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr0_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr0_dout ),			// output [15:0] tmr_dout
+	.tmr_ena( tmr0_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr0_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr0_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr0_wrap ),			// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr0_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr0_cas )		// input  tmc_cas_in
+);
+clio_timer  tmr1_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr1_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr1_dout ),			// output [15:0] tmr_dout
+	.tmr_ena( tmr1_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr1_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr1_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr1_wrap ),			// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr1_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr0_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr2_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr2_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr2_dout ),			// output [15:0] tmr_dout
+	.tmr_ena( tmr2_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr2_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr2_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr2_wrap ),			// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr2_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr1_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr3_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr3_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr3_dout ),			// output [15:0] tmr_dout
+	.tmr_ena( tmr3_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr3_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr3_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr3_wrap ),			// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr3_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr2_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr4_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr4_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr4_dout ),			// output [15:0] tmr_dout
+	.tmr_ena( tmr4_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr4_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr4_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr4_wrap ),			// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr4_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr3_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr5_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr5_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr5_dout ),			// output [15:0] tmr_dout
+	.tmr_ena( tmr5_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr5_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr5_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr5_wrap ),			// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr5_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr4_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr6_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr6_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr6_dout ),			// output [15:0] tmr_dout
+	.tmr_ena( tmr6_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr6_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr6_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr6_wrap ),			// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr6_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr5_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr7_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr7_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr7_dout ),			// output [15:0] tmr_dout
+	.tmr_ena( tmr7_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr7_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr7_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr7_wrap ),			// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr7_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr6_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr8_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr8_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr8_dout ),			// output [15:0] tmr_dout
+	.tmr_ena( tmr8_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr8_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr8_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr8_wrap ),			// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr8_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr7_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr9_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr9_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr9_dout ),			// output [15:0] tmr_dout
+	.tmr_ena( tmr9_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr9_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr9_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr9_wrap ),			// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr9_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr8_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr10_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr10_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr10_dout ),		// output [15:0] tmr_dout
+	.tmr_ena( tmr10_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr10_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr10_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr10_wrap ),		// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr10_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr9_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr11_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr11_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr11_dout ),		// output [15:0] tmr_dout
+	.tmr_ena( tmr11_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr11_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr11_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr11_wrap ),		// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr11_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr10_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr12_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr12_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr12_dout ),		// output [15:0] tmr_dout
+	.tmr_ena( tmr12_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr12_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr12_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr12_wrap ),		// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr12_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr11_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr13_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr13_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr13_dout ),		// output [15:0] tmr_dout
+	.tmr_ena( tmr13_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr13_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr13_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr13_wrap ),		// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr13_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr12_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr14_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr14_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr14_dout ),		// output [15:0] tmr_dout
+	.tmr_ena( tmr14_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr14_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr14_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr14_wrap ),		// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr14_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr13_wrap )		// input  tmc_cas_in
+);
+clio_timer  tmr15_inst (
+	.reset_n( reset_n ),			// input  reset_n
+	.clock( clk_25m ),				// input  clock
+	.tmr_din( cpu_din[15:0] ),		// input  [15:0] tmr_din
+	.tmr_a2( cpu_addr[2] ),			// input  tmr_a2
+	.tmr_we( tmr15_cs & cpu_wr ),	// input  tmr_we
+	.tmr_dout( tmr15_dout ),		// output [15:0] tmr_dout
+	.tmr_ena( tmr15_ctrl[0] ),		// input  tmr_ena
+	.tmr_reload( tmr15_ctrl[1] ),	// input  tmr_reload
+	.tmr_cas_bit( tmr15_ctrl[2] ),	// input  tmr_cas_bit
+	.tmr_wrap( tmr15_wrap ),		// output tmr_wrap (pulse)
+	.tmr_ena_clr( tmr15_ena_clr ),	// output tmr_ena_clr (pulse)
+	.tmr_cas_clk( tmr14_wrap )		// input  tmc_cas_in
+);
+
+endmodule
+
+
+
+module clio_timer (
+	input reset_n,
+	input clock,
+
+	input [15:0] tmr_din,
+	input tmr_we,
+	
+	input tmr_a2,
+	output [15:0] tmr_dout,
+	
+	input tmr_ena,
+	input tmr_reload,
+	input tmr_cas_bit,
+	output reg tmr_wrap,
+	output reg tmr_ena_clr,
+	
+	input tmr_cas_clk
+);
+
+// Handle reg reads...
+assign tmr_dout = (!tmr_a2) ? tmr_cnt : tmr_bkp;
+
+reg [3:0] tmr_ctrl;
+reg [15:0] tmr_cnt;
+reg [15:0] tmr_bkp;
+
+// If tmr_cas_bit (from tmr_ctrl) is Low, then just decrement using "clock".
+// Else, if tmr_cas_bit is High, then decrement using "tmr_cas_clk".
+wire tmr_dec = !tmr_cas_bit || (tmr_cas_bit&&tmr_cas_clk);
+
+always @(posedge clock)
+if (!reset_n) begin
+	tmr_wrap <= 1'b0;
+	tmr_ena_clr <= 1'b0;
+	tmr_cnt <= 16'h0000;
+	tmr_bkp <= 16'h0000;
+end
+else begin
+	tmr_wrap <= 1'b0;
+	tmr_ena_clr <= 1'b0;
+
+	// Handle reg writes.
+	if (tmr_we) begin
+		if (!tmr_a2) tmr_cnt <= tmr_din;
+		else tmr_bkp <= tmr_din;
+	end
+
+	if (tmr_ena) begin
+		if (tmr_cnt==16'h0000) begin			// Timer has wrapped...
+			tmr_wrap <= 1'b1;					// PULSE the tmr_wrap bit.
+			
+			if (tmr_reload) tmr_cnt <= tmr_bkp;	// If Reload bit is set, reload the "backup" count value.
+			else begin
+				tmr_cnt <= 16'hffff;
+				tmr_ena_clr <= 1'b1;			// If Reload bit is NOT set, PULSE, to clear the Enable bit.
+			end
+		end
+		else if (tmr_dec) tmr_cnt <= tmr_cnt - 1'b1;	// Decrement.
+	end
+end
+
 
 endmodule

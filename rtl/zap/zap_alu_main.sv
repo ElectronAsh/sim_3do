@@ -44,6 +44,8 @@ module zap_alu_main #(
 
         input logic      [64*8-1:0]              i_decompile,
         output logic      [64*8-1:0]             o_decompile,
+        input logic                              i_uop_last,
+        output logic                             o_uop_last,
         output logic                             o_decompile_valid,
 
         // ------------------------------------------------------------------
@@ -262,6 +264,7 @@ logic [31:0]                     quick_sum;
 
 // Decompile valid.
 logic                            o_decompile_valid_nxt;
+logic                            o_uop_last_nxt;
 
 // -------------------------------------------------------------------------------
 // Assigns
@@ -381,6 +384,7 @@ begin
                 sleep_ff                         <= 1'd1; 
                 o_dav_ff                         <= 1'd0; // Don't give any output.
                 o_decompile_valid                <= 1'd0;
+                o_uop_last                       <= 1'd0;
         end
         else if ( o_clear_from_alu )
         begin
@@ -399,7 +403,7 @@ begin
                 o_taken_ff                       <= i_taken_ff;
                 o_irq_ff                         <= i_irq_ff;
                 o_fiq_ff                         <= i_fiq_ff;
-                o_swi_ff                         <= i_swi_ff;
+                o_swi_ff                         <= i_swi_ff && o_dav_nxt;
                 o_mem_srcdest_index_ff           <= i_mem_srcdest_index_ff;
                 o_mem_srcdest_index_ff           <= i_mem_srcdest_index_ff;           
 
@@ -427,6 +431,7 @@ begin
 
                 o_decompile                     <= i_decompile;
                 o_decompile_valid               <= o_decompile_valid_nxt;
+                o_uop_last                      <= o_uop_last_nxt;
         end
 end
 
@@ -711,11 +716,17 @@ begin: flags_bp_feedback
 
         // Decompile valid. Valid condition code but unqualified.
         if ( i_condition_code_ff != NV && !o_dav_nxt )
+        begin
                 o_decompile_valid_nxt = 1'd1;
+                o_uop_last_nxt        = i_uop_last;
+        end
         else
+        begin
                 o_decompile_valid_nxt = 1'd0;
+                o_uop_last_nxt        = o_dav_nxt ? i_uop_last : 1'd0;
+        end
 
-        if ( i_irq_ff || i_fiq_ff || i_abt_ff || i_swi_ff || i_und_ff ) 
+        if ( i_irq_ff || i_fiq_ff || i_abt_ff || (i_swi_ff && o_dav_nxt) || i_und_ff ) 
         begin
                 //
                 // Any sign of an interrupt is present, put unit to sleep.
@@ -992,6 +1003,7 @@ endfunction
 task automatic clear ( input [31:0] flags );
 begin
                 o_decompile_valid                <= 1'd0;
+                o_uop_last                       <= 1'd0;
                 o_clear_from_alu                 <= 0;
                 o_dav_ff                         <= 0;
                 flags_ff                         <= flags;
@@ -1114,6 +1126,8 @@ begin
                 o_decompile                      <= 0; 
                 o_taken_ff                       <= 0;
                 o_confirm_from_alu               <= 0;
+                o_decompile_valid                <= 0;
+                o_uop_last                       <= 0;
 end
 endtask
 

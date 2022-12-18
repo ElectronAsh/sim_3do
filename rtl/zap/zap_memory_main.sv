@@ -43,6 +43,8 @@ module zap_memory_main
         input   logic                        i_decompile_valid,
         output  logic    [64*8-1:0]          o_decompile,
         output  logic                        o_decompile_valid,
+        input   logic                        i_uop_last,
+        output  logic                        o_uop_last,
 
         // Clock and reset.
         input logic                          i_clk,
@@ -138,6 +140,7 @@ begin
         // Invalidate stage.
         o_dav_ff                  <= 0;
         o_decompile_valid         <= 0;
+        o_uop_last                <= 0;
 
         // Clear interrupts.
         o_irq_ff                  <= 0;
@@ -166,6 +169,7 @@ begin
                 // Invalidate when data stall.
                 o_dav_ff          <= 1'd0;
                 o_decompile_valid <= 1'd0;
+                o_uop_last        <= 1'd0;
         end
         else
         begin
@@ -188,6 +192,7 @@ begin
                 // Debug.
                 o_decompile           <= i_decompile;
                 o_decompile_valid     <= i_decompile_valid;
+                o_uop_last            <= i_uop_last;
         end
 end
 

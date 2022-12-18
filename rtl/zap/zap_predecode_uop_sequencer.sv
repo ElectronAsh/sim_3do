@@ -72,7 +72,10 @@ module zap_predecode_uop_sequencer
 
         // Possibly masked interrupts.
         output logic              o_irq,
-        output logic              o_fiq
+        output logic              o_fiq,
+
+        // UOP last.
+        output logic              o_uop_last
 );
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -733,6 +736,11 @@ begin:blk_a
                 end
         endcase
 end
+
+// Debug only.
+assign o_uop_last = (((state_ff == IDLE) && (state_nxt == IDLE)) || 
+                     ((state_ff != IDLE) && (state_nxt == IDLE))) && 
+                     o_instruction_valid;
 
 ///////////////////////////////////////////////////////////////////////////////
 

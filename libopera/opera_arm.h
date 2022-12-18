@@ -42,6 +42,8 @@ EXTERN_C_BEGIN
 
 //FILE* logfile;
 
+static uint32_t* g_VIDEO_BUFFER;
+
 arm_core_t CPU;
 
 int32_t  opera_arm_execute(void);

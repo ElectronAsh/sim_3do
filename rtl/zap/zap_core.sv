@@ -50,7 +50,8 @@ module zap_core #(
 // ------------------------------------------------
 
 output logic [2047:0]                    o_trace,
-output logic                             o_trace_trigger,
+output logic                             o_trace_valid,
+output logic                             o_trace_uop_last,
 
 // ------------------------------------------------
 // Clock and reset. Reset is synchronous.
@@ -231,6 +232,7 @@ logic                            predecode_und;
 logic [1:0]                      predecode_taken;
 logic [31:0]                     predecode_ppc_ff;
 logic                            predecode_clear_btb;
+logic                            predecode_uop_last;
 
 // Decode
 logic [3:0]                      decode_condition_code;
@@ -263,6 +265,7 @@ logic                            clear_from_decode;
 logic [31:0]                     pc_from_decode;
 logic [1:0]                      decode_taken_ff;
 logic [31:0]                     decode_ppc_ff;
+logic                            decode_uop_last;
 
 // Issue
 logic [3:0]                      issue_condition_code_ff;  
@@ -297,6 +300,7 @@ logic                            issue_force32_ff;
 logic                            issue_und_ff;
 logic  [1:0]                     issue_taken_ff;
 logic  [31:0]                    issue_ppc_ff;
+logic                            issue_uop_last;
 
 logic [$clog2(PHY_REGS)-1:0]     rd_index_0;
 logic [$clog2(PHY_REGS)-1:0]     rd_index_1;
@@ -335,6 +339,7 @@ logic                            shifter_und_ff;
 logic                            stall_from_shifter;
 logic [1:0]                      shifter_taken_ff;
 logic [31:0]                     shifter_ppc_ff;
+logic                            shifter_uop_last;
 
 // ALU
 logic [31:0]                     alu_alu_result_nxt;
@@ -367,6 +372,7 @@ logic                            alu_data_wb_stb;
 logic [31:0]                     alu_data_wb_dat;
 logic [3:0]                      alu_data_wb_sel;
 logic                            alu_decompile_valid;
+logic                            alu_uop_last;
 
 // Post ALU 0
 logic [31:0]                     postalu0_alu_result_ff;
@@ -393,6 +399,7 @@ logic                            postalu0_data_wb_stb;
 logic [31:0]                     postalu0_data_wb_dat;
 logic [3:0]                      postalu0_data_wb_sel;
 logic                            postalu0_decompile_valid;
+logic                            postalu0_uop_last;
 
 // Post ALU 1
 logic [31:0]                     postalu1_alu_result_ff;
@@ -419,6 +426,7 @@ logic                            postalu1_data_wb_stb;
 logic [31:0]                     postalu1_data_wb_dat;
 logic [3:0]                      postalu1_data_wb_sel;
 logic                            postalu1_decompile_valid;
+logic                            postalu1_uop_last;
 
 // Post ALU
 logic [31:0]                     postalu_alu_result_ff;
@@ -440,6 +448,7 @@ logic                            postalu_uhalf_ff;
 logic [31:0]                     postalu_address_ff;
 logic                            postalu_mem_translate_ff;
 logic                            postalu_decompile_valid;
+logic                            postalu_uop_last;
 
 // Memory
 logic [31:0]                     memory_alu_result_ff;
@@ -457,6 +466,7 @@ logic  [31:0]                    memory_mem_rd_data;
 logic                            memory_und_ff;
 logic  [1:0]                     memory_data_abt_ff;
 logic                            memory_decompile_valid;
+logic                            memory_uop_last;
 
 // Writeback
 logic [31:0]                     rd_data_0;
@@ -681,7 +691,8 @@ u_zap_predecode (
 
         .i_abt                          (thumb_iabort),
         .i_pc_plus_8_ff                 (thumb_pc_plus_8_ff),
-        .i_pc_ff                        (alu_flags_ff[T] ? thumb_pc_plus_8_ff - 32'd4 : thumb_pc_plus_8_ff - 32'd8),
+        .i_pc_ff                        (alu_flags_ff[T] ? thumb_pc_plus_8_ff - 32'd4 : 
+                                         thumb_pc_plus_8_ff - 32'd8),
 
         .i_cpu_mode_t                   (alu_flags_ff[T]),
         .i_cpu_mode_mode                (alu_flags_ff[`ZAP_CPSR_MODE]),
@@ -718,7 +729,10 @@ u_zap_predecode (
         .o_instruction_valid_ff         (predecode_val),
 
         .o_taken_ff                     (predecode_taken),
-        .o_ppc_ff                       (predecode_ppc_ff)
+        .o_ppc_ff                       (predecode_ppc_ff),
+
+        .o_uop_last                     (predecode_uop_last) 
+                                        // Asserted to indicate last instruction of sequence.
 );
 
 // =====================
@@ -733,6 +747,8 @@ zap_decode_main #(
 )
 u_zap_decode_main (
         .o_decompile                    (decode_decompile),
+        .i_uop_last                     (predecode_uop_last),
+        .o_uop_last                     (decode_uop_last),
 
         // Input.
         .i_clk                          (i_clk),
@@ -805,6 +821,9 @@ zap_issue_main #(
 )
 u_zap_issue_main
 (
+        .i_uop_last(decode_uop_last),
+        .o_uop_last(issue_uop_last),
+
         .i_decompile(decode_decompile),
         .o_decompile(issue_decompile),
 
@@ -951,6 +970,9 @@ zap_shifter_main #(
 )
 u_zap_shifter_main
 (
+        .i_uop_last(issue_uop_last),
+        .o_uop_last(shifter_uop_last),
+
         .i_decompile                    (issue_decompile),
         .o_decompile                    (shifter_decompile),
 
@@ -1063,6 +1085,8 @@ zap_alu_main #(
 )
 u_zap_alu_main
 (
+         .i_uop_last                     (shifter_uop_last),
+         .o_uop_last                     (alu_uop_last),
          .i_clk                          (i_clk),
          .i_reset                        (reset),
          .i_decompile                    (shifter_decompile),
@@ -1150,6 +1174,9 @@ zap_postalu_main #(
          .i_clear_from_writeback           (clear_from_writeback),
          .i_data_mem_fault                 (i_data_wb_err | i_dcache_err2),
 
+          .i_uop_last                      (alu_uop_last),
+          .o_uop_last                      (postalu0_uop_last),
+
          .i_decompile_valid                (alu_decompile_valid),
          .i_decompile                      (alu_decompile),             
          .i_alu_result_ff                  (alu_alu_result_ff),         
@@ -1217,6 +1244,9 @@ zap_postalu_main #(
          .i_data_stall                     (data_stall),
          .i_clear_from_writeback           (clear_from_writeback),
          .i_data_mem_fault                 (i_data_wb_err | i_dcache_err2),
+
+         .i_uop_last                       (postalu0_uop_last),
+         .o_uop_last                       (postalu1_uop_last),
 
          .i_decompile                      (postalu0_decompile),             
          .i_decompile_valid                (postalu0_decompile_valid),
@@ -1287,6 +1317,9 @@ zap_postalu_main #(
          .i_clear_from_writeback           (clear_from_writeback),
          .i_data_mem_fault                 (i_data_wb_err | i_dcache_err2),
 
+        .i_uop_last                        (postalu1_uop_last),
+        .o_uop_last                        (postalu_uop_last),
+
          .i_decompile                      (postalu1_decompile),             
          .i_decompile_valid                (postalu1_decompile_valid),
          .i_alu_result_ff                  (postalu1_alu_result_ff),         
@@ -1350,6 +1383,8 @@ zap_memory_main #(
 )
 u_zap_memory_main
 (
+        .i_uop_last                     (postalu_uop_last),
+        .o_uop_last                     (memory_uop_last),
         .o_decompile                    (memory_decompile),
         .o_decompile_valid              (memory_decompile_valid),
         .i_decompile                    (postalu_decompile),    
@@ -1416,8 +1451,10 @@ zap_writeback #(
 u_zap_writeback
 (
         .o_trace                (o_trace),
-        .o_trace_trigger        (o_trace_trigger),
+        .o_trace_valid          (o_trace_valid),
+        .o_trace_uop_last       (o_trace_uop_last),
 
+        .i_uop_last             (memory_uop_last),
         .i_decompile            (memory_decompile),
         .i_decompile_valid      (memory_decompile_valid),
 

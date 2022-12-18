@@ -34,6 +34,9 @@ module zap_predecode_main #( parameter PHY_REGS = 46, parameter RAS_DEPTH = 8 )
         input   logic                            i_clk,
         input   logic                            i_reset,
 
+        // UOP
+        output logic                             o_uop_last,
+
         // Predict. MSB is valid bit.
         input logic   [32:0]                     i_pred,
         output logic                             o_clear_btb,
@@ -116,6 +119,7 @@ logic                               w_clear_from_decode;
 logic [31:0]                        w_pc_from_decode;
 logic [39:0]                        o_instruction_nxt;
 logic                               o_instruction_valid_nxt;
+logic                               o_uop_last_nxt;
 logic                               mem_fetch_stall;
 logic                               arm_irq;
 logic                               arm_fiq;
@@ -197,6 +201,7 @@ begin
                 o_taken_ff             <= taken_nxt;
                 o_instruction_ff       <= o_instruction_nxt;
                 o_instruction_valid_ff <= o_instruction_valid_nxt;
+                o_uop_last             <= o_uop_last_nxt;
                 o_copro_dav_ff         <= copro_dav_nxt;
                 o_copro_word_ff        <= copro_word_nxt;
 
@@ -223,6 +228,7 @@ begin
                 o_taken_ff             <= 0; 
                 o_instruction_ff       <= 0; 
                 o_instruction_valid_ff <= 0; 
+                o_uop_last             <= 0;
                 o_ppc_ff               <= 0;
                 o_clear_from_decode    <= 0;
                 o_pc_from_decode       <= 0;
@@ -239,6 +245,7 @@ begin
                 o_und_ff                                <= 0;
                 o_taken_ff                              <= 0;
                 o_instruction_valid_ff                  <= 0;
+                o_uop_last                              <= 0;
                 o_clear_from_decode                     <= 0;
 end
 endtask
@@ -596,6 +603,7 @@ zap_predecode_uop_sequencer u_zap_uop_sequencer (
 
         .o_instruction(o_instruction_nxt), // 40-bit, upper 4 bits RESERVED.
         .o_instruction_valid(o_instruction_valid_nxt),
+        .o_uop_last(o_uop_last_nxt),
         .o_stall_from_decode(mem_fetch_stall)
 );
 

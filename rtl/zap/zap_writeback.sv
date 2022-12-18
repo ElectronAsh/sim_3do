@@ -32,6 +32,7 @@ module zap_writeback #(
         // Decompile.
         input   logic    [64*8-1:0]           i_decompile,
         input   logic                         i_decompile_valid,
+        input   logic                         i_uop_last,
 
         output  logic    [64*8-1:0]           o_decompile,
 
@@ -125,7 +126,8 @@ module zap_writeback #(
 
         // Trace
         output logic [2047:0]                o_trace,
-        output logic                         o_trace_trigger
+        output logic                         o_trace_valid, 
+        output logic                         o_trace_uop_last
 );
 
 `include "zap_defines.svh"
@@ -487,14 +489,17 @@ endfunction
 
         /* For simulation only */
         logic [1023:0] msg_nxt;
+        logic          trace_uop_last_nxt;
+        logic          trace_valid_nxt;
 
         always @*
         begin
-                msg_nxt = o_trace;
+                msg_nxt            = o_trace;
+                trace_uop_last_nxt = 0;
 
                 if ( i_reset )
                 begin
-                        msg_nxt = "IGNORE";
+                        $sformat(msg_nxt, "%x:<RESET>", i_pc_plus_8_buf_ff - 8);
                 end
                 else if ( i_data_abt[1] )
                 begin
@@ -502,98 +507,107 @@ endfunction
                 end
                 else if ( i_data_abt[0] )
                 begin
-                        msg_nxt = "DABT";
+                        $sformat(msg_nxt, "%x:<DABT>", i_pc_plus_8_buf_ff - 8);
                 end
                 else if ( i_fiq )
                 begin
-                        msg_nxt = "FIQ";
+                        $sformat(msg_nxt, "%x:<FIQ>", i_pc_plus_8_buf_ff - 8);
                 end
                 else if ( i_irq  )
                 begin
-                        msg_nxt = "IRQ";
+                        $sformat(msg_nxt, "%x:<IRQ>", i_pc_plus_8_buf_ff - 8);
                 end
                 else if ( i_instr_abt  )
                 begin
-                        msg_nxt = "IABT";
+                        $sformat(msg_nxt, "%x:<IABT>", i_pc_plus_8_buf_ff - 8);
                 end
                 else if ( i_swi )
                 begin
-                        msg_nxt = "SWI";
+                        $sformat(msg_nxt, "%x:<SWI>", i_pc_plus_8_buf_ff - 8);
                 end
                 else if ( i_und )
                 begin
-                        msg_nxt = "UND";
+                        $sformat(msg_nxt, "%x:<UND>", i_pc_plus_8_buf_ff - 8);
                 end
                 else if ( i_copro_reg_en  )
                 begin
                         $sformat(msg_nxt, 
-                                "CP Write idx=%x data=%x", i_copro_reg_wr_index,
-                                                      i_copro_reg_wr_data);
+                                "CP15_ASYNC_UPDATE:idx=%x data=%x", 
+                                 i_copro_reg_wr_index, i_copro_reg_wr_data);
                 end
                 else if ( i_valid )
                 begin
                         $sformat(msg_nxt, 
                         "%x:<%s> %x@%x %x@%x %x", 
                         i_pc_plus_8_buf_ff - 8, i_decompile, wa1, wdata1, wa2, wdata2, i_flags);
+
+                        trace_uop_last_nxt = i_uop_last;
                 end              
                 else if ( i_decompile_valid )
                 begin
                          $sformat(msg_nxt, 
                         "%x:<%s>*", 
                         i_pc_plus_8_buf_ff - 8, i_decompile);
+
+                        trace_uop_last_nxt = i_uop_last;
                 end 
         end
 
+        // Happens on the same edge as register update.
         always @ ( posedge i_clk ) 
         begin
-                o_trace <= msg_nxt;
+                o_trace          <= msg_nxt;
+                o_trace_uop_last <= trace_uop_last_nxt;
+                o_trace_valid    <= trace_valid_nxt;
         end
 
-        always @ (posedge i_clk)
+        always_comb
         begin
+                trace_valid_nxt = 0;
+
                 if ( i_reset )
                 begin
-                        o_trace_trigger <= 0;
+                        trace_valid_nxt = 1;
                 end
                 else if ( i_data_abt[1] )
                 begin
-                        // Empty.
+                        trace_valid_nxt = 0;
                 end
                 else if ( i_data_abt[0] )
                 begin
-                        o_trace_trigger <= o_trace_trigger + 1;
+                        trace_valid_nxt = 1;
                 end
                 else if ( i_fiq )
                 begin
-                        o_trace_trigger <= o_trace_trigger + 1;
+                        trace_valid_nxt = 1;
                 end
                 else if ( i_irq  )
                 begin
-                        o_trace_trigger <= o_trace_trigger + 1;
+                        trace_valid_nxt = 1;
                 end
                 else if ( i_instr_abt  )
                 begin
-                        o_trace_trigger <= o_trace_trigger + 1;
+                        trace_valid_nxt = 1;
                 end
                 else if ( i_swi )
                 begin
-                        o_trace_trigger <= o_trace_trigger + 1;
+                        trace_valid_nxt = 1;
                 end
                 else if ( i_und )
                 begin
-                        o_trace_trigger <= o_trace_trigger + 1;
+                        trace_valid_nxt = 1;
                 end
                 else if ( i_copro_reg_en  )
                 begin
-                        o_trace_trigger <= o_trace_trigger + 1;
+                        trace_valid_nxt = 1;
                 end
                 else if ( i_valid )
                 begin
-                        o_trace_trigger <= o_trace_trigger + 1;
+                        trace_valid_nxt = 1;
                 end
                 else if ( i_decompile_valid )
                 begin
-                        o_trace_trigger <= o_trace_trigger + 1;
+                        trace_valid_nxt = 1;
                 end
         end
 
@@ -602,8 +616,9 @@ endfunction
 
 // Tie off trace to 0.
 assign o_trace         = '0;
-assign o_trace_trigger = '0;
-wire   unused          = i_decompile_valid;
+assign o_trace_valid   = '0;
+assign o_trace_uop_last= '0;
+wire   unused          = |{i_decompile_valid, i_uop_last};
 
 `endif
 

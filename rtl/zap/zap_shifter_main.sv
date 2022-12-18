@@ -42,6 +42,8 @@ module zap_shifter_main
         // For debug
         input   logic    [64*8-1:0]              i_decompile,
         output  logic    [64*8-1:0]              o_decompile,
+        input   logic                            i_uop_last,
+        output  logic                            o_uop_last,
 
         // Clock and reset.
         input logic                               i_clk,
@@ -236,6 +238,7 @@ begin
            o_abt_ff                          <= 0;                
            o_swi_ff                          <= 0; 
            o_und_ff                          <= 0;
+           o_uop_last                        <= 0;
 end
 endtask
 
@@ -325,6 +328,7 @@ begin
 
            // For debug
            o_decompile                       <= i_decompile;
+           o_uop_last                        <= i_uop_last;
    end
 end
 
@@ -494,6 +498,7 @@ begin
            o_pc_ff                           <= 0; 
            o_nozero_ff                       <= 0; 
            o_decompile                       <= 0; 
+           o_uop_last                        <= 1'd0;
 end
 endtask
 

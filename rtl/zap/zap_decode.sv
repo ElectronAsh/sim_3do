@@ -255,7 +255,7 @@ begin
         o_shift_length[32]      = IMMED_EN;
 
         // Destination index.
-        o_destination_index     = {1'd0, i_instruction[15:12]};
+        o_destination_index     = {1'd0, instruction[15:12]};
 end
 endfunction
 
@@ -280,7 +280,7 @@ begin: tskDecodeClz
         o_shift_length[32]      =       IMMED_EN; // Shift length is 0 of course.
 
         // Destination index.
-        o_destination_index     =       {1'd0, i_instruction[15:12]};
+        o_destination_index     =       {1'd0, instruction[15:12]};
 end
 endfunction
 
@@ -383,7 +383,7 @@ function void decode_swi ();
 begin: tskDecodeSWI
 
         // Generate LR = PC - 4
-        o_condition_code    = AL;
+        o_condition_code    = instruction[31:28];
         o_alu_operation     = {2'd0, SUB};
         o_alu_source        = {29'd0, ARCH_PC};
         o_alu_source[32]    = INDEX_EN; 
@@ -599,7 +599,7 @@ begin: tskLDecodeMultDsp
 
         endcase
 
-        if ( instruction[`ZAP_OPCODE_EXTEND] == 1'd0 && i_instruction[31:0] ==? SMLALxy ) // Low request.
+        if ( instruction[`ZAP_OPCODE_EXTEND] == 1'd0 && instruction[31:0] ==? SMLALxy ) // Low request.
         begin
                         o_destination_index = {1'd0, instruction[15:12]}; // Low register.
                         o_alu_operation[0]  = 1'd0;                       // Request low operation.

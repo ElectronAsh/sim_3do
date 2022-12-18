@@ -63,6 +63,60 @@
     <ClCompile Include="..\..\..\verilator\include\verilated_vcd_c.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_3do.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_arm.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_bios.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_bitop.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_cdrom.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_clio.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_clock.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_dsp.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_fixedpoint_math.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_madam.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_nvram.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_pbus.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_region.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_sport.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_vdlp.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_xbus.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_xbus_cdrom_plugin.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libopera\opera_diag_port.c">
+      <Filter>Source Files\libopera</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\out\Vcore_3do.cpp">
       <Filter>Source Files\Vcore</Filter>
     </ClCompile>
@@ -126,60 +180,6 @@
     <ClCompile Include="..\..\out\Vcore_3do__Trace__0__Slow.cpp">
       <Filter>Source Files\Vcore</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_3do.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_arm.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_bios.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_bitop.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_cdrom.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_clio.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_clock.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_dsp.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_fixedpoint_math.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_madam.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_nvram.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_pbus.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_region.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_sport.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_vdlp.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_xbus.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_xbus_cdrom_plugin.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libopera\opera_diag_port.c">
-      <Filter>Source Files\libopera</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\linux_temp\imgui\imconfig.h">
@@ -229,18 +229,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\verilator\include\verilated_vcd_c.h">
       <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\out\Vcore_3do.h">
-      <Filter>Source Files\Vcore</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\out\Vcore_3do___024root.h">
-      <Filter>Source Files\Vcore</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\out\Vcore_3do__Dpi.h">
-      <Filter>Source Files\Vcore</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\out\Vcore_3do__Syms.h">
-      <Filter>Source Files\Vcore</Filter>
     </ClInclude>
     <ClInclude Include="..\..\libopera\bool.h">
       <Filter>Source Files\libopera</Filter>
@@ -340,6 +328,18 @@
     </ClInclude>
     <ClInclude Include="..\..\libopera\opera_diag_port.h">
       <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\out\Vcore_3do.h">
+      <Filter>Source Files\Vcore</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\out\Vcore_3do___024root.h">
+      <Filter>Source Files\Vcore</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\out\Vcore_3do__Dpi.h">
+      <Filter>Source Files\Vcore</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\out\Vcore_3do__Syms.h">
+      <Filter>Source Files\Vcore</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

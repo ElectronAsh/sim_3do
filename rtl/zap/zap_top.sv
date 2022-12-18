@@ -34,25 +34,25 @@ module zap_top #(
 // are not present.
 // -----------------------------------
 
-parameter    [0:0]      ONLY_CORE          = 1'd1,			// for 3DO.
+parameter    [0:0]      ONLY_CORE          = 1'd1,	// For 3DO.
 
 // -----------------------------------
 // Set reset vector here
 // -----------------------------------
 
-parameter   [31:0]       RESET_VECTOR      = 32'h03000000,	// for 3DO.
+parameter   [31:0]       RESET_VECTOR      = 32'h03000000,	// For 3DO.
 
 // -----------------------------------
 // Set initial value of CPSR here.
 // -----------------------------------
 
-parameter [31:0]        CPSR_INIT          = {24'd0, 1'd0,1'd0,1'd0,5'b10011},	// Bit[7]=IRQ mask. Bit[6]=FIQ mask. bit[5]=Thumb. bits[4:0]=Mode.
+parameter [31:0]        CPSR_INIT          = {24'd0, 1'd0,1'd0,1'd0,5'b10011},	// Bit[7]=IRQ mask. Bit[6]=FIQ mask. Bits[4:0]=CPU Mode.
 
 // -----------------------------------
 // Enable BE-32
 // -----------------------------------
 
-parameter   [0:0]       BE_32_ENABLE       = 1'd1,	// for 3DO.
+parameter   [0:0]       BE_32_ENABLE       = 1'd1,	// For 3DO.
 
 // -----------------------------------
 // BP entries, FIFO depths
@@ -89,7 +89,8 @@ parameter [31:0] CODE_CACHE_LINE          =  32'd64    // Ccahe line size in byt
         // --------------------------------------
 
         output  logic  [2047:0]    o_trace,
-        output  logic              o_trace_trigger,
+        output  logic              o_trace_valid,  
+        output  logic              o_trace_uop_last,
 
         // --------------------------------------
         // Clock and reset
@@ -199,7 +200,8 @@ zap_core #(
 (
 // Trace
 .o_trace                (o_trace),
-.o_trace_trigger        (o_trace_trigger),
+.o_trace_valid          (o_trace_valid),
+.o_trace_uop_last       (o_trace_uop_last),
 
 // Clock and reset.
 .i_clk                  (i_clk),
