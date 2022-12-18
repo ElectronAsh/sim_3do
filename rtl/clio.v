@@ -225,7 +225,7 @@ reg [31:0] dsppclkreload;	// 0x39dc.
 
 
 // UNCLE...
-reg [31:0] unclerev;		// 0xc000. Opera returns 0x03800000.
+reg [31:0] unclerev;		// 0xc000. Opera returns 0x03800000. ??
 reg [31:0] unc_soft_rev;	// 0xc004
 reg [31:0] uncle_addr;		// 0xc008
 reg [31:0] uncle_rom;		// 0xc00c
@@ -265,7 +265,7 @@ always @(*) begin
 
 // hdelay / adbio stuff...
 	16'h0080: cpu_dout = hdelay;		// 0x80
-	16'h0084: cpu_dout = adbio_reg;		// 0x84
+	16'h0084: /*cpu_dout = {28'h0000000, adbio_reg[7:4]};*/ cpu_dout = 32'h00000000;	// 0x84
 	16'h0088: cpu_dout = adbctl;		// 0x88
 
 
@@ -384,7 +384,7 @@ always @(*) begin
 
 
 // UNCLE...
-	16'hc000: cpu_dout = unclerev;		// 0xc000. Opera returns 0x03800000.
+	16'hc000: cpu_dout = unclerev;		// 0xc000
 	16'hc004: cpu_dout = unc_soft_rev;	// 0xc004
 	16'hc008: cpu_dout = uncle_addr;	// 0xc008
 	16'hc00c: cpu_dout = uncle_rom;		// 0xc00c
@@ -405,11 +405,15 @@ if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera returns 0x02020000.
 	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
 	//cstatbits[6] <= 1'b1;			// Set bit 0 (DIPIR). TESTING !!
-	expctl <= 32'h00000080;
+	expctl <= 32'h00000080;			// Opera starts with this -> 0x80; // ARM has the expansion bus.
 	field <= 1'b0;
 	hcnt <= 32'd0;
 	vcnt <= 32'd0;
 	
+	unclerev <= 32'h03800000;		//  Opera returns 0x03800000. ?
+	unc_soft_rev <= 32'h00000000;
+	
+	slack <= 10'd64;
 	adbio_reg <= 32'h00000000;
 	
 	irq0_pend <= 32'h00000000;
@@ -418,8 +422,24 @@ if (!reset_n) begin
 	irq1_enable <= 32'h00000000;
 end
 else begin
-	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF) ) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
-	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF) ) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
+	// Setting an upper nibble bit of the adbio reg will set the corresponding lower bit.
+	// (opera source code). The upper nibble is not kept, AFAIK. ElectronAsh.
+	// The ADBIO pins on CLIO are all unconnected, aside from bit 3 being routed via a diode to the WatchDog Reset pin (also on CLIO).
+	/*
+	uint32_t adbio_temp = top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg;
+	if (adbio_temp & 0x10) top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg |= 0x01;
+	if (adbio_temp & 0x20) top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg |= 0x02;
+	if (adbio_temp & 0x40) top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg |= 0x04;
+	if (adbio_temp & 0x80) top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg |= 0x08;
+	top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg &= 0x0F;
+	*/
+	
+	//adbio_reg <= {28'h0000000, adbio_reg[7:4]};
+	
+	// Don't know if we need to check the enable (mask) bits here,
+	// or if vint0 and vint1 will *always* set the irq0_pend bits when vcnt==vint ?? ElectronAsh.
+	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF) /*&& irq0_enable[0]*/) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
+	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF) /*&& irq0_enable[1]*/) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
 
 	irq0_pend[31] <= |irq1_pend;	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
 
@@ -481,7 +501,7 @@ else begin
 
 		// hdelay / adbio stuff...
 		16'h0080: hdelay <= cpu_din;		// 0x80
-		16'h0084: /*adbio_reg <= cpu_din*/;		// 0x84
+		16'h0084: adbio_reg <= cpu_din;		// 0x84
 		16'h0088: adbctl <= cpu_din;		// 0x88
 
 		// Timers... (timers are handled in each timer module now).
@@ -505,7 +525,7 @@ else begin
 		16'h0308: dmareqdis <= cpu_din;	// 0x308 DMA stopper thingy.
 
 		// Only bits 15,14,11,9 are written to in MAME? Opera calls this reg "XBUS Direction"...
-		// Opera starts with this -> 0x80; /* ARM has the expansion bus */
+		// Opera starts with this -> 0x80; // ARM has the expansion bus.
 		16'h0400: expctl <= (expctl |  cpu_din);	// 0x400. Writing to 0x400 SETs bits of expctl.
 		16'h0404: expctl <= (expctl & ~cpu_din);	// 0x404. Writing to 0x404 CLEARs bits of expctl.
 
@@ -569,8 +589,8 @@ else begin
 		16'h39dc: dsppclkreload <= cpu_din;	// 0x39dc. ?
 
 		// UNCLE...
-		16'hc000: unclerev <= cpu_din;		// 0xc000. Opera returns 0x03800000.
-		16'hc004: unc_soft_rev <= cpu_din;// 0xc004
+		16'hc000: /*unclerev <= cpu_din*/;		// 0xc000. Opera returns 0x03800000.
+		16'hc004: /*unc_soft_rev <= cpu_din*/;	// 0xc004
 		16'hc008: uncle_addr <= cpu_din;	// 0xc008
 		16'hc00c: uncle_rom <= cpu_din;		// 0xc00c
 		
@@ -596,7 +616,7 @@ else begin
 	if (tmr12_ena_clr) tmr_ctrl_u[16] <= 1'b0;
 	if (tmr13_ena_clr) tmr_ctrl_u[20] <= 1'b0;
 	if (tmr14_ena_clr) tmr_ctrl_u[24] <= 1'b0;
-	if (tmr15_ena_clr) tmr_ctrl_u[27] <= 1'b0;
+	if (tmr15_ena_clr) tmr_ctrl_u[28] <= 1'b0;
 	
 
 	// irq0_pend bits...
@@ -751,7 +771,7 @@ clio_timer  tmr0_inst (
 	.tmr_cas_bit( tmr0_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr0_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr0_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr0_cas )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr0_cas )		// input  tmr_cas_clk
 );
 clio_timer  tmr1_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -765,7 +785,7 @@ clio_timer  tmr1_inst (
 	.tmr_cas_bit( tmr1_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr1_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr1_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr0_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr0_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr2_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -779,7 +799,7 @@ clio_timer  tmr2_inst (
 	.tmr_cas_bit( tmr2_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr2_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr2_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr1_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr1_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr3_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -793,7 +813,7 @@ clio_timer  tmr3_inst (
 	.tmr_cas_bit( tmr3_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr3_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr3_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr2_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr2_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr4_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -807,7 +827,7 @@ clio_timer  tmr4_inst (
 	.tmr_cas_bit( tmr4_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr4_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr4_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr3_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr3_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr5_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -821,7 +841,7 @@ clio_timer  tmr5_inst (
 	.tmr_cas_bit( tmr5_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr5_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr5_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr4_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr4_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr6_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -835,7 +855,7 @@ clio_timer  tmr6_inst (
 	.tmr_cas_bit( tmr6_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr6_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr6_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr5_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr5_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr7_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -849,7 +869,7 @@ clio_timer  tmr7_inst (
 	.tmr_cas_bit( tmr7_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr7_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr7_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr6_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr6_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr8_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -863,7 +883,7 @@ clio_timer  tmr8_inst (
 	.tmr_cas_bit( tmr8_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr8_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr8_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr7_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr7_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr9_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -877,7 +897,7 @@ clio_timer  tmr9_inst (
 	.tmr_cas_bit( tmr9_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr9_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr9_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr8_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr8_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr10_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -891,7 +911,7 @@ clio_timer  tmr10_inst (
 	.tmr_cas_bit( tmr10_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr10_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr10_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr9_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr9_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr11_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -905,7 +925,7 @@ clio_timer  tmr11_inst (
 	.tmr_cas_bit( tmr11_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr11_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr11_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr10_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr10_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr12_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -919,7 +939,7 @@ clio_timer  tmr12_inst (
 	.tmr_cas_bit( tmr12_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr12_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr12_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr11_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr11_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr13_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -933,7 +953,7 @@ clio_timer  tmr13_inst (
 	.tmr_cas_bit( tmr13_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr13_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr13_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr12_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr12_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr14_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -947,7 +967,7 @@ clio_timer  tmr14_inst (
 	.tmr_cas_bit( tmr14_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr14_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr14_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr13_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr13_wrap )		// input  tmr_cas_clk
 );
 clio_timer  tmr15_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -961,7 +981,7 @@ clio_timer  tmr15_inst (
 	.tmr_cas_bit( tmr15_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr15_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr15_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr14_wrap )		// input  tmc_cas_in
+	.tmr_cas_clk( tmr14_wrap )		// input  tmr_cas_clk
 );
 
 endmodule
@@ -1016,14 +1036,10 @@ else begin
 	end
 
 	if (tmr_ena) begin
-		if (tmr_cnt==16'h0000) begin			// Timer has wrapped...
-			tmr_wrap <= 1'b1;					// PULSE the tmr_wrap bit.
-			
+		if (tmr_cnt==16'hFFFF) begin			// Timer has wrapped...
+			tmr_wrap <= 1'b1;					// PULSE the tmr_wrap bit. (to optionally clock the next timer, via the cascade input).
 			if (tmr_reload) tmr_cnt <= tmr_bkp;	// If Reload bit is set, reload the "backup" count value.
-			else begin
-				tmr_cnt <= 16'hffff;
-				tmr_ena_clr <= 1'b1;			// If Reload bit is NOT set, PULSE, to clear the Enable bit.
-			end
+			else tmr_ena_clr <= 1'b1;			// If Reload bit is NOT set, PULSE, to clear the Enable bit.
 		end
 		else if (tmr_dec) tmr_cnt <= tmr_cnt - 1'b1;	// Decrement.
 	end

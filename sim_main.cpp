@@ -45,6 +45,7 @@ extern arm_core_t CPU;
 
 FILE* logfile;
 FILE* inst_file;
+FILE* soundfile;
 
 
 #include <d3d11.h>
@@ -106,14 +107,11 @@ char my_string[1024];
 
 bool trace = 0;
 bool inst_trace = 0;
+bool soundtrace = 0;
 
 int pix_count = 0;
 
 uint8_t wait_ticks = 0;
-
-bool field = 1;
-uint32_t vint0_reg;
-uint32_t vint1_reg;
 
 uint32_t cur_pc;
 uint32_t old_pc;
@@ -612,7 +610,7 @@ void pbus_dma() {
 
 	//0x8000FFFF 0xFFFFFFFF 0xFFFF0000 0xFFFFFFFF
 	//0xFFFFFFFF 0xFFFFFFFF 0xFFFFFFFF 0xFFFFFFFF
-	ram_ptr[str+0]= 0x80; ram_ptr[str+1]= 0x00; ram_ptr[str+2]= 0xff; ram_ptr[str+3]= 0xff,
+	ram_ptr[str+0]= pbus_buf[0]; ram_ptr[str+1]= pbus_buf[1]; ram_ptr[str+2]= 0xff; ram_ptr[str+3]= 0xff,
 	ram_ptr[str+4]= 0xff; ram_ptr[str+5]= 0xff; ram_ptr[str+6]= 0xff; ram_ptr[str+7]= 0xff;
 	ram_ptr[str+8]= 0xff; ram_ptr[str+9]= 0xff; ram_ptr[str+10]=0xff; ram_ptr[str+11]=0xff,
 	ram_ptr[str+12]=0xff; ram_ptr[str+13]=0xff; ram_ptr[str+14]=0xff; ram_ptr[str+15]=0xff;
@@ -623,7 +621,7 @@ void pbus_dma() {
 
 	ram_ptr[str+32]=0xff; ram_ptr[str+33]=0xff; ram_ptr[str+34]=0xff; ram_ptr[str+35]=0xff;
 
-	top->rootp->core_3do__DOT__madam_inst__DOT__pbus_len = 0xfffffffc;      // Set the length count to -4 when done?
+	top->rootp->core_3do__DOT__madam_inst__DOT__pbus_len = 0xfffffffc;      // Set the length to -4 when done?
 	top->rootp->core_3do__DOT__clio_inst__DOT__irq1_pend |= 1;              // Bit 0 of irq1_pend is the PBUS DMA Done bit.
 	top->rootp->core_3do__DOT__madam_inst__DOT__mctl &= ~0x8000;			// Clear bit 15 (PBUS DMA Enable) of mctl reg.
 
@@ -634,6 +632,8 @@ void pbus_dma() {
 }
 
 int opera_line = 0;
+
+uint32_t sound_out;
 
 void opera_tick() {
 	//opera_3do_process_frame();
@@ -646,25 +646,25 @@ void opera_tick() {
 	if (opera_clock_dsp_queued()) {
 		//g_DSP_BUF[g_DSP_BUF_IDX++] = opera_dsp_loop();
 		//g_DSP_BUF_IDX &= DSP_BUF_SIZE_MASK;
-		uint32_t sound_out = opera_dsp_loop();	// Almost certain this is the DSP sound output. ElectronAsh.
+		sound_out = opera_dsp_loop();	// Almost certain this is the DSP sound output. ElectronAsh.
 		//fprintf(soundfile, "Sound 0x%08X: ", sound_out);
+		if (soundtrace) {
+			fputc( (sound_out>>24) & 0xff, soundfile);
+			fputc( (sound_out>>16) & 0xff, soundfile);
+			fputc( (sound_out>>8)  & 0xff, soundfile);
+			fputc( (sound_out>>0)  & 0xff, soundfile);
+		}
 	}
 
 	if (opera_clock_timer_queued()) opera_clio_timer_execute();
 
 	if (opera_clock_vdl_queued())
 	{
-		/*
-		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt>=240) opera_line = 200;
-		else opera_line = top->rootp->core_3do__DOT__clio_inst__DOT__vcnt;
-		*/
-		opera_line = top->rootp->core_3do__DOT__clio_inst__DOT__vcnt;
-
-		opera_clio_vcnt_update(opera_line, top->rootp->core_3do__DOT__clio_inst__DOT__field);
+		opera_clio_vcnt_update(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt, top->rootp->core_3do__DOT__clio_inst__DOT__field);
 		//opera_vdlp_process_line(opera_line);
 
-		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint0()) opera_clio_fiq_generate(1 << 0, 0);
-		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint1()) opera_clio_fiq_generate(1 << 1, 0);
+		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint0()) opera_clio_fiq_generate(1<<0, 0);
+		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint1()) opera_clio_fiq_generate(1<<1, 0);
 		//(*line_)++;
 	}
 }
@@ -698,6 +698,8 @@ int verilate() {
 
 			pix_count++;
 		
+			//jp_a = top->rootp->core_3do__DOT__clio_inst__DOT__field;
+
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__pc_from_alu;
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__o_pc_plus_8_ff;
 			cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_pc_plus_8_ff - 8;
@@ -708,8 +710,6 @@ int verilate() {
 			//if (top->o_wb_adr == 0x000117F8) run_enable = 0;
 
 			//if (top->o_wb_adr >=0x000101ec && top->o_wb_adr <=0x00010460 && !top->o_wb_we) run_enable = 0;    // Function that crashes to 0x1971C due to lower 2 bits of SPSR begin non-zero. 
-
-			//if (top->o_wb_adr == 0x0340C004 && top->o_wb_we) trace = 1;     // CLIO unc_soft_rv.
 
 			/*
 			if (frame_count==30 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0 && top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==9) {
@@ -887,7 +887,7 @@ int verilate() {
 				else if (top->o_wb_adr >= 0x032F0000 && top->o_wb_adr <= 0x032FFFFF) { fprintf(logfile, "Unknown         "); top->i_wb_dat = 0xBADACCE5; }
 
 
-				// Every core access from here down to the Uncle stuff, gets its data from the Verilog MADAM / CLIO...
+				// Every core access from here down, gets its data from the Verilog MADAM / CLIO...
 				// 
 				// MADAM...
 				else if (top->o_wb_adr == 0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); }
@@ -969,22 +969,13 @@ int verilate() {
 				else if (top->o_wb_adr >= 0x03403000 && top->o_wb_adr <= 0x034031ff) { fprintf(logfile, "CLIO DSPP EI 32 "); }
 				else if (top->o_wb_adr >= 0x03403400 && top->o_wb_adr <= 0x034037ff) { fprintf(logfile, "CLIO DSPP EI 16 "); }
 
-				else if (top->o_wb_adr == 0x0340C000) { fprintf(logfile, "CLIO unc_rev    "); /*top->i_wb_dat = 0x03800000;*/ }
-				else if (top->o_wb_adr == 0x0340C004) { fprintf(logfile, "CLIO unc_soft_rv");  top->i_wb_dat = 0x00000000; }
+				// Uncle spoofing stuff handled in clio.v now. ElectronAsh...
+				else if (top->o_wb_adr == 0x0340C000) { fprintf(logfile, "CLIO unc_rev    "); }
+				else if (top->o_wb_adr == 0x0340C004) { fprintf(logfile, "CLIO unc_soft_rv"); }
 				else if (top->o_wb_adr == 0x0340C008) { fprintf(logfile, "CLIO unc_addr   "); }
-				else if (top->o_wb_adr == 0x0340C00c) { fprintf(logfile, "CLIO unc_rom    "); top->i_wb_dat = 0x00000000; }
+				else if (top->o_wb_adr == 0x0340C00c) { fprintf(logfile, "CLIO unc_rom    "); }
 				else if (top->o_wb_adr == 0x03400000) { fprintf(logfile, "CLIO ?          "); }
 				else { fprintf(logfile, "UNKNOWN ?? Addr: 0x%08X  o_wb_we: %d\n", top->o_wb_adr, top->o_wb_we); top->i_wb_dat = 0xBADACCE5; }
-
-				// Setting an upper nibble bit of the adbio reg will set the corresponding lower bit.
-				// (opera source code). The upper nibble is not kept, AFAIK. ElectronAsh.
-				// The ADBIO pins on CLIO are all unconnected, aside from bit 3 being routed via a diode to the WatchDog Reset pin (also on CLIO).
-				uint32_t adbio_temp = top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg;
-				if (adbio_temp & 0x10) top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg |= 0x01;
-				if (adbio_temp & 0x20) top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg |= 0x02;
-				if (adbio_temp & 0x40) top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg |= 0x04;
-				if (adbio_temp & 0x80) top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg |= 0x08;
-				top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg &= 0x0F;
 
 				/*
 				uint32_t zap_din = top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat;
@@ -994,7 +985,8 @@ int verilate() {
 				}
 				*/
 
-				if (top->o_wb_adr == 0x03300008 && top->o_wb_we && top->o_wb_dat & 0x8000) pbus_dma();
+				//if (top->o_wb_adr == 0x03300008 && top->o_wb_we && top->o_wb_dat & 0x8000) pbus_dma();
+				if (top->rootp->core_3do__DOT__madam_inst__DOT__mctl & 0x8000) pbus_dma();
 			}
 
 			if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == top->rootp->core_3do__DOT__clio_inst__DOT__vcnt_max && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) frame_count++;
@@ -1157,6 +1149,8 @@ int main(int argc, char** argv, char** env) {
 	logfile = fopen("sim_trace.txt", "w");
 	inst_file = fopen("sim_inst_trace.txt", "w");
 
+	soundfile = fopen("soundfile.bin", "wb");
+
 	FILE* romfile;
 	//romfile = fopen("panafz1.bin", "rb");
 	romfile = fopen("panafz10.bin", "rb");                  // This is the version MAME v226b uses by default, with "mame64 3do".
@@ -1312,50 +1306,44 @@ int main(int argc, char** argv, char** env) {
 		g_pd3dDevice->CreateSamplerState(&desc2, &g_pFontSampler2);
 	}
 
-	bool follow_writes = 0;
-	int write_address = 0;
-
 	static bool show_app_console = true;
-
-	bool second_stop = 0;
-
 
 	my_opera_init();
 
 	/* select test, use -1 -- if don't need tests */
-	sim_diag_port_init(-1);			// Normal BIOS startup.
-	//sim_diag_port_init(0x90);
+	sim_diag_port_init(-1);		// Normal BIOS startup.
+	//sim_diag_port_init(0x80);
 
 	opera_diag_port_init(-1);		// Normal BIOS startup.
-	//opera_diag_port_init(90);
+	//opera_diag_port_init(0x80);
 
 	/*
-	00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
-	01      AUTO-DIAG TEST   (1F,24,25,32,50,51,60,61,62,68,80,81,90)
-	12      DRAM1 DATA TEST   * ?
-	1A      DRAM2 DATA TEST
-	1E      EARLY RAM TEST
-	1F      RAM DATA TEST     *
-	22      VRAM1 DATA TEST   *
-	24      VRAM1 FLASH TEST  *
-	25      VRAM1 SPORT TEST  *
-	32      SRAM DATA TEST    *
-	50      MADAM TEST
-	51      CLIO TEST
-	60      CD-ROM POLL TEST
-	61      CD-ROM PATH TEST
-	62      CD-ROM READ TEST        ???
-	63      CD-ROM AutoAdjustValue TEST
-	67      CD-ROM#2 AutoAdjustValue TEST
-	68  DEV#15 POLL TEST
-	71      JOYPAD1 PRESS TEST
-	75      JOYPAD1 AUDIO TEST
-	80      SIN WAVE TEST
-	81      MUTING TEST
-	90      COLORBAR
-	F0      CHECK TESTTOOL  ???
-	F1      REVISION TEST
-	FF      TEST END (halt)
+	0z00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
+	0z01      AUTO-DIAG TEST   (1F,24,25,32,50,51,60,61,62,68,80,81,90)
+	0z12      DRAM1 DATA TEST   * ?
+	0z1A      DRAM2 DATA TEST
+	0z1E      EARLY RAM TEST
+	0z1F      RAM DATA TEST     *
+	0z22      VRAM1 DATA TEST   *
+	0z24      VRAM1 FLASH TEST  *
+	0z25      VRAM1 SPORT TEST  *
+	0z32      SRAM DATA TEST    *
+	0z50      MADAM TEST		*?
+	0z51      CLIO TEST			*?
+	0z60      CD-ROM POLL TEST
+	0z61      CD-ROM PATH TEST
+	0z62      CD-ROM READ TEST        ???
+	0z63      CD-ROM AutoAdjustValue TEST
+	0z67      CD-ROM#2 AutoAdjustValue TEST
+	0z68  DEV#15 POLL TEST
+	0z71      JOYPAD1 PRESS TEST
+	0z75      JOYPAD1 AUDIO TEST
+	0z80      SIN WAVE TEST
+	0z81      MUTING TEST
+	0z90      COLORBAR
+	0zF0      CHECK TESTTOOL  ???
+	0zF1      REVISION TEST
+	0zFF      TEST END (halt)
 	*/
 	
 
@@ -1416,7 +1404,6 @@ int main(int argc, char** argv, char** env) {
 			map_bios = 1;
 			trig_irq = 0;
 			trig_fiq = 0;
-			field = 1;
 			frame_count = 0;
 			line_count = 0;
 			memset(disp_ptr, 0xff444444, disp_size);        // Clear the DISPLAY buffer.
@@ -1469,25 +1456,11 @@ int main(int argc, char** argv, char** env) {
 			multi_step = 1;
 		}
 		ImGui::SameLine(); ImGui::SliderInt("Step amount", &multi_step_amount, 8, 1024);
-		//ImGui::Text("Last SDRAM WRITE. byte_addr: 0x%08X  write_data: 0x%08X  data_ben: 0x%01X\n", last_sdram_byteaddr, last_sdram_writedata, last_sdram_ben);        //  Note sd_data_i is OUT of the sim!
-
-		//bool irq_button_pressed = ImGui::Button("Tickle IRQ");
-		//if (trig_irq==0 && irq_button_pressed) trig_irq = 1;
-
-		//bool firq_button_pressed = ImGui::Button("Tickle FIRQ");
-		//if (trig_fiq==0 && firq_button_pressed) trig_fiq = 1;
 
 		ImGui::Image(my_tex_id, ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
-
 		ImGui::SameLine();
 		ImGui::Image(my_tex_id2, ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
-
 		ImGui::End();
-
-		/*
-		ImGui::Checkbox("Follow Writes", &follow_writes);
-		if (follow_writes) write_address = top->rootp->sd_addr << 2;
-		*/
 
 		ImGui::Begin("3DO BIOS ROM Editor");
 		mem_edit_1.DrawContents(rom_ptr, rom_size, 0);
@@ -1770,6 +1743,7 @@ int main(int argc, char** argv, char** env) {
 			}
 
 		ImGui::Separator();
+		ImGui::Text("    sound_out: 0x%08X", sound_out);
 		ImGui::End();
 
 
@@ -1846,38 +1820,38 @@ int main(int argc, char** argv, char** env) {
 		ImGui::End();
 
 		ImGui::Begin("CLIO Timers");
-		ImGui::Text("   tmr_cnt_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_cnt);	// 0x100
-		ImGui::Text("   tmr_bkp_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_bkp);	// 0x104
-		ImGui::Text("   tmr_cnt_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_cnt);	// 0x108
-		ImGui::Text("   tmr_bkp_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_bkp);	// 0x10c
-		ImGui::Text("   tmr_cnt_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_cnt);	// 0x110
-		ImGui::Text("   tmr_bkp_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_bkp);	// 0x114
-		ImGui::Text("   tmr_cnt_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_cnt);	// 0x118
-		ImGui::Text("   tmr_bkp_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_bkp);	// 0x11c
-		ImGui::Text("   tmr_cnt_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_cnt);	// 0x120
-		ImGui::Text("   tmr_bkp_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_bkp);	// 0x124
-		ImGui::Text("   tmr_cnt_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_cnt);	// 0x128
-		ImGui::Text("   tmr_bkp_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_bkp);	// 0x12c
-		ImGui::Text("   tmr_cnt_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_cnt);	// 0x130
-		ImGui::Text("   tmr_bkp_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_bkp);	// 0x134
-		ImGui::Text("   tmr_cnt_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_cnt);	// 0x138
-		ImGui::Text("   tmr_bkp_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_bkp);	// 0x13c
-		ImGui::Text("   tmr_cnt_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_cnt);	// 0x140
-		ImGui::Text("   tmr_bkp_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_bkp);	// 0x144
-		ImGui::Text("   tmr_cnt_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_cnt);	// 0x148
-		ImGui::Text("   tmr_bkp_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_bkp);	// 0x14c
-		ImGui::Text("  tmr_cnt_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_cnt);	// 0x150
-		ImGui::Text("  tmr_bkp_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_bkp);	// 0x154
-		ImGui::Text("  tmr_cnt_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_cnt);	// 0x158
-		ImGui::Text("  tmr_bkp_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_bkp);	// 0x15c
-		ImGui::Text("  tmr_cnt_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_cnt);	// 0x160
-		ImGui::Text("  tmr_bkp_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_bkp);	// 0x164
-		ImGui::Text("  tmr_cnt_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_cnt);	// 0x168
-		ImGui::Text("  tmr_bkp_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_bkp);	// 0x16c
-		ImGui::Text("  tmr_cnt_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_cnt);	// 0x170
-		ImGui::Text("  tmr_bkp_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_bkp);	// 0x174
-		ImGui::Text("  tmr_cnt_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_cnt);	// 0x178
-		ImGui::Text("  tmr_bkp_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_bkp);	// 0x17c
+		ImGui::Text("   tmr_cnt_0: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_cnt);	// 0x100
+		ImGui::Text("   tmr_bkp_0: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_bkp);	// 0x104
+		ImGui::Text("   tmr_cnt_1: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_cnt);	// 0x108
+		ImGui::Text("   tmr_bkp_1: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_bkp);	// 0x10c
+		ImGui::Text("   tmr_cnt_2: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_cnt);	// 0x110
+		ImGui::Text("   tmr_bkp_2: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_bkp);	// 0x114
+		ImGui::Text("   tmr_cnt_3: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_cnt);	// 0x118
+		ImGui::Text("   tmr_bkp_3: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_bkp);	// 0x11c
+		ImGui::Text("   tmr_cnt_4: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_cnt);	// 0x120
+		ImGui::Text("   tmr_bkp_4: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_bkp);	// 0x124
+		ImGui::Text("   tmr_cnt_5: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_cnt);	// 0x128
+		ImGui::Text("   tmr_bkp_5: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_bkp);	// 0x12c
+		ImGui::Text("   tmr_cnt_6: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_cnt);	// 0x130
+		ImGui::Text("   tmr_bkp_6: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_bkp);	// 0x134
+		ImGui::Text("   tmr_cnt_7: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_cnt);	// 0x138
+		ImGui::Text("   tmr_bkp_7: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_bkp);	// 0x13c
+		ImGui::Text("   tmr_cnt_8: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_cnt);	// 0x140
+		ImGui::Text("   tmr_bkp_8: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_bkp);	// 0x144
+		ImGui::Text("   tmr_cnt_9: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_cnt);	// 0x148
+		ImGui::Text("   tmr_bkp_9: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_bkp);	// 0x14c
+		ImGui::Text("  tmr_cnt_10: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_cnt);	// 0x150
+		ImGui::Text("  tmr_bkp_10: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_bkp);	// 0x154
+		ImGui::Text("  tmr_cnt_11: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_cnt);	// 0x158
+		ImGui::Text("  tmr_bkp_11: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_bkp);	// 0x15c
+		ImGui::Text("  tmr_cnt_12: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_cnt);	// 0x160
+		ImGui::Text("  tmr_bkp_12: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_bkp);	// 0x164
+		ImGui::Text("  tmr_cnt_13: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_cnt);	// 0x168
+		ImGui::Text("  tmr_bkp_13: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_bkp);	// 0x16c
+		ImGui::Text("  tmr_cnt_14: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_cnt);	// 0x170
+		ImGui::Text("  tmr_bkp_14: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_bkp);	// 0x174
+		ImGui::Text("  tmr_cnt_15: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_cnt);	// 0x178
+		ImGui::Text("  tmr_bkp_15: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_bkp);	// 0x17c
 		ImGui::Separator();
 		ImGui::Text("  tmr_ctrl_l: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr_ctrl_l);		// TODO !!
 		ImGui::Text("  tmr_ctrl_u: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr_ctrl_u);		// Not 100% sure how this should read back!!

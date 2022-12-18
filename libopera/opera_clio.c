@@ -631,16 +631,16 @@ opera_clio_timer_execute(void)
         continue;
 
       reg = &CLIO.regs[(0x100 + (timer << 3))];
-      reg[0] -= ((flags & CASCADE) ? carry : 1);
-      if(reg[0] == 0xFFFFFFFF)
+      reg[0] -= ((flags & CASCADE) ? carry : 1);	// if CASCADE bit, decrement if carry set. Else, decrement on "clock" tick.
+      if(reg[0] == 0xFFFFFFFF)						// Counter has wrapped zero...
         {
-          carry = 1;
-          if(timer & 1)
-            opera_clio_fiq_generate(1<<(10-(timer>>1)),0);
-          if(flags & RELOAD)
+          carry = 1;								// Set the carry bit. (so the next timer can be optionally clocked by it.)
+          if(timer & 1)									// Only generate a FIQ from ODD-numbereed timers!
+            opera_clio_fiq_generate(1<<(10-(timer>>1)),0);	// Assert corresponding IRQ bit.
+          if(flags & RELOAD)						// if RELOAD bit is set, reload the counter from the backup reg.
             reg[0] = reg[4];
           else
-            timer_disable(timer);
+            timer_disable(timer);					// ...Else, if RELOAD bit is clear, disable this timer on wrapped zero.
         }
       else
         {

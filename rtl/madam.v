@@ -287,6 +287,8 @@ always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	mctl <= 32'h00000000;
 	trig_pbus_dma <= 1'b0;
+	
+	pbus_len <= 32'hfffffffc;      // Set PBUS length reg to -4 ?
 end
 else begin
 	trig_pbus_dma <= 1'b0;
