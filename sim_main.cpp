@@ -1304,10 +1304,10 @@ int main(int argc, char** argv, char** env) {
 
 	/* select test, use -1 -- if don't need tests */
 	//sim_diag_port_init(-1);	// Normal BIOS startup.
-	sim_diag_port_init(0x60);
+	sim_diag_port_init(0xf1);
 
 	//opera_diag_port_init(-1);	// Normal BIOS startup.
-	opera_diag_port_init(0x60);
+	opera_diag_port_init(0xf1);
 
 	/*
 	0z00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
@@ -1850,41 +1850,41 @@ int main(int argc, char** argv, char** env) {
 		ImGui::End();
 
 		ImGui::Begin("CLIO sel regs");
-		ImGui::Text(" sel_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_0);                // 0x500
-		ImGui::Text(" sel_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_1);                // 0x504
-		ImGui::Text(" sel_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_2);                // 0x508
-		ImGui::Text(" sel_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_3);                // 0x50c
-		ImGui::Text(" sel_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_4);                // 0x510
-		ImGui::Text(" sel_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_5);                // 0x514
-		ImGui::Text(" sel_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_6);                // 0x518
-		ImGui::Text(" sel_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_7);                // 0x51c
-		ImGui::Text(" sel_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_8);                // 0x520
-		ImGui::Text(" sel_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_9);                // 0x524
-		ImGui::Text("sel_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_10);               // 0x528
-		ImGui::Text("sel_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_11);               // 0x52c
-		ImGui::Text("sel_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_12);               // 0x530
-		ImGui::Text("sel_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_13);               // 0x534
-		ImGui::Text("sel_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_14);               // 0x538
-		ImGui::Text("sel_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_15);               // 0x53c
+		ImGui::Text(" sel_0: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_0);                // 0x500
+		ImGui::Text(" sel_1: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_1);                // 0x504
+		ImGui::Text(" sel_2: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_2);                // 0x508
+		ImGui::Text(" sel_3: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_3);                // 0x50c
+		ImGui::Text(" sel_4: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_4);                // 0x510
+		ImGui::Text(" sel_5: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_5);                // 0x514
+		ImGui::Text(" sel_6: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_6);                // 0x518
+		ImGui::Text(" sel_7: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_7);                // 0x51c
+		ImGui::Text(" sel_8: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_8);                // 0x520
+		ImGui::Text(" sel_9: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_9);                // 0x524
+		ImGui::Text("sel_10: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_10);               // 0x528
+		ImGui::Text("sel_11: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_11);               // 0x52c
+		ImGui::Text("sel_12: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_12);               // 0x530
+		ImGui::Text("sel_13: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_13);               // 0x534
+		ImGui::Text("sel_14: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_14);               // 0x538
+		ImGui::Text("sel_15: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_15);               // 0x53c
 		ImGui::End();
 
 		ImGui::Begin("CLIO poll regs");
-		ImGui::Text(" poll_0: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_0);              // 0x540
-		ImGui::Text(" poll_1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_1);              // 0x544
-		ImGui::Text(" poll_2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_2);              // 0x548
-		ImGui::Text(" poll_3: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_3);              // 0x54c
-		ImGui::Text(" poll_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_4);              // 0x550
-		ImGui::Text(" poll_5: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_5);              // 0x554
-		ImGui::Text(" poll_6: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_6);              // 0x558
-		ImGui::Text(" poll_7: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_7);              // 0x55c
-		ImGui::Text(" poll_8: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_8);              // 0x560
-		ImGui::Text(" poll_9: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_9);              // 0x564
-		ImGui::Text("poll_10: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_10);             // 0x568
-		ImGui::Text("poll_11: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_11);             // 0x56c
-		ImGui::Text("poll_12: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_12);             // 0x570
-		ImGui::Text("poll_13: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_13);             // 0x574
-		ImGui::Text("poll_14: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_14);             // 0x578
-		ImGui::Text("poll_15: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_15);             // 0x57c
+		ImGui::Text(" poll_0: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_0);              // 0x540
+		ImGui::Text(" poll_1: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_1);              // 0x544
+		ImGui::Text(" poll_2: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_2);              // 0x548
+		ImGui::Text(" poll_3: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_3);              // 0x54c
+		ImGui::Text(" poll_4: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_4);              // 0x550
+		ImGui::Text(" poll_5: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_5);              // 0x554
+		ImGui::Text(" poll_6: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_6);              // 0x558
+		ImGui::Text(" poll_7: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_7);              // 0x55c
+		ImGui::Text(" poll_8: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_8);              // 0x560
+		ImGui::Text(" poll_9: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_9);              // 0x564
+		ImGui::Text("poll_10: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_10);             // 0x568
+		ImGui::Text("poll_11: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_11);             // 0x56c
+		ImGui::Text("poll_12: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_12);             // 0x570
+		ImGui::Text("poll_13: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_13);             // 0x574
+		ImGui::Text("poll_14: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_14);             // 0x578
+		ImGui::Text("poll_15: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_15);             // 0x57c
 		ImGui::End();
 
 		ImGui::Begin("CLIO DSP regs");

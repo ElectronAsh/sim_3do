@@ -168,39 +168,39 @@ reg [31:0] type0_4;	// 0x408. ??? Opera doesn't seem to use this, but allows reg
 reg [31:0] dipir1;	// 0x410. DIPIR (Disc Inserted Provide Interrupt Response) 1.
 reg [31:0] dipir2;	// 0x414. DIPIR (Disc Inserted Provide Interrupt Response) 2.
 
-reg [31:0] sel_0;	// 0x500
-reg [31:0] sel_1;	// 0x504
-reg [31:0] sel_2;	// 0x508
-reg [31:0] sel_3;	// 0x50c
-reg [31:0] sel_4;	// 0x510
-reg [31:0] sel_5;	// 0x514
-reg [31:0] sel_6;	// 0x518
-reg [31:0] sel_7;	// 0x51c
-reg [31:0] sel_8;	// 0x520
-reg [31:0] sel_9;	// 0x524
-reg [31:0] sel_10;	// 0x528
-reg [31:0] sel_11;	// 0x52c
-reg [31:0] sel_12;	// 0x530
-reg [31:0] sel_13;	// 0x534
-reg [31:0] sel_14;	// 0x538
-reg [31:0] sel_15;	// 0x53c
+reg [7:0] sel_0;	// 0x500
+reg [7:0] sel_1;	// 0x504
+reg [7:0] sel_2;	// 0x508
+reg [7:0] sel_3;	// 0x50c
+reg [7:0] sel_4;	// 0x510
+reg [7:0] sel_5;	// 0x514
+reg [7:0] sel_6;	// 0x518
+reg [7:0] sel_7;	// 0x51c
+reg [7:0] sel_8;	// 0x520
+reg [7:0] sel_9;	// 0x524
+reg [7:0] sel_10;	// 0x528
+reg [7:0] sel_11;	// 0x52c
+reg [7:0] sel_12;	// 0x530
+reg [7:0] sel_13;	// 0x534
+reg [7:0] sel_14;	// 0x538
+reg [7:0] sel_15;	// 0x53c
 
-reg [31:0] poll_0;	// 0x540
-reg [31:0] poll_1;	// 0x544
-reg [31:0] poll_2;	// 0x548
-reg [31:0] poll_3;	// 0x54c
-reg [31:0] poll_4;	// 0x550
-reg [31:0] poll_5;	// 0x554
-reg [31:0] poll_6;	// 0x558
-reg [31:0] poll_7;	// 0x55c
-reg [31:0] poll_8;	// 0x560
-reg [31:0] poll_9;	// 0x564
-reg [31:0] poll_10;	// 0x568
-reg [31:0] poll_11;	// 0x56c
-reg [31:0] poll_12;	// 0x570
-reg [31:0] poll_13;	// 0x574
-reg [31:0] poll_14;	// 0x578
-reg [31:0] poll_15;	// 0x57c
+reg [7:0] poll_0;	// 0x540
+reg [7:0] poll_1;	// 0x544
+reg [7:0] poll_2;	// 0x548
+reg [7:0] poll_3;	// 0x54c
+reg [7:0] poll_4;	// 0x550
+reg [7:0] poll_5;	// 0x554
+reg [7:0] poll_6;	// 0x558
+reg [7:0] poll_7;	// 0x55c
+reg [7:0] poll_8;	// 0x560
+reg [7:0] poll_9;	// 0x564
+reg [7:0] poll_10;	// 0x568
+reg [7:0] poll_11;	// 0x56c
+reg [7:0] poll_12;	// 0x570
+reg [7:0] poll_13;	// 0x574
+reg [7:0] poll_14;	// 0x578
+reg [7:0] poll_15;	// 0x57c
 
 // 0x580 - 0x5bf. In Opera, on a write, this calls "opera_xbus_fifo_set_cmd(val_)".
 // 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
@@ -328,39 +328,41 @@ always @(*) begin
 	16'h0410: cpu_dout = dipir1;	// 0x410. DIPIR (Disc Inserted Provide Interrupt Response) 1.
 	16'h0414: cpu_dout = dipir2;	// 0x414. DIPIR (Disc Inserted Provide Interrupt Response) 2.
 
-	16'h0500: cpu_dout = sel_0;		// 0x500
-	16'h0504: cpu_dout = sel_1;		// 0x504
-	16'h0508: cpu_dout = sel_2;		// 0x508
-	16'h050c: cpu_dout = sel_3;		// 0x50c
-	16'h0510: cpu_dout = sel_4;		// 0x510
-	16'h0514: cpu_dout = sel_5;		// 0x514
-	16'h0518: cpu_dout = sel_6;		// 0x518
-	16'h051c: cpu_dout = sel_7;		// 0x51c
-	16'h0520: cpu_dout = sel_8;		// 0x520
-	16'h0524: cpu_dout = sel_9;		// 0x524
-	16'h0528: cpu_dout = sel_10;	// 0x528
-	16'h052c: cpu_dout = sel_11;	// 0x52c
-	16'h0530: cpu_dout = sel_12;	// 0x530
-	16'h0534: cpu_dout = sel_13;	// 0x534
-	16'h0538: cpu_dout = sel_14;	// 0x538
-	16'h053c: cpu_dout = sel_15;	// 0x53c
+	16'h0500: cpu_dout = {24'h000000, sel_0};	// 0x500
+	16'h0504: cpu_dout = {24'h000000, sel_1};	// 0x504
+	16'h0508: cpu_dout = {24'h000000, sel_2};	// 0x508
+	16'h050c: cpu_dout = {24'h000000, sel_3};	// 0x50c
+	16'h0510: cpu_dout = {24'h000000, sel_4};	// 0x510
+	16'h0514: cpu_dout = {24'h000000, sel_5};	// 0x514
+	16'h0518: cpu_dout = {24'h000000, sel_6};	// 0x518
+	16'h051c: cpu_dout = {24'h000000, sel_7};	// 0x51c
+	16'h0520: cpu_dout = {24'h000000, sel_8};	// 0x520
+	16'h0524: cpu_dout = {24'h000000, sel_9};	// 0x524
+	16'h0528: cpu_dout = {24'h000000, sel_10};	// 0x528
+	16'h052c: cpu_dout = {24'h000000, sel_11};	// 0x52c
+	16'h0530: cpu_dout = {24'h000000, sel_12};	// 0x530
+	16'h0534: cpu_dout = {24'h000000, sel_13};	// 0x534
+	16'h0538: cpu_dout = {24'h000000, sel_14};	// 0x538
+	16'h053c: cpu_dout = {24'h000000, sel_15};	// 0x53c
 
-	16'h0540: cpu_dout = poll_0;	// 0x540
-	16'h0544: cpu_dout = poll_1;	// 0x544
-	16'h0548: cpu_dout = poll_2;	// 0x548
-	16'h054c: cpu_dout = poll_3;	// 0x54c
-	16'h0550: cpu_dout = poll_4;	// 0x550
-	16'h0554: cpu_dout = poll_5;	// 0x554
-	16'h0558: cpu_dout = poll_6;	// 0x558
-	16'h055c: cpu_dout = poll_7;	// 0x55c
-	16'h0560: cpu_dout = poll_8;	// 0x560
-	16'h0564: cpu_dout = poll_9;	// 0x564
-	16'h0568: cpu_dout = poll_10;	// 0x568
-	16'h056c: cpu_dout = poll_11;	// 0x56c
-	16'h0570: cpu_dout = poll_12;	// 0x570
-	16'h0574: cpu_dout = poll_13;	// 0x574
-	16'h0578: cpu_dout = poll_14;	// 0x578
-	16'h057c: cpu_dout = poll_15;	// 0x57c
+	16'h0540: cpu_dout = {24'h000000, poll_0};	// 0x540
+	16'h0544: cpu_dout = {24'h000000, poll_1};	// 0x544
+	16'h0548: cpu_dout = {24'h000000, poll_2};	// 0x548
+	16'h054c: cpu_dout = {24'h000000, poll_3};	// 0x54c
+	16'h0550: cpu_dout = {24'h000000, poll_4};	// 0x550
+	16'h0554: cpu_dout = {24'h000000, poll_5};	// 0x554
+	16'h0558: cpu_dout = {24'h000000, poll_6};	// 0x558
+	16'h055c: cpu_dout = {24'h000000, poll_7};	// 0x55c
+	16'h0560: cpu_dout = {24'h000000, poll_8};	// 0x560
+	16'h0564: cpu_dout = {24'h000000, poll_9};	// 0x564
+	16'h0568: cpu_dout = {24'h000000, poll_10};	// 0x568
+	16'h056c: cpu_dout = {24'h000000, poll_11};	// 0x56c
+	16'h0570: cpu_dout = {24'h000000, poll_12};	// 0x570
+	16'h0574: cpu_dout = {24'h000000, poll_13};	// 0x574
+	16'h0578: cpu_dout = {24'h000000, poll_14};	// 0x578
+	16'h057c: cpu_dout = {24'h000000, poll_15};	// 0x57c
+
+	16'h0580: cpu_dout = {24'h000000, fifo_spoof};	// 0x580. CmdStFIFO for Xbus access.
 
 // 0x580 - 0x5bf. In Opera, on a write, this calls "opera_xbus_fifo_set_cmd(val_)".
 // 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
@@ -400,6 +402,22 @@ wire [31:0] hcnt_max = 32'd1590;
 wire [31:0] vcnt_max = 32'd262;
 reg field;
 
+reg [3:0] fifo_idx;
+
+wire [7:0] fifo_spoof = (fifo_idx==4'd0)  ? 8'h83 : // CDROM_CMD_READ_ID
+						(fifo_idx==4'd1)  ? 8'h00 : // manufacture id
+						(fifo_idx==4'd2)  ? 8'h10 : // 0x10
+						(fifo_idx==4'd3)  ? 8'h00 : // manufacture number
+						(fifo_idx==4'd4)  ? 8'h01 : // 0x01
+						(fifo_idx==4'd5)  ? 8'h00 :
+						(fifo_idx==4'd6)  ? 8'h00 :
+						(fifo_idx==4'd7)  ? 8'h00 : // revision number
+						(fifo_idx==4'd8)  ? 8'h00 :
+						(fifo_idx==4'd9)  ? 8'h00 : // flag bytes
+						(fifo_idx==4'd10) ? 8'h00 :
+						(fifo_idx==4'd11) ? 8'hE1 : // CDST_RDY|CDST_TRAY|CDST_DISC|CDST_SPIN
+											8'h00;	// default value.
+
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera returns 0x02020000.
@@ -416,7 +434,9 @@ if (!reset_n) begin
 	slack <= 10'd64;
 	adbio_reg <= 32'h00000000;
 	
-	poll_0 <= 32'h00000030;			// Spoofing a value for now, to force the BIOS to read from the expansion / CD-ROM Status FIFO. ElectronAsh.
+	poll_0 <= 8'h30;			// Spoofing a value for now, to force the BIOS to read from the expansion / CD-ROM Status FIFO. ElectronAsh.
+	
+	fifo_idx <= 4'd0;
 	
 	irq0_pend <= 32'h00000000;
 	irq0_enable <= 32'h00000000;
@@ -437,6 +457,10 @@ else begin
 	*/
 	
 	//adbio_reg <= {28'h0000000, adbio_reg[7:4]};
+	
+	if (cpu_wr && {cpu_addr,2'b00}==16'h0500) fifo_idx <= 4'd0;	// Reset our fake CmdStFIFO on a write to the Sel0 reg.
+	if (cpu_rd && {cpu_addr,2'b00}==16'h0580) fifo_idx <= fifo_idx + 4'd1;	// Increment our fake CmdStFIFO index on each Read..
+	
 	
 	// Don't know if we need to check the enable (mask) bits here,
 	// or if vint0 and vint1 will *always* set the irq0_pend bits when vcnt==vint ?? ElectronAsh.
@@ -536,39 +560,39 @@ else begin
 		16'h0410: dipir1 <= cpu_din;	// 0x410. DIPIR (Disc Inserted Provide Interrupt Response) 1?
 		16'h0414: dipir2 <= cpu_din;	// 0x414. DIPIR (Disc Inserted Provide Interrupt Response) 2?
 
-		16'h0500: sel_0 <= cpu_din;		// 0x500
-		16'h0504: sel_1 <= cpu_din;		// 0x504
-		16'h0508: sel_2 <= cpu_din;		// 0x508
-		16'h050c: sel_3 <= cpu_din;		// 0x50c
-		16'h0510: sel_4 <= cpu_din;		// 0x510
-		16'h0514: sel_5 <= cpu_din;		// 0x514
-		16'h0518: sel_6 <= cpu_din;		// 0x518
-		16'h051c: sel_7 <= cpu_din;		// 0x51c
-		16'h0520: sel_8 <= cpu_din;		// 0x520
-		16'h0524: sel_9 <= cpu_din;		// 0x524
-		16'h0528: sel_10 <= cpu_din;	// 0x528
-		16'h052c: sel_11 <= cpu_din;	// 0x52c
-		16'h0530: sel_12 <= cpu_din;	// 0x530
-		16'h0534: sel_13 <= cpu_din;	// 0x534
-		16'h0538: sel_14 <= cpu_din;	// 0x538
-		16'h053c: sel_15 <= cpu_din;	// 0x53c
+		16'h0500: sel_0  <= cpu_din[7:0];	// 0x500
+		16'h0504: sel_1  <= cpu_din[7:0];	// 0x504
+		16'h0508: sel_2  <= cpu_din[7:0];	// 0x508
+		16'h050c: sel_3  <= cpu_din[7:0];	// 0x50c
+		16'h0510: sel_4  <= cpu_din[7:0];	// 0x510
+		16'h0514: sel_5  <= cpu_din[7:0];	// 0x514
+		16'h0518: sel_6  <= cpu_din[7:0];	// 0x518
+		16'h051c: sel_7  <= cpu_din[7:0];	// 0x51c
+		16'h0520: sel_8  <= cpu_din[7:0];	// 0x520
+		16'h0524: sel_9  <= cpu_din[7:0];	// 0x524
+		16'h0528: sel_10 <= cpu_din[7:0];	// 0x528
+		16'h052c: sel_11 <= cpu_din[7:0];	// 0x52c
+		16'h0530: sel_12 <= cpu_din[7:0];	// 0x530
+		16'h0534: sel_13 <= cpu_din[7:0];	// 0x534
+		16'h0538: sel_14 <= cpu_din[7:0];	// 0x538
+		16'h053c: sel_15 <= cpu_din[7:0];	// 0x53c
 
-		16'h0540: poll_0 <= cpu_din;	// 0x540
-		16'h0544: poll_1 <= cpu_din;	// 0x544
-		16'h0548: poll_2 <= cpu_din;	// 0x548
-		16'h054c: poll_3 <= cpu_din;	// 0x54c
-		16'h0550: poll_4 <= cpu_din;	// 0x550
-		16'h0554: poll_5 <= cpu_din;	// 0x554
-		16'h0558: poll_6 <= cpu_din;	// 0x558
-		16'h055c: poll_7 <= cpu_din;	// 0x55c
-		16'h0560: poll_8 <= cpu_din;	// 0x560
-		16'h0564: poll_9 <= cpu_din;	// 0x564
-		16'h0568: poll_10 <= cpu_din;	// 0x568
-		16'h056c: poll_11 <= cpu_din;	// 0x56c
-		16'h0570: poll_12 <= cpu_din;	// 0x570
-		16'h0574: poll_13 <= cpu_din;	// 0x574
-		16'h0578: poll_14 <= cpu_din;	// 0x578
-		16'h057c: poll_15 <= cpu_din;	// 0x57c
+		16'h0540: /*poll_0  <= cpu_din[7:0]*/;	// 0x540
+		16'h0544: poll_1  <= cpu_din[7:0];	// 0x544
+		16'h0548: poll_2  <= cpu_din[7:0];	// 0x548
+		16'h054c: poll_3  <= cpu_din[7:0];	// 0x54c
+		16'h0550: poll_4  <= cpu_din[7:0];	// 0x550
+		16'h0554: poll_5  <= cpu_din[7:0];	// 0x554
+		16'h0558: poll_6  <= cpu_din[7:0];	// 0x558
+		16'h055c: poll_7  <= cpu_din[7:0];	// 0x55c
+		16'h0560: poll_8  <= cpu_din[7:0];	// 0x560
+		16'h0564: poll_9  <= cpu_din[7:0];	// 0x564
+		16'h0568: poll_10 <= cpu_din[7:0];	// 0x568
+		16'h056c: poll_11 <= cpu_din[7:0];	// 0x56c
+		16'h0570: poll_12 <= cpu_din[7:0];	// 0x570
+		16'h0574: poll_13 <= cpu_din[7:0];	// 0x574
+		16'h0578: poll_14 <= cpu_din[7:0];	// 0x578
+		16'h057c: poll_15 <= cpu_din[7:0];	// 0x57c
 		
 		// 0x580 - 0x5bf. In Opera, on a write, this calls "opera_xbus_fifo_set_cmd(val_)".
 		// 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
