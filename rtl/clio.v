@@ -168,6 +168,16 @@ reg [31:0] type0_4;	// 0x408. ??? Opera doesn't seem to use this, but allows reg
 reg [31:0] dipir1;	// 0x410. DIPIR (Disc Inserted Provide Interrupt Response) 1.
 reg [31:0] dipir2;	// 0x414. DIPIR (Disc Inserted Provide Interrupt Response) 2.
 
+parameter POLSTMASK = 8'h01;
+parameter POLDTMASK = 8'h02;
+parameter POLMAMASK = 8'h04;
+parameter POLREMASK = 8'h08;
+parameter POLST	    = 8'h10;
+parameter POLDT	    = 8'h20;
+parameter POLMA	    = 8'h40;
+parameter POLRE	    = 8'h80;
+
+
 reg [7:0] sel_0;	// 0x500
 reg [7:0] sel_1;	// 0x504
 reg [7:0] sel_2;	// 0x508
@@ -434,7 +444,7 @@ if (!reset_n) begin
 	slack <= 10'd64;
 	adbio_reg <= 32'h00000000;
 	
-	poll_0 <= 8'h30;			// Spoofing a value for now, to force the BIOS to read from the expansion / CD-ROM Status FIFO. ElectronAsh.
+	poll_0 <= 8'h00;
 	
 	fifo_idx <= 4'd0;
 	
@@ -459,13 +469,16 @@ else begin
 	//adbio_reg <= {28'h0000000, adbio_reg[7:4]};
 	
 	if (cpu_wr && {cpu_addr,2'b00}==16'h0500) fifo_idx <= 4'd0;	// Reset our fake CmdStFIFO on a write to the Sel0 reg.
-	if (cpu_rd && {cpu_addr,2'b00}==16'h0580) fifo_idx <= fifo_idx + 4'd1;	// Increment our fake CmdStFIFO index on each Read..
+	if (cpu_rd && {cpu_addr,2'b00}==16'h0580) begin
+		fifo_idx <= fifo_idx + 4'd1;	// Increment our fake CmdStFIFO index on each Read..
+		if (fifo_idx==4'd10) begin
+			poll_0 <= 8'h00;		// All status bytes read, clear the poll status bits.
+			//irq0_pend[2] <= 1'b1;	// Set XBUS IRQ pending bit.
+		end
+	end
 	
-	
-	// Don't know if we need to check the enable (mask) bits here,
-	// or if vint0 and vint1 will *always* set the irq0_pend bits when vcnt==vint ?? ElectronAsh.
-	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF) /*&& irq0_enable[0]*/) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
-	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF) /*&& irq0_enable[1]*/) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
+	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
+	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
 
 	irq0_pend[31] <= |irq1_pend;	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
 
@@ -577,7 +590,7 @@ else begin
 		16'h0538: sel_14 <= cpu_din[7:0];	// 0x538
 		16'h053c: sel_15 <= cpu_din[7:0];	// 0x53c
 
-		16'h0540: /*poll_0  <= cpu_din[7:0]*/;	// 0x540
+		16'h0540: begin /*poll_0  <= cpu_din[7:0]*/; if (cpu_din[7:0]==8'h01) poll_0 <= POLST; end // 0x540. Assert Poll Status bit after BIOS writes 0x01 to poll..
 		16'h0544: poll_1  <= cpu_din[7:0];	// 0x544
 		16'h0548: poll_2  <= cpu_din[7:0];	// 0x548
 		16'h054c: poll_3  <= cpu_din[7:0];	// 0x54c

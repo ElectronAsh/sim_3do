@@ -693,7 +693,10 @@ int verilate() {
 				else wait_ticks--;
 				*/
 
-				if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_valid) opera_tick();
+				//if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_valid) opera_tick();
+				if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_valid &&
+					top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_uop_last)
+					opera_tick();
 			}
 
 			pix_count++;
@@ -702,7 +705,8 @@ int verilate() {
 
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__pc_from_alu;
 			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__o_pc_plus_8_ff;
-			cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_pc_plus_8_ff - 8;
+			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_pc_plus_8_ff - 8;
+			cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_pc_plus_8_buf_ff - 8;
 
 			uint32_t temp_word;
 			uint32_t word_addr = (top->o_wb_adr) >> 2;
@@ -945,9 +949,13 @@ int verilate() {
 				else if (top->o_wb_adr == 0x03400408) { fprintf(logfile, "CLIO type0_4    "); }
 				else if (top->o_wb_adr == 0x03400410) { fprintf(logfile, "CLIO dipir1     "); }
 				else if (top->o_wb_adr == 0x03400414) { fprintf(logfile, "CLIO dipir2     "); }
+
+				// XBUS...
 				else if (top->o_wb_adr >= 0x03400500 && top->o_wb_adr <= 0x0340053f) { fprintf(logfile, "CLIO sel        "); }
 				else if (top->o_wb_adr >= 0x03400540 && top->o_wb_adr <= 0x0340057f) { fprintf(logfile, "CLIO poll       "); }
+				else if (top->o_wb_adr == 0x03400580) { fprintf(logfile, "CLIO CmdStFIFO  "); }
 
+				// DSP...
 				else if (top->o_wb_adr == 0x034017d0) { fprintf(logfile, "CLIO sema       "); }
 				else if (top->o_wb_adr == 0x034017d4) { fprintf(logfile, "CLIO semaack    "); }
 				else if (top->o_wb_adr == 0x034017e0) { fprintf(logfile, "CLIO dspdma     "); }
@@ -994,11 +1002,13 @@ int verilate() {
 			}
 			old_fiq_n = top->rootp->core_3do__DOT__clio_inst__DOT__firq_n;
 
+			/*
 			uint32_t instruction = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction;
 			if ( ((instruction & 0xF000000)>>24 == 0b1111) && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction_valid) {
 				fprintf(logfile, "SWI 0x%08X  (PC: 0x%08X)\n", instruction, cur_pc);
 				//run_enable = 0;
 			}
+			*/
 		}
 
 		top->sys_clk = !(top->sys_clk&1);
@@ -1058,7 +1068,7 @@ bit 25: AudioDMA_DSPfromRAM9
 bit 26: AudioDMA_DSPfromRAM10
 bit 27: AudioDMA_DSPfromRAM11
 bit 28: AudioDMA_DSPfromRAM12
-bit 29: XBUS DMA transfer complite
+bit 29: XBUS DMA transfer complete
 bit 30: ??? An empty handler - possibly even a watchdog (if that interrupt is enabled and re-triggered). came, and the previous one was not processed, then reset, huh?)
 bit 31 - Indicates that there are more interrupts in register 0x0340 0060
 */
@@ -1344,11 +1354,6 @@ int main(int argc, char** argv, char** env) {
 	ZeroMemory(&msg, sizeof(msg));
 	while (msg.message != WM_QUIT)
 	{
-		// Poll and handle messages (inputs, window resize, etc.)
-		// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-		// - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-		// - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-		// Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
 		if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
@@ -1361,33 +1366,13 @@ int main(int argc, char** argv, char** env) {
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		//if (show_demo_window)
-		//      ImGui::ShowDemoWindow(&show_demo_window);
-
-		// 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
 		static float f = 0.1f;
 		static int counter = 0;
 
-		ImGui::Begin("Virtual Dev Board v1.0");         // Create a window called "Virtual Dev Board v1.0" and append into it.
+		ImGui::Begin("Virtual Dev Board v1.0");		// Create a window called "Virtual Dev Board v1.0" and append into it.
 
 		ShowMyExampleAppConsole(&show_app_console);
 
-		//ImGui::Text("Verilator sim running... ROM_ADDR: 0x%05x", top->rootp->ROM_ADDR);               // Display some text (you can use a format strings too)
-		//ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-		//ImGui::Checkbox("Another Window", &show_another_window);
-
-		//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-		//ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-		//if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-		//counter++;
-
-		//ImGui::SameLine();
-		//ImGui::Text("counter = %d", counter);
-		//ImGui::Text("samp_index = %d", samp_index);
-		//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-		//ImGui::PlotLines("Lines", values, IM_ARRAYSIZE(values), values_offset, "sample", -1.0f, 1.0f, ImVec2(0, 80));
 		if (ImGui::Button("RESET")) {
 			my_opera_init();
 
@@ -1404,26 +1389,7 @@ int main(int argc, char** argv, char** env) {
 			memset(nvram_ptr, 0x00000000, nvram_size);      // Clear NVRAM (SRAM).
 		}
 		ImGui::SameLine(); ImGui::Text("main_time %d", main_time);
-		//ImGui::Text("field: %d  frame_count: %d  line_count: %d", field, frame_count, line_count);
 		ImGui::Text("frame_count: %d  field: %d  hcnt: %04d  vcnt: %d", frame_count, top->rootp->core_3do__DOT__clio_inst__DOT__field, top->rootp->core_3do__DOT__clio_inst__DOT__hcnt, top->rootp->core_3do__DOT__clio_inst__DOT__vcnt);
-
-		/*
-		ImGui::Text("Addr:   0x%08X", top->rootp->mem_addr << 2);
-
-		ImGui::Text("PC:     0x%08X", top->rootp->pc << 2);
-		if (top->rootp->system_top__DOT__core__DOT__PC__DOT__enable) {
-		ImGui::SameLine(150); ImGui::Text("<- WRITE 0x%08X", top->rootp->system_top__DOT__core__DOT__IF_PCIn);
-		}
-
-		if (top->rootp->system_top__DOT__core__DOT__PC__DOT__exe_pc_write) {
-		ImGui::SameLine(150); ImGui::Text("<- EXE_PC WRITE 0x%08X", top->rootp->system_top__DOT__core__DOT__exe_pc);
-		}
-
-		ImGui::Text("Inst:   0x%08X", top->rootp->system_top__DOT__core__DOT__InstMem_In);
-		*/
-
-		//if (ImGui::Button("Reset!")) top->rootp->KEY = 0;
-		//else top->rootp->KEY = 1;
 
 		ImGui::Checkbox("RUN", &run_enable);
 
@@ -1614,15 +1580,16 @@ int main(int argc, char** argv, char** env) {
 		uint32_t cpsr = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__cpsr_ff;
 
 		//if ( cpu_mode==0b10000 )                // User mode
-		if (cpsr&0x1f ==0b10001) reg_col[35] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// FIQ mode
-		if (cpsr&0x1f ==0b10010) reg_col[36] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// IRQ mode
-		if (cpsr&0x1f ==0b10011) reg_col[37] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// Supervisor mode
-		if (cpsr&0x1f ==0b11011) reg_col[38] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// Undefined mode
-		if (cpsr&0x1f ==0b10111) reg_col[39] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// Abort mode
-		//if (cpsr&0x1f ==0b11111 ) reg_col[99] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// System mode
+		if ((cpsr&0x1f)==0b10001) reg_col[35] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// FIQ mode
+		if ((cpsr&0x1f)==0b10010) reg_col[36] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// IRQ mode
+		if ((cpsr&0x1f)==0b10011) reg_col[37] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// Supervisor mode
+		if ((cpsr&0x1f)==0b11011) reg_col[38] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// Undefined mode
+		if ((cpsr&0x1f)==0b10111) reg_col[39] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// Abort mode
+		//if ((cpsr&0x1f)==0b11111 ) reg_col[99] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// System mode
 
 		ImGui::Separator();
-		ImGui::Text("          PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);  ImGui::SameLine(); ImGui::Text(" Opera  PC: 0x%08X", CPU.USER[15]);
+		//ImGui::Text("          PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);  ImGui::SameLine(); ImGui::Text(" Opera  PC: 0x%08X", CPU.USER[15]);
+		ImGui::Text("          PC: 0x%08X", cur_pc);  ImGui::SameLine(); ImGui::Text(" Opera  PC: 0x%08X", CPU.USER[15]);
 		ImGui::TextColored(ImVec4(reg_col[0]),  "          R0: 0x%08X", arm_reg[0]);  ImGui::SameLine(); ImGui::Text(" Opera  R0: 0x%08X", CPU.USER[0]);
 		ImGui::TextColored(ImVec4(reg_col[1]),  "          R1: 0x%08X", arm_reg[1]);  ImGui::SameLine(); ImGui::Text(" Opera  R1: 0x%08X", CPU.USER[1]);
 		ImGui::TextColored(ImVec4(reg_col[2]),  "          R2: 0x%08X", arm_reg[2]);  ImGui::SameLine(); ImGui::Text(" Opera  R2: 0x%08X", CPU.USER[2]);
@@ -1632,12 +1599,12 @@ int main(int argc, char** argv, char** env) {
 		ImGui::TextColored(ImVec4(reg_col[6]),  "          R6: 0x%08X", arm_reg[6]);  ImGui::SameLine(); ImGui::Text(" Opera  R6: 0x%08X", CPU.USER[6]);
 		ImGui::TextColored(ImVec4(reg_col[7]),  "          R7: 0x%08X", arm_reg[7]);  ImGui::SameLine(); ImGui::Text(" Opera  R7: 0x%08X", CPU.USER[7]);
 
-		if (cpsr&0x1f == 0b10001) {	// FIQ
-			ImGui::TextColored(ImVec4(reg_col[18]), "     FIQ  FR8: 0x%08X", arm_reg[18]); ImGui::SameLine(); ImGui::Text(" Opera  R8: 0x%08X", CPU.USER[8]);
-			ImGui::TextColored(ImVec4(reg_col[19]), "     FIQ  FR9: 0x%08X", arm_reg[19]); ImGui::SameLine(); ImGui::Text(" Opera  R9: 0x%08X", CPU.USER[9]);
-			ImGui::TextColored(ImVec4(reg_col[20]), "     FIQ FR10: 0x%08X", arm_reg[20]); ImGui::SameLine(); ImGui::Text(" Opera R10: 0x%08X", CPU.USER[10]);
-			ImGui::TextColored(ImVec4(reg_col[21]), "     FIQ FR11: 0x%08X", arm_reg[21]); ImGui::SameLine(); ImGui::Text(" Opera R11: 0x%08X", CPU.USER[11]);
-			ImGui::TextColored(ImVec4(reg_col[22]), "     FIQ FR12: 0x%08X", arm_reg[22]); ImGui::SameLine(); ImGui::Text(" Opera R12: 0x%08X", CPU.USER[12]);
+		if ((cpsr&0x1f) == 0b10001) {	// FIQ
+			ImGui::TextColored(ImVec4(reg_col[18]), "         FR8: 0x%08X", arm_reg[18]); ImGui::SameLine(); ImGui::Text(" Opera  R8: 0x%08X", CPU.USER[8]);
+			ImGui::TextColored(ImVec4(reg_col[19]), "         FR9: 0x%08X", arm_reg[19]); ImGui::SameLine(); ImGui::Text(" Opera  R9: 0x%08X", CPU.USER[9]);
+			ImGui::TextColored(ImVec4(reg_col[20]), "        FR10: 0x%08X", arm_reg[20]); ImGui::SameLine(); ImGui::Text(" Opera R10: 0x%08X", CPU.USER[10]);
+			ImGui::TextColored(ImVec4(reg_col[21]), "        FR11: 0x%08X", arm_reg[21]); ImGui::SameLine(); ImGui::Text(" Opera R11: 0x%08X", CPU.USER[11]);
+			ImGui::TextColored(ImVec4(reg_col[22]), "        FR12: 0x%08X", arm_reg[22]); ImGui::SameLine(); ImGui::Text(" Opera R12: 0x%08X", CPU.USER[12]);
 		}
 		else {
 			ImGui::TextColored(ImVec4(reg_col[8]),  "          R8: 0x%08X", arm_reg[8]);  ImGui::SameLine(); ImGui::Text(" Opera  R8: 0x%08X", CPU.USER[8]);
@@ -1696,27 +1663,9 @@ int main(int argc, char** argv, char** env) {
 		*/
 
 		//ImGui::TextColored(ImVec4(reg_col[15]), " unused? R15: 0x%08X", arm_reg[15]);
-		//ImGui::Text("reg_src: %d", reg_src);
-		//ImGui::Text("reg_dst: %d", reg_dst);
 		ImGui::Separator();
 
-		/*
-		uint32_t curr_spsr = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__curr_spsr;
-		ImGui::Text("   curr_spsr: %d", curr_spsr);
-		ImGui::SameLine();
-		switch (curr_spsr) {
-			case 17: ImGui::Text(" PHY_CPSR     "); break;
-			case 35: ImGui::Text(" PHY_FIQ_SPSR "); break;
-			case 36: ImGui::Text(" PHY_IRQ_SPSR "); break;
-			case 37: ImGui::Text(" PHY_SVC_SPSR "); break;
-			case 38: ImGui::Text(" PHY_UND_SPSR "); break;
-			case 39: ImGui::Text(" PHY_ABT_SPSR "); break;
-			default: ImGui::Text("              "); break;
-		}
-		*/
-
-		//ImGui::Text("        CPSR: 0x%08X", cpsr);
-		ImGui::Text("        bits: %d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
+		ImGui::Text("   CPSR bits: %d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
 			(cpsr & 0x80000000) >> 31, (cpsr & 0x40000000) >> 30, (cpsr & 0x20000000) >> 29, (cpsr & 0x10000000) >> 28, (cpsr & 0x08000000) >> 27, (cpsr & 0x04000000) >> 26, (cpsr & 0x02000000) >> 25, (cpsr & 0x01000000) >> 24,
 			(cpsr & 0x00800000) >> 23, (cpsr & 0x00400000) >> 22, (cpsr & 0x00200000) >> 21, (cpsr & 0x00100000) >> 20, (cpsr & 0x00080000) >> 19, (cpsr & 0x00040000) >> 18, (cpsr & 0x00020000) >> 17, (cpsr & 0x00010000) >> 16,
 			(cpsr & 0x00008000) >> 15, (cpsr & 0x00004000) >> 14, (cpsr & 0x00002000) >> 13, (cpsr & 0x00001000) >> 12, (cpsr & 0x00000800) >> 11, (cpsr & 0x00000400) >> 10, (cpsr & 0x00000200) >> 9, (cpsr & 0x00000100) >> 8,
@@ -1740,36 +1689,34 @@ int main(int argc, char** argv, char** env) {
 
 
 		ImGui::Begin("ARM Secondary regs");
-		//ImGui::TextColored(ImVec4(reg_col[16]), "         RAZ: 0x%08X", arm_reg[16]);
-		//ImGui::TextColored(ImVec4(reg_col[17]), "    PHY_CPSR: 0x%08X", arm_reg[17]); // <- The real CPSR.
-		ImGui::TextColored(ImVec4(reg_col[18]), "         FR8: 0x%08X", arm_reg[18]);
-		ImGui::TextColored(ImVec4(reg_col[19]), "         FR9: 0x%08X", arm_reg[19]);
-		ImGui::TextColored(ImVec4(reg_col[20]), "        FR10: 0x%08X", arm_reg[20]);
-		ImGui::TextColored(ImVec4(reg_col[21]), "        FR11: 0x%08X", arm_reg[21]);
-		ImGui::TextColored(ImVec4(reg_col[22]), "        FR12: 0x%08X", arm_reg[22]);
-		ImGui::TextColored(ImVec4(reg_col[23]), "        FR13: 0x%08X", arm_reg[23]);
-		ImGui::TextColored(ImVec4(reg_col[24]), "        FR14: 0x%08X", arm_reg[24]);
+		ImGui::TextColored(ImVec4(reg_col[18]), "      FR8: 0x%08X", arm_reg[18]);
+		ImGui::TextColored(ImVec4(reg_col[19]), "      FR9: 0x%08X", arm_reg[19]);
+		ImGui::TextColored(ImVec4(reg_col[20]), "     FR10: 0x%08X", arm_reg[20]);
+		ImGui::TextColored(ImVec4(reg_col[21]), "     FR11: 0x%08X", arm_reg[21]);
+		ImGui::TextColored(ImVec4(reg_col[22]), "     FR12: 0x%08X", arm_reg[22]);
+		ImGui::TextColored(ImVec4(reg_col[23]), "     FR13: 0x%08X", arm_reg[23]);
+		ImGui::TextColored(ImVec4(reg_col[24]), "     FR14: 0x%08X", arm_reg[24]);
 		ImGui::Separator();
-		ImGui::TextColored(ImVec4(reg_col[25]), "       IRQ13: 0x%08X", arm_reg[25]);
-		ImGui::TextColored(ImVec4(reg_col[26]), "       IRQ14: 0x%08X", arm_reg[26]);
+		ImGui::TextColored(ImVec4(reg_col[25]), "    IRQ13: 0x%08X", arm_reg[25]);
+		ImGui::TextColored(ImVec4(reg_col[26]), "    IRQ14: 0x%08X", arm_reg[26]);
 		ImGui::Separator();
-		ImGui::TextColored(ImVec4(reg_col[27]), "       SVC13: 0x%08X", arm_reg[27]);
-		ImGui::TextColored(ImVec4(reg_col[28]), "       SVC14: 0x%08X", arm_reg[28]);
+		ImGui::TextColored(ImVec4(reg_col[27]), "    SVC13: 0x%08X", arm_reg[27]);
+		ImGui::TextColored(ImVec4(reg_col[28]), "    SVC14: 0x%08X", arm_reg[28]);
 		ImGui::Separator();
-		ImGui::TextColored(ImVec4(reg_col[29]), "       UND13: 0x%08X", arm_reg[29]);
-		ImGui::TextColored(ImVec4(reg_col[30]), "       UND14: 0x%08X", arm_reg[30]);
+		ImGui::TextColored(ImVec4(reg_col[29]), "    UND13: 0x%08X", arm_reg[29]);
+		ImGui::TextColored(ImVec4(reg_col[30]), "    UND14: 0x%08X", arm_reg[30]);
 		ImGui::Separator();
-		ImGui::TextColored(ImVec4(reg_col[31]), "       ABT13: 0x%08X", arm_reg[31]);
-		ImGui::TextColored(ImVec4(reg_col[32]), "       ABT14: 0x%08X", arm_reg[32]);
+		ImGui::TextColored(ImVec4(reg_col[31]), "    ABT13: 0x%08X", arm_reg[31]);
+		ImGui::TextColored(ImVec4(reg_col[32]), "    ABT14: 0x%08X", arm_reg[32]);
 		ImGui::Separator();
-		ImGui::TextColored(ImVec4(reg_col[33]), "        DUM0: 0x%08X", arm_reg[33]);
-		ImGui::TextColored(ImVec4(reg_col[34]), "        DUM1: 0x%08X", arm_reg[34]);
+		ImGui::TextColored(ImVec4(reg_col[33]), "     DUM0: 0x%08X", arm_reg[33]);
+		ImGui::TextColored(ImVec4(reg_col[34]), "     DUM1: 0x%08X", arm_reg[34]);
 		ImGui::Separator();
-		ImGui::TextColored(ImVec4(reg_col[35]), "    FIQ_SPSR: 0x%08X", arm_reg[35]);
-		ImGui::TextColored(ImVec4(reg_col[36]), "    IRQ_SPSR: 0x%08X", arm_reg[36]);
-		ImGui::TextColored(ImVec4(reg_col[37]), "    SVC_SPSR: 0x%08X", arm_reg[37]);
-		ImGui::TextColored(ImVec4(reg_col[38]), "    UND_SPSR: 0x%08X", arm_reg[38]);
-		ImGui::TextColored(ImVec4(reg_col[39]), "    ABT_SPSR: 0x%08X", arm_reg[39]);
+		ImGui::TextColored(ImVec4(reg_col[35]), " FIQ_SPSR: 0x%08X", arm_reg[35]);
+		ImGui::TextColored(ImVec4(reg_col[36]), " IRQ_SPSR: 0x%08X", arm_reg[36]);
+		ImGui::TextColored(ImVec4(reg_col[37]), " SVC_SPSR: 0x%08X", arm_reg[37]);
+		ImGui::TextColored(ImVec4(reg_col[38]), " UND_SPSR: 0x%08X", arm_reg[38]);
+		ImGui::TextColored(ImVec4(reg_col[39]), " ABT_SPSR: 0x%08X", arm_reg[39]);
 		ImGui::Separator();
 		ImGui::End();
 
@@ -1812,79 +1759,76 @@ int main(int argc, char** argv, char** env) {
 		ImGui::End();
 
 		ImGui::Begin("CLIO Timers");
-		ImGui::Text("   tmr_cnt_0: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_cnt);	// 0x100
-		ImGui::Text("   tmr_bkp_0: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_bkp);	// 0x104
-		ImGui::Text("   tmr_cnt_1: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_cnt);	// 0x108
-		ImGui::Text("   tmr_bkp_1: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_bkp);	// 0x10c
-		ImGui::Text("   tmr_cnt_2: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_cnt);	// 0x110
-		ImGui::Text("   tmr_bkp_2: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_bkp);	// 0x114
-		ImGui::Text("   tmr_cnt_3: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_cnt);	// 0x118
-		ImGui::Text("   tmr_bkp_3: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_bkp);	// 0x11c
-		ImGui::Text("   tmr_cnt_4: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_cnt);	// 0x120
-		ImGui::Text("   tmr_bkp_4: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_bkp);	// 0x124
-		ImGui::Text("   tmr_cnt_5: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_cnt);	// 0x128
-		ImGui::Text("   tmr_bkp_5: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_bkp);	// 0x12c
-		ImGui::Text("   tmr_cnt_6: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_cnt);	// 0x130
-		ImGui::Text("   tmr_bkp_6: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_bkp);	// 0x134
-		ImGui::Text("   tmr_cnt_7: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_cnt);	// 0x138
-		ImGui::Text("   tmr_bkp_7: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_bkp);	// 0x13c
-		ImGui::Text("   tmr_cnt_8: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_cnt);	// 0x140
-		ImGui::Text("   tmr_bkp_8: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_bkp);	// 0x144
-		ImGui::Text("   tmr_cnt_9: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_cnt);	// 0x148
-		ImGui::Text("   tmr_bkp_9: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_bkp);	// 0x14c
-		ImGui::Text("  tmr_cnt_10: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_cnt);	// 0x150
-		ImGui::Text("  tmr_bkp_10: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_bkp);	// 0x154
-		ImGui::Text("  tmr_cnt_11: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_cnt);	// 0x158
-		ImGui::Text("  tmr_bkp_11: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_bkp);	// 0x15c
-		ImGui::Text("  tmr_cnt_12: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_cnt);	// 0x160
-		ImGui::Text("  tmr_bkp_12: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_bkp);	// 0x164
-		ImGui::Text("  tmr_cnt_13: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_cnt);	// 0x168
-		ImGui::Text("  tmr_bkp_13: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_bkp);	// 0x16c
-		ImGui::Text("  tmr_cnt_14: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_cnt);	// 0x170
-		ImGui::Text("  tmr_bkp_14: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_bkp);	// 0x174
-		ImGui::Text("  tmr_cnt_15: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_cnt);	// 0x178
-		ImGui::Text("  tmr_bkp_15: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_bkp);	// 0x17c
+		ImGui::Text("   cnt_0: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_cnt);	// 0x100
+		ImGui::SameLine(); ImGui::Text("   bkp_0: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_bkp);	// 0x104
+		ImGui::Text("   cnt_1: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_cnt);	// 0x108
+		ImGui::SameLine(); ImGui::Text("   bkp_1: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_bkp);	// 0x10c
+		ImGui::Text("   cnt_2: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_cnt);	// 0x110
+		ImGui::SameLine(); ImGui::Text("   bkp_2: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_bkp);	// 0x114
+		ImGui::Text("   cnt_3: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_cnt);	// 0x118
+		ImGui::SameLine(); ImGui::Text("   bkp_3: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_bkp);	// 0x11c
+		ImGui::Text("   cnt_4: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_cnt);	// 0x120
+		ImGui::SameLine(); ImGui::Text("   bkp_4: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_bkp);	// 0x124
+		ImGui::Text("   cnt_5: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_cnt);	// 0x128
+		ImGui::SameLine(); ImGui::Text("   bkp_5: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_bkp);	// 0x12c
+		ImGui::Text("   cnt_6: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_cnt);	// 0x130
+		ImGui::SameLine(); ImGui::Text("   bkp_6: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_bkp);	// 0x134
+		ImGui::Text("   cnt_7: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_cnt);	// 0x138
+		ImGui::SameLine(); ImGui::Text("   bkp_7: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_bkp);	// 0x13c
+		ImGui::Text("   cnt_8: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_cnt);	// 0x140
+		ImGui::SameLine(); ImGui::Text("   bkp_8: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_bkp);	// 0x144
+		ImGui::Text("   cnt_9: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_cnt);	// 0x148
+		ImGui::SameLine(); ImGui::Text("   bkp_9: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_bkp);	// 0x14c
+		ImGui::Text("  cnt_10: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_cnt);	// 0x150
+		ImGui::SameLine(); ImGui::Text("  bkp_10: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_bkp);	// 0x154
+		ImGui::Text("  cnt_11: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_cnt);	// 0x158
+		ImGui::SameLine(); ImGui::Text("  bkp_11: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_bkp);	// 0x15c
+		ImGui::Text("  cnt_12: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_cnt);	// 0x160
+		ImGui::SameLine(); ImGui::Text("  bkp_12: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_bkp);	// 0x164
+		ImGui::Text("  cnt_13: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_cnt);	// 0x168
+		ImGui::SameLine(); ImGui::Text("  bkp_13: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_bkp);	// 0x16c
+		ImGui::Text("  cnt_14: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_cnt);	// 0x170
+		ImGui::SameLine(); ImGui::Text("  bkp_14: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_bkp);	// 0x174
+		ImGui::Text("  cnt_15: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_cnt);	// 0x178
+		ImGui::SameLine(); ImGui::Text("  bkp_15: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_bkp);	// 0x17c
 		ImGui::Separator();
 		ImGui::Text("  tmr_ctrl_l: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr_ctrl_l);		// TODO !!
 		ImGui::Text("  tmr_ctrl_u: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr_ctrl_u);		// Not 100% sure how this should read back!!
 		ImGui::End();
 
-		ImGui::Begin("CLIO sel regs");
-		ImGui::Text(" sel_0: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_0);                // 0x500
-		ImGui::Text(" sel_1: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_1);                // 0x504
-		ImGui::Text(" sel_2: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_2);                // 0x508
-		ImGui::Text(" sel_3: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_3);                // 0x50c
-		ImGui::Text(" sel_4: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_4);                // 0x510
-		ImGui::Text(" sel_5: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_5);                // 0x514
-		ImGui::Text(" sel_6: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_6);                // 0x518
-		ImGui::Text(" sel_7: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_7);                // 0x51c
-		ImGui::Text(" sel_8: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_8);                // 0x520
-		ImGui::Text(" sel_9: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_9);                // 0x524
-		ImGui::Text("sel_10: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_10);               // 0x528
-		ImGui::Text("sel_11: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_11);               // 0x52c
-		ImGui::Text("sel_12: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_12);               // 0x530
-		ImGui::Text("sel_13: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_13);               // 0x534
-		ImGui::Text("sel_14: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_14);               // 0x538
-		ImGui::Text("sel_15: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__sel_15);               // 0x53c
-		ImGui::End();
-
-		ImGui::Begin("CLIO poll regs");
-		ImGui::Text(" poll_0: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_0);              // 0x540
-		ImGui::Text(" poll_1: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_1);              // 0x544
-		ImGui::Text(" poll_2: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_2);              // 0x548
-		ImGui::Text(" poll_3: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_3);              // 0x54c
-		ImGui::Text(" poll_4: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_4);              // 0x550
-		ImGui::Text(" poll_5: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_5);              // 0x554
-		ImGui::Text(" poll_6: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_6);              // 0x558
-		ImGui::Text(" poll_7: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_7);              // 0x55c
-		ImGui::Text(" poll_8: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_8);              // 0x560
-		ImGui::Text(" poll_9: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_9);              // 0x564
-		ImGui::Text("poll_10: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_10);             // 0x568
-		ImGui::Text("poll_11: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_11);             // 0x56c
-		ImGui::Text("poll_12: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_12);             // 0x570
-		ImGui::Text("poll_13: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_13);             // 0x574
-		ImGui::Text("poll_14: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_14);             // 0x578
-		ImGui::Text("poll_15: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_15);             // 0x57c
+		ImGui::Begin("CLIO Xbus regs");
+		ImGui::Text(" sel_0: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_0);                // 0x500
+		ImGui::SameLine(); ImGui::Text(" poll_0: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_0);              // 0x540
+		ImGui::Text(" sel_1: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_1);                // 0x504
+		ImGui::SameLine(); ImGui::Text(" poll_1: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_1);              // 0x544
+		ImGui::Text(" sel_2: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_2);                // 0x508
+		ImGui::SameLine(); ImGui::Text(" poll_2: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_2);              // 0x548
+		ImGui::Text(" sel_3: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_3);                // 0x50c
+		ImGui::SameLine(); ImGui::Text(" poll_3: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_3);              // 0x54c
+		ImGui::Text(" sel_4: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_4);                // 0x510
+		ImGui::SameLine(); ImGui::Text(" poll_4: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_4);              // 0x550
+		ImGui::Text(" sel_5: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_5);                // 0x514
+		ImGui::SameLine(); ImGui::Text(" poll_5: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_5);              // 0x554
+		ImGui::Text(" sel_6: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_6);                // 0x518
+		ImGui::SameLine(); ImGui::Text(" poll_6: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_6);              // 0x558
+		ImGui::Text(" sel_7: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_7);                // 0x51c
+		ImGui::SameLine(); ImGui::Text(" poll_7: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_7);              // 0x55c
+		ImGui::Text(" sel_8: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_8);                // 0x520
+		ImGui::SameLine(); ImGui::Text(" poll_8: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_8);              // 0x560
+		ImGui::Text(" sel_9: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_9);                // 0x524
+		ImGui::SameLine(); ImGui::Text(" poll_9: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_9);              // 0x564
+		ImGui::Text("sel_10: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_10);               // 0x528
+		ImGui::SameLine(); ImGui::Text("poll_10: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_10);             // 0x568
+		ImGui::Text("sel_11: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_11);               // 0x52c
+		ImGui::SameLine(); ImGui::Text("poll_11: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_11);             // 0x56c
+		ImGui::Text("sel_12: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_12);               // 0x530
+		ImGui::SameLine(); ImGui::Text("poll_12: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_12);             // 0x570
+		ImGui::Text("sel_13: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_13);               // 0x534
+		ImGui::SameLine(); ImGui::Text("poll_13: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_13);             // 0x574
+		ImGui::Text("sel_14: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_14);               // 0x538
+		ImGui::SameLine(); ImGui::Text("poll_14: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_14);             // 0x578
+		ImGui::Text("sel_15: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_15);               // 0x53c
+		ImGui::SameLine(); ImGui::Text("poll_15: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_15);             // 0x57c
 		ImGui::End();
 
 		ImGui::Begin("CLIO DSP regs");
