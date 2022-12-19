@@ -869,7 +869,7 @@ int verilate() {
 				}
 
 				//else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0xBADACCE5; }
-				else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0xBADACCE5; }
+				else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0x0000006A; }
 
 				else if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315FFFF) { fprintf(logfile, "NVRAM           "); top->i_wb_dat = nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] & 0xff; }
 				else if (top->o_wb_adr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); sim_diag_port_send(top->o_wb_dat); }
@@ -1313,11 +1313,11 @@ int main(int argc, char** argv, char** env) {
 	my_opera_init();
 
 	/* select test, use -1 -- if don't need tests */
-	//sim_diag_port_init(-1);	// Normal BIOS startup.
-	sim_diag_port_init(0xf1);
+	sim_diag_port_init(-1);		// Normal BIOS startup.
+	//sim_diag_port_init(0xf1);
 
-	//opera_diag_port_init(-1);	// Normal BIOS startup.
-	opera_diag_port_init(0xf1);
+	opera_diag_port_init(-1);	// Normal BIOS startup.
+	//opera_diag_port_init(0xf1);
 
 	/*
 	0z00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
@@ -1446,9 +1446,6 @@ int main(int argc, char** argv, char** env) {
 
 		ImGui::Begin("ARM Registers");
 
-		ImGui::Text("     reset_n: %d", top->rootp->core_3do__DOT__reset_n);
-		ImGui::Separator();
-
 		if (run_enable)
 		{
 			for (int step = 0; step < 2048; step++)
@@ -1530,8 +1527,9 @@ int main(int argc, char** argv, char** env) {
 			main_time++;
 		}
 
-		//ImGui::Text("          PC: 0x%08X", top->rootp->core_3do__DOT__a23_core_inst__DOT__u_execute__DOT__u_register_bank__DOT__o_pc);
-		ImGui::Text("    o_wb_adr: 0x%08X", top->o_wb_adr);
+		ImGui::Text("    reset_n: %d", top->rootp->core_3do__DOT__reset_n);
+		ImGui::Separator();
+		ImGui::Text("   o_wb_adr: 0x%08X", top->o_wb_adr);
 		ImGui::SameLine();
 		if (top->rootp->o_wb_adr >= 0x00000000 && top->rootp->o_wb_adr <= 0x001FFFFF) {
 			if (map_bios) ImGui::Text("    BIOS (mapped)"); else ImGui::Text("    Main RAM    ");
@@ -1547,19 +1545,19 @@ int main(int argc, char** argv, char** env) {
 		else if (top->rootp->o_wb_adr >= 0x03400000 && top->rootp->o_wb_adr <= 0x034FFFFF) ImGui::Text("       CLIO      ");
 		else ImGui::Text("    Unknown    ");
 
-		ImGui::Text("    i_wb_dat: 0x%08X", top->i_wb_dat);
+		ImGui::Text("   i_wb_dat: 0x%08X", top->i_wb_dat);
 		ImGui::Separator();
-		ImGui::Text("    o_wb_dat: 0x%08X", top->o_wb_dat);
-		ImGui::Text("     o_wb_we: %d", top->o_wb_we); ImGui::SameLine(); if (!top->rootp->o_wb_we) ImGui::Text(" Read"); else ImGui::Text(" Write");
-		ImGui::Text("    o_wb_sel: 0x%01X", top->o_wb_sel);
-		//ImGui::Text("    o_wb_cyc: %d", top->o_wb_cyc);
-		ImGui::Text("    o_wb_stb: %d", top->o_wb_stb);
-		//ImGui::Text("    o_wb_cti: 0x%01X", top->o_wb_cti);
-		//ImGui::Text("    o_wb_bte: 0x%01X", top->o_wb_bte);
+		ImGui::Text("   o_wb_dat: 0x%08X", top->o_wb_dat);
+		ImGui::Text("    o_wb_we: %d", top->o_wb_we); ImGui::SameLine(); if (!top->rootp->o_wb_we) ImGui::Text(" Read"); else ImGui::Text(" Write");
+		ImGui::Text("   o_wb_sel: 0x%01X", top->o_wb_sel);
+		//ImGui::Text("   o_wb_cyc: %d", top->o_wb_cyc);
+		ImGui::Text("   o_wb_stb: %d", top->o_wb_stb);
+		//ImGui::Text("   o_wb_cti: 0x%01X", top->o_wb_cti);
+		//ImGui::Text("   o_wb_bte: 0x%01X", top->o_wb_bte);
 		ImGui::Separator();
-		ImGui::Text("       i_fiq: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_fiq);
+		ImGui::Text("      i_fiq: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_fiq);
 
-		//ImGui::Text("  i_mem_addr: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__i_mem_address_ff2);
+		//ImGui::Text(" i_mem_addr: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__i_mem_address_ff2);
 
 
 		uint32_t reg_src = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__o_alu_source_ff;
@@ -1588,63 +1586,60 @@ int main(int argc, char** argv, char** env) {
 		//if ((cpsr&0x1f)==0b11111 ) reg_col[99] = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);	// System mode
 
 		ImGui::Separator();
-		//ImGui::Text("          PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);  ImGui::SameLine(); ImGui::Text(" Opera  PC: 0x%08X", CPU.USER[15]);
-		ImGui::Text("          PC: 0x%08X", cur_pc);  ImGui::SameLine(); ImGui::Text(" Opera  PC: 0x%08X", CPU.USER[15]);
-		ImGui::TextColored(ImVec4(reg_col[0]),  "          R0: 0x%08X", arm_reg[0]);  ImGui::SameLine(); ImGui::Text(" Opera  R0: 0x%08X", CPU.USER[0]);
-		ImGui::TextColored(ImVec4(reg_col[1]),  "          R1: 0x%08X", arm_reg[1]);  ImGui::SameLine(); ImGui::Text(" Opera  R1: 0x%08X", CPU.USER[1]);
-		ImGui::TextColored(ImVec4(reg_col[2]),  "          R2: 0x%08X", arm_reg[2]);  ImGui::SameLine(); ImGui::Text(" Opera  R2: 0x%08X", CPU.USER[2]);
-		ImGui::TextColored(ImVec4(reg_col[3]),  "          R3: 0x%08X", arm_reg[3]);  ImGui::SameLine(); ImGui::Text(" Opera  R3: 0x%08X", CPU.USER[3]);
-		ImGui::TextColored(ImVec4(reg_col[4]),  "          R4: 0x%08X", arm_reg[4]);  ImGui::SameLine(); ImGui::Text(" Opera  R4: 0x%08X", CPU.USER[4]);
-		ImGui::TextColored(ImVec4(reg_col[5]),  "          R5: 0x%08X", arm_reg[5]);  ImGui::SameLine(); ImGui::Text(" Opera  R5: 0x%08X", CPU.USER[5]);
-		ImGui::TextColored(ImVec4(reg_col[6]),  "          R6: 0x%08X", arm_reg[6]);  ImGui::SameLine(); ImGui::Text(" Opera  R6: 0x%08X", CPU.USER[6]);
-		ImGui::TextColored(ImVec4(reg_col[7]),  "          R7: 0x%08X", arm_reg[7]);  ImGui::SameLine(); ImGui::Text(" Opera  R7: 0x%08X", CPU.USER[7]);
+		//ImGui::Text("         PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);  ImGui::SameLine(); ImGui::Text(" Opera  PC: 0x%08X", CPU.USER[15]);
+		ImGui::Text("         PC: 0x%08X", cur_pc);  ImGui::SameLine(); ImGui::Text(" Opera  PC: 0x%08X", CPU.USER[15]);
+		ImGui::TextColored(ImVec4(reg_col[0]),  "         R0: 0x%08X", arm_reg[0]);  ImGui::SameLine(); ImGui::Text(" Opera  R0: 0x%08X", CPU.USER[0]);
+		ImGui::TextColored(ImVec4(reg_col[1]),  "         R1: 0x%08X", arm_reg[1]);  ImGui::SameLine(); ImGui::Text(" Opera  R1: 0x%08X", CPU.USER[1]);
+		ImGui::TextColored(ImVec4(reg_col[2]),  "         R2: 0x%08X", arm_reg[2]);  ImGui::SameLine(); ImGui::Text(" Opera  R2: 0x%08X", CPU.USER[2]);
+		ImGui::TextColored(ImVec4(reg_col[3]),  "         R3: 0x%08X", arm_reg[3]);  ImGui::SameLine(); ImGui::Text(" Opera  R3: 0x%08X", CPU.USER[3]);
+		ImGui::TextColored(ImVec4(reg_col[4]),  "         R4: 0x%08X", arm_reg[4]);  ImGui::SameLine(); ImGui::Text(" Opera  R4: 0x%08X", CPU.USER[4]);
+		ImGui::TextColored(ImVec4(reg_col[5]),  "         R5: 0x%08X", arm_reg[5]);  ImGui::SameLine(); ImGui::Text(" Opera  R5: 0x%08X", CPU.USER[5]);
+		ImGui::TextColored(ImVec4(reg_col[6]),  "         R6: 0x%08X", arm_reg[6]);  ImGui::SameLine(); ImGui::Text(" Opera  R6: 0x%08X", CPU.USER[6]);
+		ImGui::TextColored(ImVec4(reg_col[7]),  "         R7: 0x%08X", arm_reg[7]);  ImGui::SameLine(); ImGui::Text(" Opera  R7: 0x%08X", CPU.USER[7]);
 
 		if ((cpsr&0x1f) == 0b10001) {	// FIQ
-			ImGui::TextColored(ImVec4(reg_col[18]), "         FR8: 0x%08X", arm_reg[18]); ImGui::SameLine(); ImGui::Text(" Opera  R8: 0x%08X", CPU.USER[8]);
-			ImGui::TextColored(ImVec4(reg_col[19]), "         FR9: 0x%08X", arm_reg[19]); ImGui::SameLine(); ImGui::Text(" Opera  R9: 0x%08X", CPU.USER[9]);
-			ImGui::TextColored(ImVec4(reg_col[20]), "        FR10: 0x%08X", arm_reg[20]); ImGui::SameLine(); ImGui::Text(" Opera R10: 0x%08X", CPU.USER[10]);
-			ImGui::TextColored(ImVec4(reg_col[21]), "        FR11: 0x%08X", arm_reg[21]); ImGui::SameLine(); ImGui::Text(" Opera R11: 0x%08X", CPU.USER[11]);
-			ImGui::TextColored(ImVec4(reg_col[22]), "        FR12: 0x%08X", arm_reg[22]); ImGui::SameLine(); ImGui::Text(" Opera R12: 0x%08X", CPU.USER[12]);
+			ImGui::TextColored(ImVec4(reg_col[18]), "        FR8: 0x%08X", arm_reg[18]); ImGui::SameLine(); ImGui::Text(" Opera  R8: 0x%08X", CPU.USER[8]);
+			ImGui::TextColored(ImVec4(reg_col[19]), "        FR9: 0x%08X", arm_reg[19]); ImGui::SameLine(); ImGui::Text(" Opera  R9: 0x%08X", CPU.USER[9]);
+			ImGui::TextColored(ImVec4(reg_col[20]), "       FR10: 0x%08X", arm_reg[20]); ImGui::SameLine(); ImGui::Text(" Opera R10: 0x%08X", CPU.USER[10]);
+			ImGui::TextColored(ImVec4(reg_col[21]), "       FR11: 0x%08X", arm_reg[21]); ImGui::SameLine(); ImGui::Text(" Opera R11: 0x%08X", CPU.USER[11]);
+			ImGui::TextColored(ImVec4(reg_col[22]), "       FR12: 0x%08X", arm_reg[22]); ImGui::SameLine(); ImGui::Text(" Opera R12: 0x%08X", CPU.USER[12]);
 		}
 		else {
-			ImGui::TextColored(ImVec4(reg_col[8]),  "          R8: 0x%08X", arm_reg[8]);  ImGui::SameLine(); ImGui::Text(" Opera  R8: 0x%08X", CPU.USER[8]);
-			ImGui::TextColored(ImVec4(reg_col[9]),  "          R9: 0x%08X", arm_reg[9]);  ImGui::SameLine(); ImGui::Text(" Opera  R9: 0x%08X", CPU.USER[9]);
-			ImGui::TextColored(ImVec4(reg_col[10]), "         R10: 0x%08X", arm_reg[10]); ImGui::SameLine(); ImGui::Text(" Opera R10: 0x%08X", CPU.USER[10]);
-			ImGui::TextColored(ImVec4(reg_col[11]), "         R11: 0x%08X", arm_reg[11]); ImGui::SameLine(); ImGui::Text(" Opera R11: 0x%08X", CPU.USER[11]);
-			ImGui::TextColored(ImVec4(reg_col[12]), "         R12: 0x%08X", arm_reg[12]); ImGui::SameLine(); ImGui::Text(" Opera R12: 0x%08X", CPU.USER[12]);
+			ImGui::TextColored(ImVec4(reg_col[8]),  "         R8: 0x%08X", arm_reg[8]);  ImGui::SameLine(); ImGui::Text(" Opera  R8: 0x%08X", CPU.USER[8]);
+			ImGui::TextColored(ImVec4(reg_col[9]),  "         R9: 0x%08X", arm_reg[9]);  ImGui::SameLine(); ImGui::Text(" Opera  R9: 0x%08X", CPU.USER[9]);
+			ImGui::TextColored(ImVec4(reg_col[10]), "        R10: 0x%08X", arm_reg[10]); ImGui::SameLine(); ImGui::Text(" Opera R10: 0x%08X", CPU.USER[10]);
+			ImGui::TextColored(ImVec4(reg_col[11]), "        R11: 0x%08X", arm_reg[11]); ImGui::SameLine(); ImGui::Text(" Opera R11: 0x%08X", CPU.USER[11]);
+			ImGui::TextColored(ImVec4(reg_col[12]), "        R12: 0x%08X", arm_reg[12]); ImGui::SameLine(); ImGui::Text(" Opera R12: 0x%08X", CPU.USER[12]);
 		}
-
-		//ImGui::TextColored(ImVec4(reg_col[13]), "      SP R13: 0x%08X", arm_reg[13]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
-		//ImGui::TextColored(ImVec4(reg_col[14]), "      LR R14: 0x%08X", arm_reg[14]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
 
 		switch (cpsr & 0x1f) {	// CPU Mode bits [4:0].
 			case 0b10001:	// FIQ.
-				ImGui::TextColored(ImVec4(reg_col[23]), "        FR13: 0x%08X", arm_reg[23]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
-				ImGui::TextColored(ImVec4(reg_col[24]), "        FR14: 0x%08X", arm_reg[24]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]); 
-				/*ImGui::TextColored(ImVec4(reg_col[35]), "    FIQ SPSR: 0x%08X", arm_reg[35]);*/ break;
+				ImGui::TextColored(ImVec4(reg_col[23]), "       FR13: 0x%08X", arm_reg[23]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
+				ImGui::TextColored(ImVec4(reg_col[24]), "       FR14: 0x%08X", arm_reg[24]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]); 
+				/*ImGui::TextColored(ImVec4(reg_col[35]), "   FIQ SPSR: 0x%08X", arm_reg[35]);*/ break;
 			case 0b10010: // IRQ.
-				ImGui::TextColored(ImVec4(reg_col[25]), "       IRQ13: 0x%08X", arm_reg[25]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
-				ImGui::TextColored(ImVec4(reg_col[26]), "       IRQ14: 0x%08X", arm_reg[26]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
-				/*ImGui::TextColored(ImVec4(reg_col[36]), "    IRQ SPSR: 0x%08X", arm_reg[36]);*/ break;
+				ImGui::TextColored(ImVec4(reg_col[25]), "      IRQ13: 0x%08X", arm_reg[25]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
+				ImGui::TextColored(ImVec4(reg_col[26]), "      IRQ14: 0x%08X", arm_reg[26]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
+				/*ImGui::TextColored(ImVec4(reg_col[36]), "   IRQ SPSR: 0x%08X", arm_reg[36]);*/ break;
 			case 0b10011: // SVC
-				ImGui::TextColored(ImVec4(reg_col[27]), "       SVC13: 0x%08X", arm_reg[27]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
-				ImGui::TextColored(ImVec4(reg_col[28]), "       SVC14: 0x%08X", arm_reg[28]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
-				/*ImGui::TextColored(ImVec4(reg_col[17]), "        CPSR: 0x%08X", cpsr);*/ break;
+				ImGui::TextColored(ImVec4(reg_col[27]), "      SVC13: 0x%08X", arm_reg[27]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
+				ImGui::TextColored(ImVec4(reg_col[28]), "      SVC14: 0x%08X", arm_reg[28]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
+				/*ImGui::TextColored(ImVec4(reg_col[17]), "       CPSR: 0x%08X", cpsr);*/ break;
 			case 0b11011: // UND
-				ImGui::TextColored(ImVec4(reg_col[29]), "       UND13: 0x%08X", arm_reg[29]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
-				ImGui::TextColored(ImVec4(reg_col[30]), "       UND14: 0x%08X", arm_reg[30]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
-				/*ImGui::TextColored(ImVec4(reg_col[38]), "    UND SPSR: 0x%08X", arm_reg[38]);*/ break;
+				ImGui::TextColored(ImVec4(reg_col[29]), "      UND13: 0x%08X", arm_reg[29]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
+				ImGui::TextColored(ImVec4(reg_col[30]), "      UND14: 0x%08X", arm_reg[30]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
+				/*ImGui::TextColored(ImVec4(reg_col[38]), "   UND SPSR: 0x%08X", arm_reg[38]);*/ break;
 			case 0b10111: // ABT
-				ImGui::TextColored(ImVec4(reg_col[31]), "       ABT13: 0x%08X", arm_reg[31]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
-				ImGui::TextColored(ImVec4(reg_col[32]), "       ABT14: 0x%08X", arm_reg[32]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
-				/*ImGui::TextColored(ImVec4(reg_col[39]), "    ABT SPSR: 0x%08X", arm_reg[39]);*/ break;
+				ImGui::TextColored(ImVec4(reg_col[31]), "      ABT13: 0x%08X", arm_reg[31]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
+				ImGui::TextColored(ImVec4(reg_col[32]), "      ABT14: 0x%08X", arm_reg[32]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
+				/*ImGui::TextColored(ImVec4(reg_col[39]), "   ABT SPSR: 0x%08X", arm_reg[39]);*/ break;
 			default:	// BAD / USR ??
-				ImGui::TextColored(ImVec4(reg_col[13]), "         R13: 0x%08X", arm_reg[13]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
-				ImGui::TextColored(ImVec4(reg_col[14]), "         R14: 0x%08X", arm_reg[14]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
-				/*ImGui::TextColored(ImVec4(reg_col[17]), "        CPSR: 0x%08X", arm_reg[17]);*/ break;
+				ImGui::TextColored(ImVec4(reg_col[13]), "        R13: 0x%08X", arm_reg[13]); ImGui::SameLine(); ImGui::Text(" Opera R13: 0x%08X", CPU.USER[13]);
+				ImGui::TextColored(ImVec4(reg_col[14]), "        R14: 0x%08X", arm_reg[14]); ImGui::SameLine(); ImGui::Text(" Opera R14: 0x%08X", CPU.USER[14]);
+				/*ImGui::TextColored(ImVec4(reg_col[17]), "       CPSR: 0x%08X", arm_reg[17]);*/ break;
 		}
 
-		ImGui::TextColored(ImVec4(reg_col[17]), "        CPSR: 0x%08X", cpsr); ImGui::SameLine(); ImGui::Text("Opera CPSR: 0x%08X", CPU.CPSR);	// BAD / USR ??
+		ImGui::TextColored(ImVec4(reg_col[17]), "       CPSR: 0x%08X", cpsr); ImGui::SameLine(); ImGui::Text("Opera CPSR: 0x%08X", CPU.CPSR);	// BAD / USR ??
 
 		/*
 		switch (CPU.CPSR & 0x1F) {
@@ -1665,13 +1660,13 @@ int main(int argc, char** argv, char** env) {
 		//ImGui::TextColored(ImVec4(reg_col[15]), " unused? R15: 0x%08X", arm_reg[15]);
 		ImGui::Separator();
 
-		ImGui::Text("   CPSR bits: %d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
+		ImGui::Text("  CPSR bits: %d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
 			(cpsr & 0x80000000) >> 31, (cpsr & 0x40000000) >> 30, (cpsr & 0x20000000) >> 29, (cpsr & 0x10000000) >> 28, (cpsr & 0x08000000) >> 27, (cpsr & 0x04000000) >> 26, (cpsr & 0x02000000) >> 25, (cpsr & 0x01000000) >> 24,
 			(cpsr & 0x00800000) >> 23, (cpsr & 0x00400000) >> 22, (cpsr & 0x00200000) >> 21, (cpsr & 0x00100000) >> 20, (cpsr & 0x00080000) >> 19, (cpsr & 0x00040000) >> 18, (cpsr & 0x00020000) >> 17, (cpsr & 0x00010000) >> 16,
 			(cpsr & 0x00008000) >> 15, (cpsr & 0x00004000) >> 14, (cpsr & 0x00002000) >> 13, (cpsr & 0x00001000) >> 12, (cpsr & 0x00000800) >> 11, (cpsr & 0x00000400) >> 10, (cpsr & 0x00000200) >> 9, (cpsr & 0x00000100) >> 8,
 			(cpsr & 0x00000080) >> 7, (cpsr & 0x00000040) >> 6, (cpsr & 0x00000020) >> 5, (cpsr & 0x00000010) >> 4, (cpsr & 0x00000008) >> 3, (cpsr & 0x00000004) >> 2, (cpsr & 0x00000002) >> 1, (cpsr & 0x00000001) >> 0);
-		ImGui::Text("              NZCVQIIJ    GGGGIIIIIIEAIFTMMMMM");
-		ImGui::Text("                   TT     EEEETTTTTT    ");
+		ImGui::Text("             NZCVQIIJ    GGGGIIIIIIEAIFTMMMMM");
+		ImGui::Text("                  TT     EEEETTTTTT    ");
 		ImGui::SameLine();
 			switch (cpsr&0x1f) {
 				case 0b00000: ImGui::Text(" BAD "); break;
@@ -1682,9 +1677,15 @@ int main(int argc, char** argv, char** env) {
 				case 0b11011: ImGui::Text(" UND "); break;
 				      defaut: ImGui::Text("     "); break;
 			}
-
 		ImGui::Separator();
-		ImGui::Text("    sound_out: 0x%08X", sound_out);
+		ImGui::Text(" Zap Core decompile");
+		ImGui::Text(" 0x%08X: ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_inst);
+		ImGui::Text("     decode: %s", decode_string);
+		ImGui::Text("      issue: %s", issue_string);
+		ImGui::Text("    shifter: %s", shifter_string);
+		ImGui::Text("        alu: %s", alu_string);
+		ImGui::Text("     memory: %s", memory_string);
+		ImGui::Text("         rb: %s", rb_string);
 		ImGui::End();
 
 
@@ -1756,6 +1757,8 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("unc_soft_rev: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__unc_soft_rev);	// 0xc004
 		ImGui::Text("  uncle_addr: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__uncle_addr);		// 0xc008
 		ImGui::Text("   uncle_rom: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__uncle_rom);		// 0xc00c
+		ImGui::Separator();
+		ImGui::Text(" Opera sound_out: 0x%08X", sound_out);
 		ImGui::End();
 
 		ImGui::Begin("CLIO Timers");
@@ -1846,28 +1849,17 @@ int main(int argc, char** argv, char** env) {
 		ImGui::End();
 
 		ImGui::Begin("MADAM Registers");
-		ImGui::Text("        mctl: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__mctl);
-		ImGui::Text("      sltime: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__sltime);
+		ImGui::Text("     mctl: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__mctl);
+		ImGui::Text("   sltime: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__sltime);
 		ImGui::Separator();
-		ImGui::Text("    vdl_addr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr);	// 0x580
+		ImGui::Text(" vdl_addr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr);	// 0x580
 		ImGui::Separator();
 		ImGui::Text(" VDL still in C...");
-		ImGui::Text("    vdl_ctl: 0x%08X", vdl_ctl);
-		ImGui::Text("   vdl_curr: 0x%08X", vdl_curr);
-		ImGui::Text("   vdl_prev: 0x%08X", vdl_prev);
-		ImGui::Text("   vdl_next: 0x%08X", vdl_next);
+		ImGui::Text("  vdl_ctl: 0x%08X", vdl_ctl);
+		ImGui::Text(" vdl_curr: 0x%08X", vdl_curr);
+		ImGui::Text(" vdl_prev: 0x%08X", vdl_prev);
+		ImGui::Text(" vdl_next: 0x%08X", vdl_next);
 		ImGui::End();
-
-		ImGui::Begin("Zap Core decompile");
-		ImGui::Text("0x%08X: ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__predecode_inst);
-		ImGui::Text("    decode: %s", decode_string);
-		ImGui::Text("     issue: %s", issue_string);
-		ImGui::Text("   shifter: %s", shifter_string);
-		ImGui::Text("       alu: %s", alu_string);
-		ImGui::Text("    memory: %s", memory_string);
-		ImGui::Text("        rb: %s", rb_string);
-		ImGui::End();
-
 
 		/*
 		ImGui::Begin("Matrix Engine");

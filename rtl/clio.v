@@ -426,6 +426,7 @@ wire [7:0] fifo_spoof = (fifo_idx==4'd0)  ? 8'h83 : // CDROM_CMD_READ_ID
 						(fifo_idx==4'd9)  ? 8'h00 : // flag bytes
 						(fifo_idx==4'd10) ? 8'h00 :
 						(fifo_idx==4'd11) ? 8'hE1 : // CDST_RDY|CDST_TRAY|CDST_DISC|CDST_SPIN
+						(fifo_idx==4'd12) ? 8'h01 :	// device driver size.
 											8'h00;	// default value.
 
 always @(posedge clk_25m or negedge reset_n)
@@ -468,14 +469,20 @@ else begin
 	
 	//adbio_reg <= {28'h0000000, adbio_reg[7:4]};
 	
-	if (cpu_wr && {cpu_addr,2'b00}==16'h0500) fifo_idx <= 4'd0;	// Reset our fake CmdStFIFO on a write to the Sel0 reg.
+	// BIOS sets the LSB bit (POLSTMASK) of poll_0 reg, to request the device Status?
+	if (cpu_wr && {cpu_addr,2'b00}==16'h0540 && cpu_din[7:0]&POLSTMASK) begin
+		fifo_idx <= 4'd0;		// Reset our fake CmdStFIFO index.
+		poll_0 <= POLDT|POLST;	// Set the poll Data (0x20) and Status (0x10) bits.
+		//irq0_pend[2] <= 1'b1;	// Set XBUS IRQ pending bit??
+	end
+	
 	if (cpu_rd && {cpu_addr,2'b00}==16'h0580) begin
 		fifo_idx <= fifo_idx + 4'd1;	// Increment our fake CmdStFIFO index on each Read..
-		if (fifo_idx==4'd10) begin
-			poll_0 <= 8'h00;		// All status bytes read, clear the poll status bits.
-			//irq0_pend[2] <= 1'b1;	// Set XBUS IRQ pending bit.
-		end
 	end
+	if (fifo_idx==4'd12) begin
+		poll_0 <= 8'h00;			// All status bytes read, clear the poll status bits.
+	end
+	
 	
 	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
 	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
@@ -590,7 +597,7 @@ else begin
 		16'h0538: sel_14 <= cpu_din[7:0];	// 0x538
 		16'h053c: sel_15 <= cpu_din[7:0];	// 0x53c
 
-		16'h0540: begin /*poll_0  <= cpu_din[7:0]*/; if (cpu_din[7:0]==8'h01) poll_0 <= POLST; end // 0x540. Assert Poll Status bit after BIOS writes 0x01 to poll..
+		16'h0540: /*poll_0  <= cpu_din[7:0]*/;	// 0x540. Assert Poll Status bit after BIOS writes 0x01 to poll..
 		16'h0544: poll_1  <= cpu_din[7:0];	// 0x544
 		16'h0548: poll_2  <= cpu_din[7:0];	// 0x548
 		16'h054c: poll_3  <= cpu_din[7:0];	// 0x54c

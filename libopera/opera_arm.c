@@ -2352,8 +2352,8 @@ mreadw(uint32_t addr_)
          return read_word;
       }
       else {	// Brooktree.
-		fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", 0xBADACCE5, CPU.USER[15]);
-		//return 0x0000006a;	// TESTING !! (gets to the logo faster.)
+		fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", 0x0000006a, CPU.USER[15]);
+		return 0x0000006a;	// TESTING !! (gets to the logo faster.)
 	  }
    }
 
