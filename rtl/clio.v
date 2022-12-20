@@ -77,11 +77,14 @@ module clio (			// IC140 on FZ1.
 	inout uncackw,			// Video DMA Write Acknowledge. FMV? UN - Uncle Chip.
 	inout uncackr,			// Video DMA Read Acknowledge. FMV? UN - Uncle Chip.
 	
-	output [21:00] vram_addr,
+	//output [21:00] vram_addr,
 	output vram_rd,
 	output vram_wr,
-	output [31:0] vram_w_dat,
-	input [31:0] vram_r_dat,
+	input [15:0] vram_l_din,
+	input [15:0] vram_r_din,
+
+	output [15:0] vram_l_dout,
+	output [15:0] vram_r_dout,
 	
 	input vram_busy
 );
@@ -176,6 +179,15 @@ parameter POLST	    = 8'h10;
 parameter POLDT	    = 8'h20;
 parameter POLMA	    = 8'h40;
 parameter POLRE	    = 8'h80;
+
+parameter CDST_TRAY   = 8'h80;
+parameter CDST_DISC   = 8'h40;
+parameter CDST_SPIN   = 8'h20;
+parameter CDST_ERRO   = 8'h10;
+parameter CDST_2X     = 8'h02;
+parameter CDST_RDY    = 8'h01;
+parameter CDST_TRDISC = 8'hC0;
+parameter CDST_OK     = CDST_RDY|CDST_TRAY|CDST_DISC|CDST_SPIN;
 
 
 reg [7:0] sel_0;	// 0x500
@@ -355,7 +367,7 @@ always @(*) begin
 	16'h0538: cpu_dout = {24'h000000, sel_14};	// 0x538
 	16'h053c: cpu_dout = {24'h000000, sel_15};	// 0x53c
 
-	16'h0540: cpu_dout = {24'h000000, poll_0};	// 0x540
+	16'h0540: cpu_dout = {24'h000000, poll_0[7:4], 4'hf};	// 0x540
 	16'h0544: cpu_dout = {24'h000000, poll_1};	// 0x544
 	16'h0548: cpu_dout = {24'h000000, poll_2};	// 0x548
 	16'h054c: cpu_dout = {24'h000000, poll_3};	// 0x54c
@@ -425,8 +437,9 @@ wire [7:0] fifo_spoof = (fifo_idx==4'd0)  ? 8'h83 : // CDROM_CMD_READ_ID
 						(fifo_idx==4'd8)  ? 8'h00 :
 						(fifo_idx==4'd9)  ? 8'h00 : // flag bytes
 						(fifo_idx==4'd10) ? 8'h00 :
-						(fifo_idx==4'd11) ? 8'hE1 : // CDST_RDY|CDST_TRAY|CDST_DISC|CDST_SPIN
-						(fifo_idx==4'd12) ? 8'h01 :	// device driver size.
+						//(fifo_idx==4'd11) ? 8'hE1 : // CDST_RDY|CDST_TRAY|CDST_DISC|CDST_SPIN (CD drive's actual status)
+						(fifo_idx==4'd11) ? 8'h01 : // CDST_RDY (CD drive's actual status)
+						(fifo_idx==4'd12) ? 8'h01 :	// device driver size. ??
 											8'h00;	// default value.
 
 always @(posedge clk_25m or negedge reset_n)
@@ -469,19 +482,43 @@ else begin
 	
 	//adbio_reg <= {28'h0000000, adbio_reg[7:4]};
 	
-	// BIOS sets the LSB bit (POLSTMASK) of poll_0 reg, to request the device Status?
-	if (cpu_wr && {cpu_addr,2'b00}==16'h0540 && cpu_din[7:0]&POLSTMASK) begin
-		fifo_idx <= 4'd0;		// Reset our fake CmdStFIFO index.
-		poll_0 <= POLDT|POLST;	// Set the poll Data (0x20) and Status (0x10) bits.
-		//irq0_pend[2] <= 1'b1;	// Set XBUS IRQ pending bit??
+//
+// POLSTMASK = 8'h01;	// BIOS sets this, if it wants the device to generate an Interrupt when POLST is High.
+// POLDTMASK = 8'h02;	// BIOS sets this, if it wants the device to generate an Interrupt when POLDT is High.
+// POLMAMASK = 8'h04;	// Ditto for POLMA.
+// POLREMASK = 8'h08;	// ??
+// POLST	 = 8'h10;	// DEVICE sets this, if it has Status bytes waiting to be read from the Status FIFO.
+// POLDT	 = 8'h20;	// DEVICE sets this, if it has Data bytes waiting to be read from the Data FIFO.
+// POLMA	 = 8'h40;	// Media Access bit. Set when a new disk is inserted, probably??
+// POLRE	 = 8'h80;	// Erm, Reset device? (the Device's ID does not get cleared by this, only by the physical RESET_N pin).
+//
+	
+	// Writes to sel0 reg...
+	if (cpu_wr && {cpu_addr,2'b00}==16'h0500) begin
+		//if (cpu_din[7]) begin		// bit[7]=Select/STB_N??
+			if (cpu_din[3:0]==4'hf) begin
+				poll_0[3:0] <= 4'hF;	// Return the device ID in the lower nibble. DON'T set the status bit until the command bytes have been written!
+				fifo_idx <= 4'd0;		// Reset our fake CmdStFIFO index.
+			end
+			else poll_0[3:0] <= 4'h0;	// Else, clear the lower nibble, for all other devices.
+		//end
 	end
 	
+	// COMMAND Writes to CmdStFIFO...
+	if (cpu_wr && {cpu_addr,2'b00}==16'h0580) begin
+		poll_0[4] <= 1'b1;		// Set the Status bit (should really do this after all command bytes received, but meh.)
+	end
+	
+	// STATUS Reads from CmdStFIFO...
 	if (cpu_rd && {cpu_addr,2'b00}==16'h0580) begin
 		fifo_idx <= fifo_idx + 4'd1;	// Increment our fake CmdStFIFO index on each Read..
 	end
 	if (fifo_idx==4'd12) begin
-		poll_0 <= 8'h00;			// All status bytes read, clear the poll status bits.
+		poll_0[4] <= 1'b0;				// All STATUS bytes read, clear the poll status bit immediately.
 	end
+	
+	// Set XBUS IRQ pending bits, if the corresponding STATUS / DATA mask bits are set.
+	irq0_pend[2] <= ((poll_0&POLST) && (poll_0&POLSTMASK)) || ((poll_0&POLDT) && (poll_0&POLDTMASK));
 	
 	
 	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.

@@ -1041,13 +1041,11 @@ int verilate() {
 			}
 			old_fiq_n = top->rootp->core_3do__DOT__clio_inst__DOT__firq_n;
 
-			/*
 			uint32_t instruction = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction;
 			if ( ((instruction & 0xF000000)>>24 == 0b1111) && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction_valid) {
 				fprintf(logfile, "SWI 0x%08X  (PC: 0x%08X)\n", instruction, cur_pc);
 				//run_enable = 0;
 			}
-			*/
 		}
 
 		top->sys_clk = !(top->sys_clk&1);
@@ -1353,10 +1351,10 @@ int main(int argc, char** argv, char** env) {
 
 	/* select test, use -1 -- if don't need tests */
 	sim_diag_port_init(-1);		// Normal BIOS startup.
-	//sim_diag_port_init(0x63);
+	//sim_diag_port_init(0xf1);
 
-	opera_diag_port_init(-1);	// Normal BIOS startup.
-	//opera_diag_port_init(0x63);
+	//opera_diag_port_init(-1);	// Normal BIOS startup.
+	opera_diag_port_init(0xf1);
 
 	/*
 	0z00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
