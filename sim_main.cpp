@@ -313,7 +313,7 @@ void my_opera_init() {
 	opera_sport_init(vram);
 	opera_madam_init(dram);
 	opera_nvram_init();
-	opera_xbus_init(xbus_cdrom_plugin);
+	//opera_xbus_init(xbus_cdrom_plugin);
 
 	sim_xbus_init(xbus_cdrom_plugin);
 
@@ -324,7 +324,9 @@ void my_opera_init() {
 	//opera_clio_init(0x40);
 	opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits. bit[0]= cstatbits.
 	opera_dsp_init();
-	opera_xbus_device_load(0, NULL);
+	//opera_xbus_device_load(0, NULL);
+
+	sim_xbus_device_load(0, NULL);
 }
 
 
