@@ -1060,7 +1060,7 @@ int verilate() {
 		}
 
 		if (old_fiq_n == 1 && top->rootp->core_3do__DOT__clio_inst__DOT__firq_n == 0) { // firq_n falling edge.
-			fprintf(logfile, "FIQ triggered!  (PC: 0x%08X)\n", cur_pc);
+			fprintf(logfile, "FIQ triggered!  (PC: 0x%08X)  irq0_pend: 0x%08X  irq1_pend: 0x%08X\n", cur_pc, top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend, top->rootp->core_3do__DOT__clio_inst__DOT__irq1_pend);
 		}
 		old_fiq_n = top->rootp->core_3do__DOT__clio_inst__DOT__firq_n;
 
@@ -1070,9 +1070,12 @@ int verilate() {
 			//run_enable = 0;
 		}
 
+		if (top->xbus_fiq_trig) top->xbus_fiq_trig = 0;	// Clear the flag on the NEXT eval() cycle!
+
 		if (sim_xbus_fiq_request) {
 			sim_xbus_fiq_request = 0;
-			top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= 1 << 2;	// Set irq0_pend, bit 2.)
+			//top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= 1 << 2;	// Set irq0_pend, bit 2.)
+			top->xbus_fiq_trig = 1;
 		}
 
 		top->sys_clk = 0;

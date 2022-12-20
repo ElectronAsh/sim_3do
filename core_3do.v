@@ -22,7 +22,9 @@ module core_3do (
 	output [2:0] o_wb_cti,
 	output [1:0] o_wb_bte,
 	
-	output [23:0] rgb_out
+	output [23:0] rgb_out,
+	
+	input xbus_fiq_trig
 );
 
 `define DEBUG_EN 1
@@ -116,6 +118,8 @@ clio clio_inst (
 	
 	//.pdint_n(  ),			// Labelled "UNCINT#" on the FZ1 schematic. Slow Bus Interrupt?
 	.firq_n( firq_n ),		// To the ARM CPU.
+	
+	.xbus_fiq_trig( xbus_fiq_trig ),
 	
 	//.clc( clc ),			// output [2:0] CLIO Opera Device bits? Tech guide calls this "Control Code". Probably works like the RGA bus on the Amiga?
 	//.cready_n( cready_n ),// inout. Tech guide calls this "Hand shake control for devices".

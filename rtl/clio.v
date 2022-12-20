@@ -86,7 +86,9 @@ module clio (			// IC140 on FZ1.
 	output [15:0] vram_l_dout,
 	output [15:0] vram_r_dout,
 	
-	input vram_busy
+	input vram_busy,
+	
+	input xbus_fiq_trig
 );
 
 wire [31:0] irq0_masked = irq0_pend & irq0_enable;	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set. (set in the clocked always block!)
@@ -519,6 +521,9 @@ else begin
 	// Set XBUS IRQ pending bit, if the corresponding STATUS / DATA mask bits are set.
 	irq0_pend[2] <= ((poll_0&POLST) && (poll_0&POLSTMASK)) || ((poll_0&POLDT) && (poll_0&POLDTMASK));
 	*/
+	
+	if (xbus_fiq_trig) irq0_pend[2] <= 1'b1;
+	
 	
 	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
 	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
