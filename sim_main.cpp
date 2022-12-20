@@ -865,10 +865,10 @@ int verilate() {
 			/*if ((top->o_wb_adr == 0x03400400) && top->o_wb_we) {	// XBUS direction.
 				if (!(top->o_wb_dat & 0x800)) top->rootp->core_3do__DOT__clio_inst__DOT__expctl = top->o_wb_dat;
 			}*/
-			if ((top->o_wb_adr >= 0x03400500) && (top->o_wb_adr < 0x03400540) && top->o_wb_we) sim_xbus_set_sel(top->o_wb_dat);
-			else if ((top->o_wb_adr >= 0x03400540) && (top->o_wb_adr < 0x03400580) && top->o_wb_we) sim_xbus_set_poll(top->o_wb_dat);
-			else if ((top->o_wb_adr >= 0x03400580) && (top->o_wb_adr < 0x034005C0) && top->o_wb_we) sim_xbus_fifo_set_cmd(top->o_wb_dat);	// on FIFO Filled execute the command.
-			else if ((top->o_wb_adr >= 0x034005C0) && (top->o_wb_adr < 0x03400600) && top->o_wb_we) sim_xbus_fifo_set_data(top->o_wb_dat);	// on FIFO Filled execute the command.
+			     if ((top->o_wb_adr >= 0x03400500) && (top->o_wb_adr <= 0x0340053f) && top->o_wb_we) sim_xbus_set_sel(top->o_wb_dat&0xff);
+			else if ((top->o_wb_adr >= 0x03400540) && (top->o_wb_adr <= 0x0340057f) && top->o_wb_we) sim_xbus_set_poll(top->o_wb_dat & 0xff);
+			else if ((top->o_wb_adr >= 0x03400580) && (top->o_wb_adr <= 0x034005bf) && top->o_wb_we) sim_xbus_fifo_set_cmd(top->o_wb_dat & 0xff);	// on FIFO Filled execute the command.
+			else if ((top->o_wb_adr >= 0x034005C0) && (top->o_wb_adr <= 0x034005ff) && top->o_wb_we) sim_xbus_fifo_set_data(top->o_wb_dat & 0xff);	// on FIFO Filled execute the command.
 
 			uint8_t rom_byte0 = rom_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;      // rom_ptr is now BYTE addressed.
 			uint8_t rom_byte1 = rom_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;      // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
@@ -1014,10 +1014,10 @@ int verilate() {
 			// Handle Xbus reads...
 			//else if (top->o_wb_adr == 0x03400400) top->i_wb_dat = /*top->rootp->core_3do__DOT__clio_inst__DOT__expctl*/ 0x00000080;
 			else if (top->o_wb_adr == 0x03400414) { fprintf(logfile, "CLIO dipir2     "); top->i_wb_dat = 0x4000; }	// TO CHECK!!! requested by CDROMDIPIR.
-			else if ((top->o_wb_adr >= 0x03400500) && (top->o_wb_adr < 0x03400540)) { fprintf(logfile, "CLIO sel        "); top->i_wb_dat = sim_xbus_get_res(); }
-			else if ((top->o_wb_adr >= 0x03400540) && (top->o_wb_adr < 0x03400580)) { fprintf(logfile, "CLIO poll       "); top->i_wb_dat = sim_xbus_get_poll(); }
-			else if ((top->o_wb_adr >= 0x03400580) && (top->o_wb_adr < 0x034005C0)) { fprintf(logfile, "CLIO CmdStFIFO  "); top->i_wb_dat = sim_xbus_fifo_get_status(); }
-			else if ((top->o_wb_adr >= 0x034005C0) && (top->o_wb_adr < 0x03400600)) { fprintf(logfile, "CLIO Data FIFO  "); top->i_wb_dat = sim_xbus_fifo_get_data(); }
+			else if ((top->o_wb_adr >= 0x03400500) && (top->o_wb_adr <= 0x0340053f) && !top->o_wb_we) { fprintf(logfile, "CLIO sel        "); top->i_wb_dat = sim_xbus_get_res(); }
+			else if ((top->o_wb_adr >= 0x03400540) && (top->o_wb_adr <= 0x0340057f) && !top->o_wb_we) { fprintf(logfile, "CLIO poll       "); top->i_wb_dat = sim_xbus_get_poll(); }
+			else if ((top->o_wb_adr >= 0x03400580) && (top->o_wb_adr <= 0x034005bf) && !top->o_wb_we) { fprintf(logfile, "CLIO CmdStFIFO  "); top->i_wb_dat = sim_xbus_fifo_get_status(); }
+			else if ((top->o_wb_adr >= 0x034005C0) && (top->o_wb_adr <= 0x034005ff) && !top->o_wb_we) { fprintf(logfile, "CLIO Data FIFO  "); top->i_wb_dat = sim_xbus_fifo_get_data(); }
 
 			// DSP...
 			else if (top->o_wb_adr == 0x034017d0) { fprintf(logfile, "CLIO sema       "); }
@@ -1380,11 +1380,11 @@ int main(int argc, char** argv, char** env) {
 	my_opera_init();
 
 	/* select test, use -1 -- if don't need tests */
-	sim_diag_port_init(-1);		// Normal BIOS startup.
-	//sim_diag_port_init(0xf1);
+	//sim_diag_port_init(-1);		// Normal BIOS startup.
+	sim_diag_port_init(0xf1);
 
-	opera_diag_port_init(-1);	// Normal BIOS startup.
-	//opera_diag_port_init(0xf1);
+	//opera_diag_port_init(-1);	// Normal BIOS startup.
+	opera_diag_port_init(0xf1);
 
 	/*
 	0z00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
@@ -1929,11 +1929,41 @@ int main(int argc, char** argv, char** env) {
 		ImGui::End();
 
 		ImGui::Begin("Sim XBUS stuff");
+		ImGui::Text("  xdev[0]: 0x%02X", xdev[0]);
+		ImGui::Text("  xdev[1]: 0x%02X", xdev[1]);
+		ImGui::Text("  xdev[2]: 0x%02X", xdev[2]);
+		ImGui::Text("  xdev[3]: 0x%02X", xdev[3]);
+		ImGui::Text("  xdev[4]: 0x%02X", xdev[4]);
+		ImGui::Text("  xdev[5]: 0x%02X", xdev[5]);
+		ImGui::Text("  xdev[6]: 0x%02X", xdev[6]);
+		ImGui::Text("  xdev[7]: 0x%02X", xdev[7]);
+		ImGui::Text("  xdev[8]: 0x%02X", xdev[8]);
+		ImGui::Text("  xdev[9]: 0x%02X", xdev[9]);
+		ImGui::Text(" xdev[10]: 0x%02X", xdev[10]);
+		ImGui::Text(" xdev[11]: 0x%02X", xdev[11]);
+		ImGui::Text(" xdev[12]: 0x%02X", xdev[12]);
+		ImGui::Text(" xdev[13]: 0x%02X", xdev[13]);
+		ImGui::Text(" xdev[14]: 0x%02X", xdev[14]);
+		ImGui::Text(" xdev[15]: 0x%02X", xdev[15]);
 		ImGui::Text("  XBUS.xb_sel_l: 0x%02X", XBUS.xb_sel_l);
 		ImGui::Text("  XBUS.xb_sel_h: 0x%02X", XBUS.xb_sel_h);
 		ImGui::Text("      XBUS.polf: 0x%02X", XBUS.polf);
 		ImGui::Text("   XBUS.poldevf: 0x%02X", XBUS.poldevf);
 		ImGui::Text("      stdevf[0]: 0x%02X", XBUS.stdevf[0]);
+		ImGui::Text("      stdevf[1]: 0x%02X", XBUS.stdevf[1]);
+		ImGui::Text("      stdevf[2]: 0x%02X", XBUS.stdevf[2]);
+		ImGui::Text("      stdevf[3]: 0x%02X", XBUS.stdevf[3]);
+		ImGui::Text("      stdevf[4]: 0x%02X", XBUS.stdevf[4]);
+		ImGui::Text("      stdevf[5]: 0x%02X", XBUS.stdevf[5]);
+		ImGui::Text("      stdevf[6]: 0x%02X", XBUS.stdevf[6]);
+		ImGui::Text("      stdevf[7]: 0x%02X", XBUS.stdevf[7]);
+		ImGui::Text("      stdevf[8]: 0x%02X", XBUS.stdevf[8]);
+		ImGui::Text("      stdevf[9]: 0x%02X", XBUS.stdevf[9]);
+		ImGui::Text("     stdevf[10]: 0x%02X", XBUS.stdevf[10]);
+		ImGui::Text("     stdevf[11]: 0x%02X", XBUS.stdevf[11]);
+		ImGui::Text("     stdevf[12]: 0x%02X", XBUS.stdevf[12]);
+		ImGui::Text("     stdevf[13]: 0x%02X", XBUS.stdevf[13]);
+		ImGui::Text("     stdevf[14]: 0x%02X", XBUS.stdevf[14]);
 		ImGui::Text("     stdevf[15]: 0x%02X", XBUS.stdevf[15]);
 		ImGui::Text("    XBUS.stlenf: 0x%02X", XBUS.stlenf);
 		ImGui::Text("        cmdf[0]: 0x%02X", XBUS.cmdf[0]);
@@ -1943,9 +1973,13 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("        cmdf[4]: 0x%02X", XBUS.cmdf[4]);
 		ImGui::Text("        cmdf[5]: 0x%02X", XBUS.cmdf[5]);
 		ImGui::Text("        cmdf[6]: 0x%02X", XBUS.cmdf[6]);
+		ImGui::Text("        cmdf[7]: 0x%02X", XBUS.cmdf[7]);
+		ImGui::Text("        cmdf[8]: 0x%02X", XBUS.cmdf[8]);
 		ImGui::Text("   XBUS.cmdptrf: 0x%02X", XBUS.cmdptrf);
 		ImGui::Separator();
 		ImGui::End();
+
+		if (XBUS.cmdptrf >= 7) run_enable = 0;
 
 		/*
 		ImGui::Begin("Matrix Engine");

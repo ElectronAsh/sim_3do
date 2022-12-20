@@ -49,17 +49,17 @@ int      sim_xbus_attach(sim_xbus_device dev);
 void     sim_xbus_device_load(int dev, const char* name);
 void     sim_xbus_device_eject(int dev);
 
-void     sim_xbus_set_sel(const uint32_t val_);
-uint32_t sim_xbus_get_res(void);
+void     sim_xbus_set_sel(const uint8_t val_);
+uint8_t sim_xbus_get_res(void);
 
-void     sim_xbus_set_poll(const uint32_t val_);
-uint32_t sim_xbus_get_poll(void);
+void     sim_xbus_set_poll(const uint8_t val_);
+uint8_t sim_xbus_get_poll(void);
 
-void     sim_xbus_fifo_set_cmd(const uint32_t val_);
-uint32_t sim_xbus_fifo_get_status(void);
+void     sim_xbus_fifo_set_cmd(const uint8_t val_);
+uint8_t sim_xbus_fifo_get_status(void);
 
-void     sim_xbus_fifo_set_data(const uint32_t val_);
-uint32_t sim_xbus_fifo_get_data(void);
+void     sim_xbus_fifo_set_data(const uint8_t val_);
+uint8_t sim_xbus_fifo_get_data(void);
 
 uint32_t sim_xbus_state_size(void);
 void     sim_xbus_state_save(void* buf_);

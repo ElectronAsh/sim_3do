@@ -42,7 +42,7 @@ sim_xbus_execute_command_f(void)
 }
 
 void
-sim_xbus_fifo_set_cmd(const uint32_t val_)
+sim_xbus_fifo_set_cmd(const uint8_t val_)
 {
 	if (xdev[XBUS.xb_sel_l])
 	{
@@ -55,7 +55,7 @@ sim_xbus_fifo_set_cmd(const uint32_t val_)
 	{
 		if (XBUS.cmdptrf < 7)
 		{
-			XBUS.cmdf[XBUS.cmdptrf] = (uint8_t)val_;
+			XBUS.cmdf[XBUS.cmdptrf] = val_;
 			XBUS.cmdptrf++;
 		}
 
@@ -67,7 +67,7 @@ sim_xbus_fifo_set_cmd(const uint32_t val_)
 	}
 }
 
-uint32_t
+uint8_t
 sim_xbus_fifo_get_data(void)
 {
 	if (xdev[XBUS.xb_sel_l])
@@ -76,7 +76,7 @@ sim_xbus_fifo_get_data(void)
 	return 0;
 }
 
-uint32_t
+uint8_t
 sim_xbus_get_poll(void)
 {
 	uint32_t res = 0x30;
@@ -89,7 +89,7 @@ sim_xbus_get_poll(void)
 	return res;
 }
 
-uint32_t
+uint8_t
 sim_xbus_get_res(void)
 {
 	if (xdev[XBUS.xb_sel_l])
@@ -98,27 +98,27 @@ sim_xbus_get_res(void)
 }
 
 
-uint32_t
+uint8_t
 sim_xbus_fifo_get_status(void)
 {
-	uint32_t rv;
+	uint8_t rv;
 
 	rv = 0;
 	if (xdev[XBUS.xb_sel_l])
 	{
 		rv = (uintptr_t)xdev[XBUS.xb_sel_l](XBP_GET_STATUS, NULL);
 	}
-	else if (XBUS.xb_sel_l == 0x0F)
+	else if (XBUS.xb_sel_l == 0x0F)	// CD drive is selected...
 	{
-		if (XBUS.stlenf > 0)
+		if (XBUS.stlenf > 0)	// One or more bytes in FIFO buffer.
 		{
-			rv = XBUS.stdevf[0];
-			XBUS.stlenf--;
-			if (XBUS.stlenf > 0)
+			rv = XBUS.stdevf[0];	// Read a new byte from the buffer.
+			XBUS.stlenf--;			// Decrement the byte count.
+			if (XBUS.stlenf > 0)	// Still more bytes left in buffer...
 			{
 				int i;
-				for (i = 0; i < XBUS.stlenf; i++)
-					XBUS.stdevf[i] = XBUS.stdevf[i + 1];
+				for (i = 0; i < XBUS.stlenf; i++)	// Shift the remaining bytes down, so the latest one is in XBUS.stdevf[0].
+					XBUS.stdevf[i] = XBUS.stdevf[i + 1];	// Shuffle the remaining bytes down.
 			}
 			else
 			{
@@ -131,14 +131,14 @@ sim_xbus_fifo_get_status(void)
 }
 
 void
-sim_xbus_fifo_set_data(const uint32_t val_)
+sim_xbus_fifo_set_data(const uint8_t val_)
 {
 	if (xdev[XBUS.xb_sel_l])
 		xdev[XBUS.xb_sel_l](XBP_SET_DATA, (void*)(uintptr_t)val_);
 }
 
 void
-sim_xbus_set_poll(const uint32_t val_)
+sim_xbus_set_poll(const uint8_t val_)
 {
 	if (XBUS.xb_sel_l == 0x0F)
 	{
@@ -155,10 +155,10 @@ sim_xbus_set_poll(const uint32_t val_)
 	}
 }
 
-void sim_xbus_set_sel(const uint32_t val_)
+void sim_xbus_set_sel(const uint8_t val_)
 {
-	XBUS.xb_sel_l = ((uint8_t)val_ & 0x0F);
-	XBUS.xb_sel_h = ((uint8_t)val_ & 0xF0);
+	XBUS.xb_sel_l = (val_ & 0x0F);
+	XBUS.xb_sel_h = (val_ & 0xF0);
 }
 
 void
