@@ -13,23 +13,6 @@
 #define POLMA	  0x40
 #define POLRE	  0x80
 
-struct xbus_datum_s
-{
-	uint8_t xb_sel_l;
-	uint8_t xb_sel_h;
-	uint8_t polf;
-	uint8_t poldevf;
-	uint8_t stdevf[255]; // status of devices
-	uint8_t stlenf; // pointer in FIFO
-	uint8_t cmdf[7];
-	uint8_t cmdptrf;
-};
-
-typedef struct xbus_datum_s xbus_datum_t;
-
-static xbus_datum_t      XBUS;
-static sim_xbus_device xdev[16];
-
 void
 sim_xbus_execute_command_f(void)
 {

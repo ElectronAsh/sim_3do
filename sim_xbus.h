@@ -19,9 +19,27 @@
 
 EXTERN_C_BEGIN
 
+struct xbus_datum_s
+{
+	uint8_t xb_sel_l;
+	uint8_t xb_sel_h;
+	uint8_t polf;
+	uint8_t poldevf;
+	uint8_t stdevf[255]; // status of devices
+	uint8_t stlenf; // pointer in FIFO
+	uint8_t cmdf[7];
+	uint8_t cmdptrf;
+};
+
+typedef struct xbus_datum_s xbus_datum_t;
+
+static xbus_datum_t      XBUS;
+
 int sim_xbus_fiq_request;
 
 typedef void* (*sim_xbus_device)(int, void*);
+
+static sim_xbus_device xdev[16];
 
 void     sim_xbus_init(sim_xbus_device zero_dev_);
 void     sim_xbus_destroy(void);

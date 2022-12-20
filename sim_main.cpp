@@ -37,8 +37,10 @@
 
 #include "inline.h"
 
-
 #include "sim_xbus.h"
+
+extern xbus_datum_t      XBUS;
+extern sim_xbus_device xdev[16];
 
 uint8_t* dram;
 uint8_t* vram;
@@ -1070,12 +1072,9 @@ int verilate() {
 			//run_enable = 0;
 		}
 
-		if (top->xbus_fiq_trig) top->xbus_fiq_trig = 0;	// Clear the flag on the NEXT eval() cycle!
-
 		if (sim_xbus_fiq_request) {
 			sim_xbus_fiq_request = 0;
-			//top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= 1 << 2;	// Set irq0_pend, bit 2.)
-			top->xbus_fiq_trig = 1;
+			top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= (1<<2);	// Set irq0_pend, bit 2. (XBUs IRQ).
 		}
 
 		top->sys_clk = 0;
@@ -1927,6 +1926,25 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text(" vdl_curr: 0x%08X", vdl_curr);
 		ImGui::Text(" vdl_prev: 0x%08X", vdl_prev);
 		ImGui::Text(" vdl_next: 0x%08X", vdl_next);
+		ImGui::End();
+
+		ImGui::Begin("Sim XBUS stuff");
+		ImGui::Text("  XBUS.xb_sel_l: 0x%02X", XBUS.xb_sel_l);
+		ImGui::Text("  XBUS.xb_sel_h: 0x%02X", XBUS.xb_sel_h);
+		ImGui::Text("      XBUS.polf: 0x%02X", XBUS.polf);
+		ImGui::Text("   XBUS.poldevf: 0x%02X", XBUS.poldevf);
+		ImGui::Text("      stdevf[0]: 0x%02X", XBUS.stdevf[0]);
+		ImGui::Text("     stdevf[15]: 0x%02X", XBUS.stdevf[15]);
+		ImGui::Text("    XBUS.stlenf: 0x%02X", XBUS.stlenf);
+		ImGui::Text("        cmdf[0]: 0x%02X", XBUS.cmdf[0]);
+		ImGui::Text("        cmdf[1]: 0x%02X", XBUS.cmdf[1]);
+		ImGui::Text("        cmdf[2]: 0x%02X", XBUS.cmdf[2]);
+		ImGui::Text("        cmdf[3]: 0x%02X", XBUS.cmdf[3]);
+		ImGui::Text("        cmdf[4]: 0x%02X", XBUS.cmdf[4]);
+		ImGui::Text("        cmdf[5]: 0x%02X", XBUS.cmdf[5]);
+		ImGui::Text("        cmdf[6]: 0x%02X", XBUS.cmdf[6]);
+		ImGui::Text("   XBUS.cmdptrf: 0x%02X", XBUS.cmdptrf);
+		ImGui::Separator();
 		ImGui::End();
 
 		/*
