@@ -18,9 +18,14 @@ module madam (
 	
 	output [22:0] ram_addr,	
 	input [31:0] ram_din,
+	output ram_rd,
 	
 	output [31:0] ram_dout,
-	output ram_wen,
+	output ram_wr,
+	
+	output bios_cs,
+	output dram_cs,
+	output vram_cs,
 	
 	input pcsc,
 	

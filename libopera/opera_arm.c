@@ -2018,6 +2018,10 @@ void print_to_log(uint32_t addr_, uint32_t val_, uint8_t write, uint32_t cur_pc)
          case 0x0330000C: { fprintf(logfile, "MADAM sltime    "); break; }
          case 0x03300010: { fprintf(logfile, "MADAM MultiChip "); break; } // todo: 0x10 - 0x1f ?
          case 0x03300020: { fprintf(logfile, "MADAM Abortbits "); break; }
+		 case 0x03300218: { fprintf(logfile, "MADAM Fence ?   "); break; }
+		 case 0x0330021c: { fprintf(logfile, "MADAM Fence ?   "); break; }
+		 case 0x03300238: { fprintf(logfile, "MADAM Fence ?   "); break; }
+		 case 0x0330023c: { fprintf(logfile, "MADAM Fence ?   "); break; }
          case 0x03300570: { fprintf(logfile, "MADAM PBUS dst  "); break; }
          case 0x03300574: { fprintf(logfile, "MADAM PBUS len  "); break; }
          case 0x03300578: { fprintf(logfile, "MADAM PBUS src  "); break; }

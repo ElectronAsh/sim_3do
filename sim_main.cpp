@@ -32,7 +32,8 @@
 #include "opera_vdlp.h"
 #include "opera_xbus.h"
 #include "opera_xbus_cdrom_plugin.h"
-//#include "opera_nvram.h"
+#include "opera_cdrom.h"
+#include "opera_nvram.h"
 
 #include "inline.h"
 
@@ -258,31 +259,67 @@ double sc_time_stamp() {       // Called by $time in Verilog.
 	return main_time;
 }
 
+extern opera_cdrom_get_size_cb_t    CDROM_GET_SIZE;
+extern opera_cdrom_set_sector_cb_t  CDROM_SET_SECTOR;
+extern opera_cdrom_read_sector_cb_t CDROM_READ_SECTOR;
+
+static
+uint32_t
+cdimage_get_size(void)
+{
+	//return retro_cdimage_get_number_of_logical_blocks(&CDIMAGE);
+	return 6000;
+}
+
+static
+void
+cdimage_set_sector(const uint32_t sector_)
+{
+	//CDIMAGE_SECTOR = sector_;
+}
+
+static
+void
+cdimage_read_sector(void* buf_)
+{
+	//retro_cdimage_read(&CDIMAGE, CDIMAGE_SECTOR, buf_, CDIMAGE_SECTOR_SIZE);
+}
+
+
+uint32_t g_OPT_VIDEO_WIDTH = 0;
+uint32_t g_OPT_VIDEO_HEIGHT = 0;
+uint32_t g_OPT_VIDEO_PITCH_SHIFT = 0;
+uint32_t g_OPT_VDLP_FLAGS = 0;
+uint32_t g_OPT_VDLP_PIXEL_FORMAT = 0;
+uint32_t g_OPT_ACTIVE_DEVICES = 0;
+
 void my_opera_init() {
+	opera_cdrom_set_callbacks(cdimage_get_size, cdimage_set_sector, cdimage_read_sector);
+
 	opera_clock_init();
 	opera_arm_init();
+
+	uint32_t size = (384 * 288 * 4);
+	if (!g_VIDEO_BUFFER) g_VIDEO_BUFFER = (uint32_t*)calloc(size, sizeof(uint32_t));
+	opera_vdlp_configure(g_VIDEO_BUFFER, (vdlp_pixel_format_e)VDLP_PIXEL_FORMAT_XRGB8888, g_OPT_VDLP_FLAGS);
 
 	dram = opera_arm_ram_get();
 	vram = opera_arm_vram_get();
 
-	//uint32_t size = (384 * 288 * 4);
-	//if (!g_VIDEO_BUFFER) g_VIDEO_BUFFER = (uint32_t*)calloc(size, sizeof(uint32_t));
-
 	opera_vdlp_init(vram);
 	opera_sport_init(vram);
 	opera_madam_init(dram);
-	//opera_xbus_init(xbus_cdrom_plugin);
-	//opera_nvram_init();
+	opera_nvram_init();
+	opera_xbus_init(xbus_cdrom_plugin);
 
-	/*
-	  0x40 for start from 3D0-CD
-	  0x01/0x02 from PhotoCD ??
-	  (NO use 0x40/0x02 for BIOS test)
-	*/
+	// 0x40 for start from 3D0-CD
+	// 0x01/0x02 from PhotoCD ??
+	// (NO use 0x40/0x02 for BIOS test)
+
 	//opera_clio_init(0x40);
 	opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits.
 	opera_dsp_init();
-	//opera_xbus_device_load(0, NULL);
+	opera_xbus_device_load(0, NULL);
 }
 
 
@@ -631,8 +668,6 @@ void pbus_dma() {
 	}
 }
 
-int opera_line = 0;
-
 uint32_t sound_out;
 
 void opera_tick() {
@@ -661,7 +696,7 @@ void opera_tick() {
 	if (opera_clock_vdl_queued())
 	{
 		opera_clio_vcnt_update(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt, top->rootp->core_3do__DOT__clio_inst__DOT__field);
-		//opera_vdlp_process_line(opera_line);
+		//opera_vdlp_process_line(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt);
 
 		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint0()) opera_clio_fiq_generate(1<<0, 0);
 		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint1()) opera_clio_fiq_generate(1<<1, 0);
@@ -896,6 +931,10 @@ int verilate() {
 				else if (top->o_wb_adr == 0x0330000C) { fprintf(logfile, "MADAM sltime    "); }
 				else if (top->o_wb_adr >= 0x03300010 && top->o_wb_adr <= 0x0330001f) { fprintf(logfile, "MADAM MultiChip "); }
 				else if (top->o_wb_adr == 0x03300020) { fprintf(logfile, "MADAM Abortbits "); }
+				else if (top->o_wb_adr == 0x03300218) { fprintf(logfile, "MADAM Fence ?   "); }
+				else if (top->o_wb_adr == 0x0330021c) { fprintf(logfile, "MADAM Fence ?   "); }
+				else if (top->o_wb_adr == 0x03300238) { fprintf(logfile, "MADAM Fence ?   "); }
+				else if (top->o_wb_adr == 0x0330023c) { fprintf(logfile, "MADAM Fence ?   "); }
 				else if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PBUS str  "); }
 				else if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PBUS len  "); }
 				else if (top->o_wb_adr == 0x03300578) { fprintf(logfile, "MADAM PBUS end  "); }
@@ -1314,10 +1353,10 @@ int main(int argc, char** argv, char** env) {
 
 	/* select test, use -1 -- if don't need tests */
 	sim_diag_port_init(-1);		// Normal BIOS startup.
-	//sim_diag_port_init(0xf1);
+	//sim_diag_port_init(0x63);
 
 	opera_diag_port_init(-1);	// Normal BIOS startup.
-	//opera_diag_port_init(0xf1);
+	//opera_diag_port_init(0x63);
 
 	/*
 	0z00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)
@@ -1415,7 +1454,8 @@ int main(int argc, char** argv, char** env) {
 		}
 		ImGui::SameLine(); ImGui::SliderInt("Step amount", &multi_step_amount, 8, 1024);
 
-		ImGui::Image(my_tex_id, ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
+		ImGui::Separator();
+		ImGui::Image(my_tex_id,  ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
 		ImGui::SameLine();
 		ImGui::Image(my_tex_id2, ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
 		ImGui::End();
@@ -1697,27 +1737,26 @@ int main(int argc, char** argv, char** env) {
 		ImGui::TextColored(ImVec4(reg_col[22]), "     FR12: 0x%08X", arm_reg[22]);
 		ImGui::TextColored(ImVec4(reg_col[23]), "     FR13: 0x%08X", arm_reg[23]);
 		ImGui::TextColored(ImVec4(reg_col[24]), "     FR14: 0x%08X", arm_reg[24]);
+		ImGui::TextColored(ImVec4(reg_col[35]), " FIQ_SPSR: 0x%08X", arm_reg[35]);
 		ImGui::Separator();
 		ImGui::TextColored(ImVec4(reg_col[25]), "    IRQ13: 0x%08X", arm_reg[25]);
 		ImGui::TextColored(ImVec4(reg_col[26]), "    IRQ14: 0x%08X", arm_reg[26]);
+		ImGui::TextColored(ImVec4(reg_col[36]), " IRQ_SPSR: 0x%08X", arm_reg[36]);
 		ImGui::Separator();
 		ImGui::TextColored(ImVec4(reg_col[27]), "    SVC13: 0x%08X", arm_reg[27]);
 		ImGui::TextColored(ImVec4(reg_col[28]), "    SVC14: 0x%08X", arm_reg[28]);
+		ImGui::TextColored(ImVec4(reg_col[37]), " SVC_SPSR: 0x%08X", arm_reg[37]);
 		ImGui::Separator();
 		ImGui::TextColored(ImVec4(reg_col[29]), "    UND13: 0x%08X", arm_reg[29]);
 		ImGui::TextColored(ImVec4(reg_col[30]), "    UND14: 0x%08X", arm_reg[30]);
+		ImGui::TextColored(ImVec4(reg_col[38]), " UND_SPSR: 0x%08X", arm_reg[38]);
 		ImGui::Separator();
 		ImGui::TextColored(ImVec4(reg_col[31]), "    ABT13: 0x%08X", arm_reg[31]);
 		ImGui::TextColored(ImVec4(reg_col[32]), "    ABT14: 0x%08X", arm_reg[32]);
+		ImGui::TextColored(ImVec4(reg_col[39]), " ABT_SPSR: 0x%08X", arm_reg[39]);
 		ImGui::Separator();
 		ImGui::TextColored(ImVec4(reg_col[33]), "     DUM0: 0x%08X", arm_reg[33]);
 		ImGui::TextColored(ImVec4(reg_col[34]), "     DUM1: 0x%08X", arm_reg[34]);
-		ImGui::Separator();
-		ImGui::TextColored(ImVec4(reg_col[35]), " FIQ_SPSR: 0x%08X", arm_reg[35]);
-		ImGui::TextColored(ImVec4(reg_col[36]), " IRQ_SPSR: 0x%08X", arm_reg[36]);
-		ImGui::TextColored(ImVec4(reg_col[37]), " SVC_SPSR: 0x%08X", arm_reg[37]);
-		ImGui::TextColored(ImVec4(reg_col[38]), " UND_SPSR: 0x%08X", arm_reg[38]);
-		ImGui::TextColored(ImVec4(reg_col[39]), " ABT_SPSR: 0x%08X", arm_reg[39]);
 		ImGui::Separator();
 		ImGui::End();
 
@@ -1758,42 +1797,42 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("  uncle_addr: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__uncle_addr);		// 0xc008
 		ImGui::Text("   uncle_rom: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__uncle_rom);		// 0xc00c
 		ImGui::Separator();
-		ImGui::Text(" Opera sound_out: 0x%08X", sound_out);
+		ImGui::Text("Opera sound_out: 0x%08X", sound_out);
 		ImGui::End();
 
 		ImGui::Begin("CLIO Timers");
-		ImGui::Text("   cnt_0: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_cnt);	// 0x100
-		ImGui::SameLine(); ImGui::Text("   bkp_0: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_bkp);	// 0x104
-		ImGui::Text("   cnt_1: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_cnt);	// 0x108
-		ImGui::SameLine(); ImGui::Text("   bkp_1: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_bkp);	// 0x10c
-		ImGui::Text("   cnt_2: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_cnt);	// 0x110
-		ImGui::SameLine(); ImGui::Text("   bkp_2: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_bkp);	// 0x114
-		ImGui::Text("   cnt_3: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_cnt);	// 0x118
-		ImGui::SameLine(); ImGui::Text("   bkp_3: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_bkp);	// 0x11c
-		ImGui::Text("   cnt_4: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_cnt);	// 0x120
-		ImGui::SameLine(); ImGui::Text("   bkp_4: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_bkp);	// 0x124
-		ImGui::Text("   cnt_5: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_cnt);	// 0x128
-		ImGui::SameLine(); ImGui::Text("   bkp_5: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_bkp);	// 0x12c
-		ImGui::Text("   cnt_6: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_cnt);	// 0x130
-		ImGui::SameLine(); ImGui::Text("   bkp_6: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_bkp);	// 0x134
-		ImGui::Text("   cnt_7: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_cnt);	// 0x138
-		ImGui::SameLine(); ImGui::Text("   bkp_7: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_bkp);	// 0x13c
-		ImGui::Text("   cnt_8: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_cnt);	// 0x140
-		ImGui::SameLine(); ImGui::Text("   bkp_8: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_bkp);	// 0x144
-		ImGui::Text("   cnt_9: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_cnt);	// 0x148
-		ImGui::SameLine(); ImGui::Text("   bkp_9: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_bkp);	// 0x14c
-		ImGui::Text("  cnt_10: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_cnt);	// 0x150
-		ImGui::SameLine(); ImGui::Text("  bkp_10: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_bkp);	// 0x154
-		ImGui::Text("  cnt_11: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_cnt);	// 0x158
-		ImGui::SameLine(); ImGui::Text("  bkp_11: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_bkp);	// 0x15c
-		ImGui::Text("  cnt_12: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_cnt);	// 0x160
-		ImGui::SameLine(); ImGui::Text("  bkp_12: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_bkp);	// 0x164
-		ImGui::Text("  cnt_13: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_cnt);	// 0x168
-		ImGui::SameLine(); ImGui::Text("  bkp_13: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_bkp);	// 0x16c
-		ImGui::Text("  cnt_14: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_cnt);	// 0x170
-		ImGui::SameLine(); ImGui::Text("  bkp_14: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_bkp);	// 0x174
-		ImGui::Text("  cnt_15: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_cnt);	// 0x178
-		ImGui::SameLine(); ImGui::Text("  bkp_15: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_bkp);	// 0x17c
+		ImGui::Text("  cnt_0: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_cnt);	// 0x100
+		ImGui::SameLine(); ImGui::Text("  bkp_0: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr0_inst__DOT__tmr_bkp);	// 0x104
+		ImGui::Text("  cnt_1: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_cnt);	// 0x108
+		ImGui::SameLine(); ImGui::Text("  bkp_1: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr1_inst__DOT__tmr_bkp);	// 0x10c
+		ImGui::Text("  cnt_2: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_cnt);	// 0x110
+		ImGui::SameLine(); ImGui::Text("  bkp_2: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr2_inst__DOT__tmr_bkp);	// 0x114
+		ImGui::Text("  cnt_3: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_cnt);	// 0x118
+		ImGui::SameLine(); ImGui::Text("  bkp_3: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr3_inst__DOT__tmr_bkp);	// 0x11c
+		ImGui::Text("  cnt_4: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_cnt);	// 0x120
+		ImGui::SameLine(); ImGui::Text("  bkp_4: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr4_inst__DOT__tmr_bkp);	// 0x124
+		ImGui::Text("  cnt_5: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_cnt);	// 0x128
+		ImGui::SameLine(); ImGui::Text("  bkp_5: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr5_inst__DOT__tmr_bkp);	// 0x12c
+		ImGui::Text("  cnt_6: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_cnt);	// 0x130
+		ImGui::SameLine(); ImGui::Text("  bkp_6: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr6_inst__DOT__tmr_bkp);	// 0x134
+		ImGui::Text("  cnt_7: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_cnt);	// 0x138
+		ImGui::SameLine(); ImGui::Text("  bkp_7: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr7_inst__DOT__tmr_bkp);	// 0x13c
+		ImGui::Text("  cnt_8: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_cnt);	// 0x140
+		ImGui::SameLine(); ImGui::Text("  bkp_8: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr8_inst__DOT__tmr_bkp);	// 0x144
+		ImGui::Text("  cnt_9: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_cnt);	// 0x148
+		ImGui::SameLine(); ImGui::Text("  bkp_9: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr9_inst__DOT__tmr_bkp);	// 0x14c
+		ImGui::Text(" cnt_10: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_cnt);	// 0x150
+		ImGui::SameLine(); ImGui::Text(" bkp_10: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr10_inst__DOT__tmr_bkp);	// 0x154
+		ImGui::Text(" cnt_11: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_cnt);	// 0x158
+		ImGui::SameLine(); ImGui::Text(" bkp_11: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr11_inst__DOT__tmr_bkp);	// 0x15c
+		ImGui::Text(" cnt_12: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_cnt);	// 0x160
+		ImGui::SameLine(); ImGui::Text(" bkp_12: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr12_inst__DOT__tmr_bkp);	// 0x164
+		ImGui::Text(" cnt_13: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_cnt);	// 0x168
+		ImGui::SameLine(); ImGui::Text(" bkp_13: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr13_inst__DOT__tmr_bkp);	// 0x16c
+		ImGui::Text(" cnt_14: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_cnt);	// 0x170
+		ImGui::SameLine(); ImGui::Text(" bkp_14: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr14_inst__DOT__tmr_bkp);	// 0x174
+		ImGui::Text(" cnt_15: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_cnt);	// 0x178
+		ImGui::SameLine(); ImGui::Text(" bkp_15: 0x%04X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr15_inst__DOT__tmr_bkp);	// 0x17c
 		ImGui::Separator();
 		ImGui::Text("  tmr_ctrl_l: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr_ctrl_l);		// TODO !!
 		ImGui::Text("  tmr_ctrl_u: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__tmr_ctrl_u);		// Not 100% sure how this should read back!!
