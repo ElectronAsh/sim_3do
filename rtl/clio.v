@@ -367,7 +367,7 @@ always @(*) begin
 	16'h0538: cpu_dout = {24'h000000, sel_14};	// 0x538
 	16'h053c: cpu_dout = {24'h000000, sel_15};	// 0x53c
 
-	16'h0540: cpu_dout = {24'h000000, poll_0[7:4], 4'hf};	// 0x540
+	16'h0540: cpu_dout = {24'h000000, poll_0};	// 0x540
 	16'h0544: cpu_dout = {24'h000000, poll_1};	// 0x544
 	16'h0548: cpu_dout = {24'h000000, poll_2};	// 0x548
 	16'h054c: cpu_dout = {24'h000000, poll_3};	// 0x54c
@@ -495,18 +495,16 @@ else begin
 	
 	// Writes to sel0 reg...
 	if (cpu_wr && {cpu_addr,2'b00}==16'h0500) begin
-		//if (cpu_din[7]) begin		// bit[7]=Select/STB_N??
-			if (cpu_din[3:0]==4'hf) begin
-				poll_0[3:0] <= 4'hF;	// Return the device ID in the lower nibble. DON'T set the status bit until the command bytes have been written!
-				fifo_idx <= 4'd0;		// Reset our fake CmdStFIFO index.
-			end
-			else poll_0[3:0] <= 4'h0;	// Else, clear the lower nibble, for all other devices.
-		//end
+		if (cpu_din[7] && cpu_din[3:0]==4'hf) begin
+			poll_0   <= 8'h0F;		// Discard the upper nibble if sel[7] set?? Return the device ID in the lower nibble.
+			fifo_idx <= 4'd0;		// Reset our fake CmdStFIFO index.
+		end
+		else poll_0[3:0] <= 4'h0;	// Else, (sel[7] is low) clear the lower nibble, for all other devices.
 	end
 	
 	// COMMAND Writes to CmdStFIFO...
 	if (cpu_wr && {cpu_addr,2'b00}==16'h0580) begin
-		poll_0[4] <= 1'b1;		// Set the Status bit (should really do this after all command bytes received, but meh.)
+		poll_0[4] <= 1'b1;				// Set the Status bit (should really do this after all command bytes received, but meh.)
 	end
 	
 	// STATUS Reads from CmdStFIFO...
@@ -517,7 +515,7 @@ else begin
 		poll_0[4] <= 1'b0;				// All STATUS bytes read, clear the poll status bit immediately.
 	end
 	
-	// Set XBUS IRQ pending bits, if the corresponding STATUS / DATA mask bits are set.
+	// Set XBUS IRQ pending bit, if the corresponding STATUS / DATA mask bits are set.
 	irq0_pend[2] <= ((poll_0&POLST) && (poll_0&POLSTMASK)) || ((poll_0&POLDT) && (poll_0&POLDTMASK));
 	
 	

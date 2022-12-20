@@ -92,9 +92,9 @@ opera_xbus_fifo_set_cmd(const uint32_t val_)
 {
    if (xdev[XBUS.xb_sel_l])
    {
-   xdev[XBUS.xb_sel_l](XBP_SET_COMMAND,(void*)(uintptr_t)val_);
-   if (xdev[XBUS.xb_sel_l](XBP_FIQ,NULL))
-      opera_clio_fiq_generate(4,0);
+	   xdev[XBUS.xb_sel_l](XBP_SET_COMMAND,(void*)(uintptr_t)val_);
+	   if (xdev[XBUS.xb_sel_l](XBP_FIQ,NULL))
+		  opera_clio_fiq_generate(4,0);
    }
    else if (XBUS.xb_sel_l == 0x0F)
     {
