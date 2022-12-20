@@ -493,17 +493,18 @@ else begin
 // POLRE	 = 8'h80;	// Erm, Reset device? (the Device's ID does not get cleared by this, only by the physical RESET_N pin).
 //
 	
+	/*
 	// Writes to sel0 reg...
 	if (cpu_wr && {cpu_addr,2'b00}==16'h0500) begin
 		if (cpu_din[7] && cpu_din[3:0]==4'hf) begin
 			poll_0   <= 8'h0F;		// Discard the upper nibble if sel[7] set?? Return the device ID in the lower nibble.
-			fifo_idx <= 4'd0;		// Reset our fake CmdStFIFO index.
 		end
-		else poll_0[3:0] <= 4'h0;	// Else, (sel[7] is low) clear the lower nibble, for all other devices.
+		else poll_0[7:0] <= 8'h30;	// Else, (sel[7] is low) clear the lower nibble, for all other devices.
 	end
 	
 	// COMMAND Writes to CmdStFIFO...
 	if (cpu_wr && {cpu_addr,2'b00}==16'h0580) begin
+		fifo_idx <= 4'd0;		// Reset our fake CmdStFIFO index.
 		poll_0[4] <= 1'b1;				// Set the Status bit (should really do this after all command bytes received, but meh.)
 	end
 	
@@ -511,13 +512,13 @@ else begin
 	if (cpu_rd && {cpu_addr,2'b00}==16'h0580) begin
 		fifo_idx <= fifo_idx + 4'd1;	// Increment our fake CmdStFIFO index on each Read..
 	end
-	if (fifo_idx==4'd12) begin
+	if (fifo_idx==4'd12 && poll_0[3:0]==4'hf) begin
 		poll_0[4] <= 1'b0;				// All STATUS bytes read, clear the poll status bit immediately.
 	end
 	
 	// Set XBUS IRQ pending bit, if the corresponding STATUS / DATA mask bits are set.
 	irq0_pend[2] <= ((poll_0&POLST) && (poll_0&POLSTMASK)) || ((poll_0&POLDT) && (poll_0&POLDTMASK));
-	
+	*/
 	
 	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
 	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
@@ -607,8 +608,8 @@ else begin
 
 		// Only bits 15,14,11,9 are written to in MAME? Opera calls this reg "XBUS Direction"...
 		// Opera starts with this -> 0x80; // ARM has the expansion bus.
-		16'h0400: expctl <= (expctl |  cpu_din);	// 0x400. Writing to 0x400 SETs bits of expctl.
-		16'h0404: expctl <= (expctl & ~cpu_din);	// 0x404. Writing to 0x404 CLEARs bits of expctl.
+		16'h0400: /*expctl <= (expctl |  cpu_din)*/;	// 0x400. Writing to 0x400 SETs bits of expctl.
+		16'h0404: /*expctl <= (expctl & ~cpu_din)*/;	// 0x404. Writing to 0x404 CLEARs bits of expctl.
 
 		16'h0408: type0_4 <= cpu_din;	// 0x408. ??? Opera doesn't seem to use this, but allows reg writes/reads.
 

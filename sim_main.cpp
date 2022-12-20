@@ -38,6 +38,8 @@
 #include "inline.h"
 
 
+#include "sim_xbus.h"
+
 uint8_t* dram;
 uint8_t* vram;
 int flagtime;
@@ -48,6 +50,7 @@ FILE* logfile;
 FILE* inst_file;
 FILE* soundfile;
 
+extern int sim_xbus_fiq_request = 0;
 
 #include <d3d11.h>
 #define DIRECTINPUT_VERSION 0x0800
@@ -312,12 +315,14 @@ void my_opera_init() {
 	opera_nvram_init();
 	opera_xbus_init(xbus_cdrom_plugin);
 
+	sim_xbus_init(xbus_cdrom_plugin);
+
 	// 0x40 for start from 3D0-CD
 	// 0x01/0x02 from PhotoCD ??
 	// (NO use 0x40/0x02 for BIOS test)
 
 	//opera_clio_init(0x40);
-	opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits.
+	opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits. bit[0]= cstatbits.
 	opera_dsp_init();
 	opera_xbus_device_load(0, NULL);
 }
@@ -715,349 +720,370 @@ int verilate() {
 			top->reset_n = 1;		// Deassert reset./
 		}
 
-		if (top->sys_clk) {
-			if (top->reset_n) {
-				/*
-				if (wait_ticks == 0) {
-					if (arm_skip == 0) arm_skip = 40;
-					else arm_skip--;
+		if (top->reset_n) {
+			/*
+			if (wait_ticks == 0) {
+				if (arm_skip == 0) arm_skip = 40;
+				else arm_skip--;
 
-					if (arm_skip > 0) opera_tick();		// "operatic"... geddit? lol
-					wait_ticks = 2;
-				}
-				else wait_ticks--;
-				*/
-
-				//if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_valid) opera_tick();
-				if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_valid &&
-					top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_uop_last)
-					opera_tick();
+				if (arm_skip > 0) opera_tick();		// "operatic"... geddit? lol
+				wait_ticks = 2;
 			}
+			else wait_ticks--;
+			*/
 
-			pix_count++;
+			//if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_valid) opera_tick();
+			if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_valid &&
+				top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_uop_last)
+				opera_tick();
+		}
+
+		pix_count++;
 		
-			//jp_a = top->rootp->core_3do__DOT__clio_inst__DOT__field;	// Toggling "A" button, to test joypad. (works in BIOS joypad test)
+		//jp_a = top->rootp->core_3do__DOT__clio_inst__DOT__field;	// Toggling "A" button, to test joypad. (works in BIOS joypad test)
 
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__pc_from_alu;
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__o_pc_plus_8_ff;
-			//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_pc_plus_8_ff - 8;
-			cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_pc_plus_8_buf_ff - 8;
+		//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__pc_from_alu;
+		//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__o_pc_plus_8_ff;
+		//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_pc_plus_8_ff - 8;
+		cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_pc_plus_8_buf_ff - 8;
 
-			uint32_t temp_word;
-			uint32_t word_addr = (top->o_wb_adr) >> 2;
+		uint32_t temp_word;
+		uint32_t word_addr = (top->o_wb_adr) >> 2;
 
-			/*
-			if (frame_count==30 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0 && top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==9) {
-				run_enable = 0;
-				//inst_trace = 1;
-			}
-			*/
+		/*
+		if (frame_count==30 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0 && top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==9) {
+			run_enable = 0;
+			//inst_trace = 1;
+		}
+		*/
 
-			uint32_t decode_word[16];
-			uint32_t issue_word[16];
-			uint32_t shifter_word[16];
-			uint32_t alu_word[16];
-			uint32_t memory_word[16];
-			uint32_t rb_word[16];
-			for (int i = 0; i < 16; i++) {
-				decode_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_decompile[i];
-				issue_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__issue_decompile[i];
-				shifter_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__shifter_decompile[i];
-				alu_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__alu_decompile[i];
-				memory_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__memory_decompile[i];
-				rb_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__rb_decompile[i];
-			}
+		uint32_t decode_word[16];
+		uint32_t issue_word[16];
+		uint32_t shifter_word[16];
+		uint32_t alu_word[16];
+		uint32_t memory_word[16];
+		uint32_t rb_word[16];
+		for (int i = 0; i < 16; i++) {
+			decode_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__decode_decompile[i];
+			issue_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__issue_decompile[i];
+			shifter_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__shifter_decompile[i];
+			alu_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__alu_decompile[i];
+			memory_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__memory_decompile[i];
+			rb_word[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__rb_decompile[i];
+		}
 
-			for (int i = 0; i < 64; i += 4) {
-				decode_string[i + 0] = decode_word[(i >> 2)] >> 0; decode_string[i + 1] = decode_word[(i >> 2)] >> 8; decode_string[i + 2] = decode_word[(i >> 2)] >> 16; decode_string[i + 3] = decode_word[(i >> 2)] >> 24;
-				issue_string[i + 0] = issue_word[(i >> 2)] >> 0; issue_string[i + 1] = issue_word[(i >> 2)] >> 8; issue_string[i + 2] = issue_word[(i >> 2)] >> 16; issue_string[i + 3] = issue_word[(i >> 2)] >> 24;
-				shifter_string[i + 0] = shifter_word[(i >> 2)] >> 0; shifter_string[i + 1] = shifter_word[(i >> 2)] >> 8; shifter_string[i + 2] = shifter_word[(i >> 2)] >> 16; shifter_string[i + 3] = shifter_word[(i >> 2)] >> 24;
-				alu_string[i + 0] = alu_word[(i >> 2)] >> 0; alu_string[i + 1] = alu_word[(i >> 2)] >> 8; alu_string[i + 2] = alu_word[(i >> 2)] >> 16; alu_string[i + 3] = alu_word[(i >> 2)] >> 24;
-				memory_string[i + 0] = memory_word[(i >> 2)] >> 0; memory_string[i + 1] = memory_word[(i >> 2)] >> 8; memory_string[i + 2] = memory_word[(i >> 2)] >> 16; memory_string[i + 3] = memory_word[(i >> 2)] >> 24;
-				rb_string[i + 0] = rb_word[(i >> 2)] >> 0; rb_string[i + 1] = rb_word[(i >> 2)] >> 8; rb_string[i + 2] = rb_word[(i >> 2)] >> 16; rb_string[i + 3] = rb_word[(i >> 2)] >> 24;
-			}
+		for (int i = 0; i < 64; i += 4) {
+			decode_string[i + 0] = decode_word[(i >> 2)] >> 0; decode_string[i + 1] = decode_word[(i >> 2)] >> 8; decode_string[i + 2] = decode_word[(i >> 2)] >> 16; decode_string[i + 3] = decode_word[(i >> 2)] >> 24;
+			issue_string[i + 0] = issue_word[(i >> 2)] >> 0; issue_string[i + 1] = issue_word[(i >> 2)] >> 8; issue_string[i + 2] = issue_word[(i >> 2)] >> 16; issue_string[i + 3] = issue_word[(i >> 2)] >> 24;
+			shifter_string[i + 0] = shifter_word[(i >> 2)] >> 0; shifter_string[i + 1] = shifter_word[(i >> 2)] >> 8; shifter_string[i + 2] = shifter_word[(i >> 2)] >> 16; shifter_string[i + 3] = shifter_word[(i >> 2)] >> 24;
+			alu_string[i + 0] = alu_word[(i >> 2)] >> 0; alu_string[i + 1] = alu_word[(i >> 2)] >> 8; alu_string[i + 2] = alu_word[(i >> 2)] >> 16; alu_string[i + 3] = alu_word[(i >> 2)] >> 24;
+			memory_string[i + 0] = memory_word[(i >> 2)] >> 0; memory_string[i + 1] = memory_word[(i >> 2)] >> 8; memory_string[i + 2] = memory_word[(i >> 2)] >> 16; memory_string[i + 3] = memory_word[(i >> 2)] >> 24;
+			rb_string[i + 0] = rb_word[(i >> 2)] >> 0; rb_string[i + 1] = rb_word[(i >> 2)] >> 8; rb_string[i + 2] = rb_word[(i >> 2)] >> 16; rb_string[i + 3] = rb_word[(i >> 2)] >> 24;
+		}
 
-			strrev(decode_string);
-			strrev(issue_string);
-			strrev(shifter_string);
-			strrev(alu_string);
-			strrev(memory_string);
-			strrev(rb_string);
+		strrev(decode_string);
+		strrev(issue_string);
+		strrev(shifter_string);
+		strrev(alu_string);
+		strrev(memory_string);
+		strrev(rb_string);
 
-			if (inst_trace && decode_string != "IGNORE" && top->o_wb_stb && top->i_wb_ack) {
-				fprintf(inst_file, "PC: 0x%08X   Inst: %s\n", cur_pc, decode_string);
-			}
+		if (inst_trace && decode_string != "IGNORE" && top->o_wb_stb && top->i_wb_ack) {
+			fprintf(inst_file, "PC: 0x%08X   Inst: %s\n", cur_pc, decode_string);
+		}
 
-			/*
-			if (top->o_wb_adr == 0x03400000 && top->o_wb_we) {
-				run_enable = 0;
-				inst_trace = 1;
-			}
-			*/
+		/*
+		if (top->o_wb_adr == 0x03400000 && top->o_wb_we) {
+			run_enable = 0;
+			inst_trace = 1;
+		}
+		*/
 
-			if (trace) {
-				if ( (cur_pc < (old_pc-8)) || (cur_pc > (old_pc+8)) ) {
-					uint32_t arm_reg[40];
-					for (int i = 0; i < 40; i++) {
-						arm_reg[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[i];
-					}
-					//fprintf(logfile, "PC: 0x%08X  Addr: 0x%08X  dat_i: 0x%08X  dat_o: 0x%08X  write: %d\n", cur_pc, top->o_wb_adr, top->i_wb_dat, top->o_wb_dat, top->o_wb_we);
-					fprintf(logfile, "PC: 0x%08X  Addr: 0x%08X  dat_i: 0x%08X  dat_o: 0x%08X  write: %d\n", cur_pc, top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_address_ff, top->i_wb_dat, top->o_wb_dat, top->o_wb_we);
-
-					//fprintf(logfile, "          PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);
-					/*
-					fprintf(logfile, "          PC: 0x%08X\n", cur_pc);
-					fprintf(logfile, "          R0: 0x%08X\n", arm_reg[0]);
-					fprintf(logfile, "          R1: 0x%08X\n", arm_reg[1]);
-					fprintf(logfile, "          R2: 0x%08X\n", arm_reg[2]);
-					fprintf(logfile, "          R3: 0x%08X\n", arm_reg[3]);
-					fprintf(logfile, "          R4: 0x%08X\n", arm_reg[4]);
-					fprintf(logfile, "          R5: 0x%08X\n", arm_reg[5]);
-					fprintf(logfile, "          R6: 0x%08X\n", arm_reg[6]);
-					fprintf(logfile, "          R7: 0x%08X\n", arm_reg[7]);
-					fprintf(logfile, "          R8: 0x%08X\n", arm_reg[8]);
-					fprintf(logfile, "          R9: 0x%08X\n", arm_reg[9]);
-					fprintf(logfile, "         R10: 0x%08X\n", arm_reg[10]);
-					fprintf(logfile, "         R11: 0x%08X\n", arm_reg[11]);
-					fprintf(logfile, "         R12: 0x%08X\n", arm_reg[12]);
-					fprintf(logfile, "      SP R13: 0x%08X\n", arm_reg[13]);
-					fprintf(logfile, "      LR R14: 0x%08X\n", arm_reg[14]);
-					*/
-					old_pc = cur_pc;
+		if (trace) {
+			if ( (cur_pc < (old_pc-8)) || (cur_pc > (old_pc+8)) ) {
+				uint32_t arm_reg[40];
+				for (int i = 0; i < 40; i++) {
+					arm_reg[i] = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__u_zap_register_file__DOT__mem[i];
 				}
-			}
+				//fprintf(logfile, "PC: 0x%08X  Addr: 0x%08X  dat_i: 0x%08X  dat_o: 0x%08X  write: %d\n", cur_pc, top->o_wb_adr, top->i_wb_dat, top->o_wb_dat, top->o_wb_we);
+				fprintf(logfile, "PC: 0x%08X  Addr: 0x%08X  dat_i: 0x%08X  dat_o: 0x%08X  write: %d\n", cur_pc, top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_address_ff, top->i_wb_dat, top->o_wb_dat, top->o_wb_we);
 
-			top->i_wb_ack = top->o_wb_stb;
-
-			if (top->o_wb_stb && top->i_wb_ack) {
-				// Handle writes to Main RAM, with byte masking...
-				if (top->o_wb_adr >= 0x00000000 && top->o_wb_adr <= 0x001FFFFF && top->o_wb_we) {                // 2MB masked.
-					//printf("Main RAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
-					if (top->o_wb_sel & 8) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // ram_ptr is now BYTE addressed.
-					if (top->o_wb_sel & 4) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 2MB, ignore the lower two bits, add the offset.
-					if (top->o_wb_sel & 2) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
-					if (top->o_wb_sel & 1) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
-				}
-
-				// Handle writes to VRAM, with byte masking...
-				if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x002FFFFF && top->o_wb_we) {                // 1MB masked.
-					//printf("VRAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
-					if (top->o_wb_sel & 8) vram_ptr[(top->o_wb_adr & 0xffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // vram_ptr is now BYTE addressed.
-					if (top->o_wb_sel & 4) vram_ptr[(top->o_wb_adr & 0xffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 1MB, ignore the lower two bits, add the offset.
-					if (top->o_wb_sel & 2) vram_ptr[(top->o_wb_adr & 0xffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
-					if (top->o_wb_sel & 1) vram_ptr[(top->o_wb_adr & 0xffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
-				}
-
-				// Handle writes to NVRAM...
-				if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315ffff && top->o_wb_we) {          // 128KB Masked.
-					nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] = top->o_wb_dat & 0xff;       // Only writes the lower byte from the core to 8-bit NVRAM. o_wb_adr is the BYTE address, so shouldn't need shifting.
-				}
-
-				uint8_t rom_byte0 = rom_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;      // rom_ptr is now BYTE addressed.
-				uint8_t rom_byte1 = rom_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;      // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
-				uint8_t rom_byte2 = rom_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
-				uint8_t rom_byte3 = rom_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
-				uint32_t rom_word = rom_byte0 << 24 | rom_byte1 << 16 | rom_byte2 << 8 | rom_byte3;
-
-				uint8_t rom2_byte0 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;    // rom2_ptr is now BYTE addressed.
-				uint8_t rom2_byte1 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;    // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
-				uint8_t rom2_byte2 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
-				uint8_t rom2_byte3 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
-				uint32_t rom2_word = rom2_byte0 << 24 | rom2_byte1 << 16 | rom2_byte2 << 8 | rom2_byte3;
-
-				uint8_t ram_byte0 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] & 0xff;     // ram_ptr is now BYTE addressed.
-				uint8_t ram_byte1 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] & 0xff;     // Mask o_wb_adr to 2MB, ignorring the lower two bits, add the offset.
-				uint8_t ram_byte2 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 2] & 0xff;
-				uint8_t ram_byte3 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] & 0xff;
-				uint32_t ram_word = ram_byte0 << 24 | ram_byte1 << 16 | ram_byte2 << 8 | ram_byte3;
-
-				uint8_t vram_byte0 = vram_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;     // vram_ptr is now BYTE addressed.
-				uint8_t vram_byte1 = vram_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;     // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
-				uint8_t vram_byte2 = vram_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
-				uint8_t vram_byte3 = vram_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
-				uint32_t vram_word = vram_byte0 << 24 | vram_byte1 << 16 | vram_byte2 << 8 | vram_byte3;
-
-				//if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Addr: 0x%08X ", top->o_wb_adr);
-				if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Addr: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_address_ff);
-				
-				//top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_data_wb_we;
-
-				// Tech manual suggests "Any write to this area will unmap the BIOS".
-				if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x001FFFFF && top->o_wb_we) map_bios = 0;
-				//if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x00000000 && top->o_wb_we) map_bios = 0;
-
-				// Main RAM reads...
-				if (top->o_wb_adr >= 0x00000000 && top->o_wb_adr <= 0x001FFFFF) {
-					if (map_bios) top->i_wb_dat = rom_word;
-					else top->i_wb_dat = ram_word;
-				}
-
-				else if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x003FFFFF) { /*fprintf(logfile, "VRAM            ");*/ top->i_wb_dat = vram_word; }
-
-				// BIOS reads...
-				//else if (top->o_wb_adr >= 0x03000510 && top->o_wb_adr <= 0x03000510) top->i_wb_dat = 0xE1A00000;  // NOP ! (MOV R0,R0) Skip another delay.
-				//else if (top->o_wb_adr >= 0x03000504 && top->o_wb_adr <= 0x0300050C) top->i_wb_dat = 0xE1A00000;  // NOP ! (MOV R0,R0) Skip another delay.
-				//else if (top->o_wb_adr >= 0x03000340 && top->o_wb_adr <= 0x03000340) top->i_wb_dat = 0xE1A00000;  // NOP ! (MOV R0,R0) Skip endless loop on mem size check fail.
-				//else if (top->o_wb_adr >= 0x030006a8 && top->o_wb_adr <= 0x030006b0) top->i_wb_dat = 0xE1A00000;  // NOP ! (MOV R0,R0) Skip test_vram_svf.
-				else if (top->o_wb_adr >= 0x03000000 && top->o_wb_adr <= 0x030FFFFF) { /*fprintf(logfile, "BIOS            ");*/
-					if (rom2_select == 0) top->i_wb_dat = rom_word; else { top->i_wb_dat = rom2_word; }
-				}
-
-				//else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0xBADACCE5; }
-				else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0x0000006A; }
-
-				else if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315FFFF) { fprintf(logfile, "NVRAM           "); top->i_wb_dat = nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] & 0xff; }
-				else if (top->o_wb_adr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); sim_diag_port_send(top->o_wb_dat); }
-				else if (top->o_wb_adr == 0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = sim_diag_port_get(); }
-				else if (top->o_wb_adr >= 0x03180004 && top->o_wb_adr <= 0x031BFFFF) { fprintf(logfile, "Slow Bus        "); }
-
-				else if (top->o_wb_adr >= 0x03200000 && top->o_wb_adr <= 0x03200fff && !top->o_wb_we) { fprintf(logfile, "VRAM SVF Source "); svf_set_source(); top->i_wb_dat = 0x00000000; }
-				else if (top->o_wb_adr >= 0x03200000 && top->o_wb_adr <= 0x03200fff && top->o_wb_we) { fprintf(logfile, "VRAM SVF Copy   "); svf_page_copy(); }
-				else if (top->o_wb_adr >= 0x03202000 && top->o_wb_adr <= 0x03202fff && top->o_wb_we) { fprintf(logfile, "VRAM SVF Color  "); svf_set_color(); }
-				else if (top->o_wb_adr >= 0x03204000 && top->o_wb_adr <= 0x03204fff && top->o_wb_we) { fprintf(logfile, "VRAM SVF Flash  ");  svf_flash_write(); }
-				else if (top->o_wb_adr >= 0x03206000 && top->o_wb_adr <= 0x03206fff) { fprintf(logfile, "VRAM SVF Refresh"); top->i_wb_dat = 0xBADACCE5; }
-
-				else if (top->o_wb_adr >= 0x032F0000 && top->o_wb_adr <= 0x032FFFFF) { fprintf(logfile, "Unknown         "); top->i_wb_dat = 0xBADACCE5; }
-
-
-				// Every core access from here down, gets its data from the Verilog MADAM / CLIO...
-				// 
-				// MADAM...
-				else if (top->o_wb_adr == 0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); }
-				else if (top->o_wb_adr == 0x03300000 && top->o_wb_we) { fprintf(logfile, "MADAM Print     "); MyAddLog("%c", top->o_wb_dat & 0xff); printf("%c", top->o_wb_dat & 0xff); }
-
-				else if (top->o_wb_adr == 0x03300004) { fprintf(logfile, "MADAM msysbits  "); /*if (top->o_wb_we==0) trace=1;*/ }
-				else if (top->o_wb_adr == 0x03300008) { fprintf(logfile, "MADAM mctl      "); }
-				else if (top->o_wb_adr == 0x0330000C) { fprintf(logfile, "MADAM sltime    "); }
-				else if (top->o_wb_adr >= 0x03300010 && top->o_wb_adr <= 0x0330001f) { fprintf(logfile, "MADAM MultiChip "); }
-				else if (top->o_wb_adr == 0x03300020) { fprintf(logfile, "MADAM Abortbits "); }
-				else if (top->o_wb_adr == 0x03300218) { fprintf(logfile, "MADAM Fence ?   "); }
-				else if (top->o_wb_adr == 0x0330021c) { fprintf(logfile, "MADAM Fence ?   "); }
-				else if (top->o_wb_adr == 0x03300238) { fprintf(logfile, "MADAM Fence ?   "); }
-				else if (top->o_wb_adr == 0x0330023c) { fprintf(logfile, "MADAM Fence ?   "); }
-				else if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PBUS str  "); }
-				else if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PBUS len  "); }
-				else if (top->o_wb_adr == 0x03300578) { fprintf(logfile, "MADAM PBUS end  "); }
-				else if (top->o_wb_adr == 0x03300580) { fprintf(logfile, "MADAM vdl_addr! "); }
-				else if (top->o_wb_adr >= 0x03300000 && top->o_wb_adr <= 0x033FFFFF) { fprintf(logfile, "MADAM ?         "); }
-
-				// CLIO...
-				else if (top->o_wb_adr == 0x03400000) { fprintf(logfile, "CLIO Revision   "); }
-				else if (top->o_wb_adr == 0x03400004) { fprintf(logfile, "CLIO csysbits   "); }
-				else if (top->o_wb_adr == 0x03400008) { fprintf(logfile, "CLIO vint0      "); }
-				else if (top->o_wb_adr == 0x0340000C) { fprintf(logfile, "CLIO vint1      "); }
-				else if (top->o_wb_adr == 0x03400024) { fprintf(logfile, "CLIO audout     "); }
-				else if (top->o_wb_adr == 0x03400028) { fprintf(logfile, "CLIO cstatbits  "); }
-				else if (top->o_wb_adr == 0x0340002C) { fprintf(logfile, "CLIO WatchDog   "); }
-				else if (top->o_wb_adr == 0x03400034) { /*fprintf(logfile, "CLIO vcnt       ");*/ }
-
-				else if (top->o_wb_adr == 0x03400040) { fprintf(logfile, "CLIO irq0 set   "); }
-				else if (top->o_wb_adr == 0x03400044) { fprintf(logfile, "CLIO irq0 clear "); }
-				else if (top->o_wb_adr == 0x03400048) { fprintf(logfile, "CLIO mask0 set  "); }
-				else if (top->o_wb_adr == 0x0340004c) { fprintf(logfile, "CLIO mask0 clear"); }
-
-				else if (top->o_wb_adr == 0x03400060) { fprintf(logfile, "CLIO irq1 set   "); }
-				else if (top->o_wb_adr == 0x03400064) { fprintf(logfile, "CLIO irq1 clear "); }
-				else if (top->o_wb_adr == 0x03400068) { fprintf(logfile, "CLIO mask1 set  "); }
-				else if (top->o_wb_adr == 0x0340006c) { fprintf(logfile, "CLIO mask1 clear"); }
-
-				else if (top->o_wb_adr == 0x03400040 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 read  "); }
-				else if (top->o_wb_adr == 0x03400048 && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read "); }
-
-				else if (top->o_wb_adr == 0x03400060 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 read  "); }
-				else if (top->o_wb_adr == 0x03400068 && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read "); }
-
-				else if (top->o_wb_adr == 0x03400080) { fprintf(logfile, "CLIO hdelay     "); }
-				else if (top->o_wb_adr == 0x03400084 && !top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); }
-				else if (top->o_wb_adr == 0x03400084 && top->o_wb_we) { fprintf(logfile, "CLIO adbio      ");
-																		rom2_select = (top->o_wb_dat & 0x04);				// bit 2 selects Kanji ROM (ROM2).
-																		/*if (rom2_select) fprintf(logfile, "ROM2 selected!");
-																		else fprintf(logfile, "ROM1 selected!");*/ }
-				else if (top->o_wb_adr == 0x03400088) { fprintf(logfile, "CLIO adbctl     "); }
-				else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && !(top->o_wb_adr & 4)) { fprintf(logfile, "CLIO tmr_cnt    "); }
-				else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && (top->o_wb_adr & 4)) { fprintf(logfile, "CLIO tmr_bkp    "); }
-				else if (top->o_wb_adr == 0x03400200) { fprintf(logfile, "CLIO tmr_lwr set"); }
-				else if (top->o_wb_adr == 0x03400204) { fprintf(logfile, "CLIO tmr_lwr clr"); }
-				else if (top->o_wb_adr == 0x03400208) { fprintf(logfile, "CLIO tmr_upr set"); }
-				else if (top->o_wb_adr == 0x0340020C) { fprintf(logfile, "CLIO tmr_upr clr"); }
-				else if (top->o_wb_adr == 0x03400220) { fprintf(logfile, "CLIO TmrSlack   "); }
-				else if (top->o_wb_adr == 0x03400304) { fprintf(logfile, "CLIO dma        "); }
-				else if (top->o_wb_adr == 0x03400308) { fprintf(logfile, "CLIO dmareqdis  "); }
-				else if (top->o_wb_adr == 0x03400400) { fprintf(logfile, "CLIO expctl_set "); }
-				else if (top->o_wb_adr == 0x03400404) { fprintf(logfile, "CLIO expctl_clr "); }
-				else if (top->o_wb_adr == 0x03400408) { fprintf(logfile, "CLIO type0_4    "); }
-				else if (top->o_wb_adr == 0x03400410) { fprintf(logfile, "CLIO dipir1     "); }
-				else if (top->o_wb_adr == 0x03400414) { fprintf(logfile, "CLIO dipir2     "); }
-
-				// XBUS...
-				else if (top->o_wb_adr >= 0x03400500 && top->o_wb_adr <= 0x0340053f) { fprintf(logfile, "CLIO sel        "); }
-				else if (top->o_wb_adr >= 0x03400540 && top->o_wb_adr <= 0x0340057f) { fprintf(logfile, "CLIO poll       "); }
-				else if (top->o_wb_adr == 0x03400580) { fprintf(logfile, "CLIO CmdStFIFO  "); }
-
-				// DSP...
-				else if (top->o_wb_adr == 0x034017d0) { fprintf(logfile, "CLIO sema       "); }
-				else if (top->o_wb_adr == 0x034017d4) { fprintf(logfile, "CLIO semaack    "); }
-				else if (top->o_wb_adr == 0x034017e0) { fprintf(logfile, "CLIO dspdma     "); }
-				else if (top->o_wb_adr == 0x034017e4) { fprintf(logfile, "CLIO dspprst0   "); }
-				else if (top->o_wb_adr == 0x034017e8) { fprintf(logfile, "CLIO dspprst1   "); }
-				else if (top->o_wb_adr == 0x034017f4) { fprintf(logfile, "CLIO dspppc     "); }
-				else if (top->o_wb_adr == 0x034017f8) { fprintf(logfile, "CLIO dsppnr     "); }
-				else if (top->o_wb_adr == 0x034017fc) { fprintf(logfile, "CLIO dsppgw     "); }
-				else if (top->o_wb_adr == 0x034039dc) { fprintf(logfile, "CLIO dsppclkreload"); }
-
-				else if (top->o_wb_adr >= 0x03401800 && top->o_wb_adr <= 0x03401fff) { fprintf(logfile, "CLIO DSPP  N 32 "); }
-				else if (top->o_wb_adr >= 0x03402000 && top->o_wb_adr <= 0x03402fff) { fprintf(logfile, "CLIO DSPP  N 16 "); }
-				else if (top->o_wb_adr >= 0x03403000 && top->o_wb_adr <= 0x034031ff) { fprintf(logfile, "CLIO DSPP EI 32 "); }
-				else if (top->o_wb_adr >= 0x03403400 && top->o_wb_adr <= 0x034037ff) { fprintf(logfile, "CLIO DSPP EI 16 "); }
-
-				// Uncle spoofing stuff handled in clio.v now. ElectronAsh...
-				else if (top->o_wb_adr == 0x0340C000) { fprintf(logfile, "CLIO unc_rev    "); }
-				else if (top->o_wb_adr == 0x0340C004) { fprintf(logfile, "CLIO unc_soft_rv"); }
-				else if (top->o_wb_adr == 0x0340C008) { fprintf(logfile, "CLIO unc_addr   "); }
-				else if (top->o_wb_adr == 0x0340C00c) { fprintf(logfile, "CLIO unc_rom    "); }
-				else if (top->o_wb_adr == 0x03400000) { fprintf(logfile, "CLIO ?          "); }
-				//else { fprintf(logfile, "UNKNOWN ?? Addr: 0x%08X  o_wb_we: %d\n", top->o_wb_adr, top->o_wb_we); top->i_wb_dat = 0xBADACCE5; }
-
+				//fprintf(logfile, "          PC: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_issue_main__DOT__o_pc_ff);
 				/*
-				uint32_t zap_din = top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat;
-				if ((top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034fffff && top->o_wb_adr != 0x03400034) ) {
-					if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);
-					else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", zap_din, cur_pc);
-				}
+				fprintf(logfile, "          PC: 0x%08X\n", cur_pc);
+				fprintf(logfile, "          R0: 0x%08X\n", arm_reg[0]);
+				fprintf(logfile, "          R1: 0x%08X\n", arm_reg[1]);
+				fprintf(logfile, "          R2: 0x%08X\n", arm_reg[2]);
+				fprintf(logfile, "          R3: 0x%08X\n", arm_reg[3]);
+				fprintf(logfile, "          R4: 0x%08X\n", arm_reg[4]);
+				fprintf(logfile, "          R5: 0x%08X\n", arm_reg[5]);
+				fprintf(logfile, "          R6: 0x%08X\n", arm_reg[6]);
+				fprintf(logfile, "          R7: 0x%08X\n", arm_reg[7]);
+				fprintf(logfile, "          R8: 0x%08X\n", arm_reg[8]);
+				fprintf(logfile, "          R9: 0x%08X\n", arm_reg[9]);
+				fprintf(logfile, "         R10: 0x%08X\n", arm_reg[10]);
+				fprintf(logfile, "         R11: 0x%08X\n", arm_reg[11]);
+				fprintf(logfile, "         R12: 0x%08X\n", arm_reg[12]);
+				fprintf(logfile, "      SP R13: 0x%08X\n", arm_reg[13]);
+				fprintf(logfile, "      LR R14: 0x%08X\n", arm_reg[14]);
 				*/
-
-				//if (top->o_wb_adr == 0x03300008 && top->o_wb_we && top->o_wb_dat & 0x8000) pbus_dma();
-				if (top->rootp->core_3do__DOT__madam_inst__DOT__mctl & 0x8000) pbus_dma();
-			}
-
-			if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == top->rootp->core_3do__DOT__clio_inst__DOT__vcnt_max && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) frame_count++;
-			if ( (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt & 0x7)==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) {
-				sim_process_vdl();
-				opera_process_vdl();
-			}
-
-			if (old_fiq_n == 1 && top->rootp->core_3do__DOT__clio_inst__DOT__firq_n == 0) { // firq_n falling edge.
-				fprintf(logfile, "FIQ triggered!  (PC: 0x%08X)\n", cur_pc);
-			}
-			old_fiq_n = top->rootp->core_3do__DOT__clio_inst__DOT__firq_n;
-
-			uint32_t instruction = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction;
-			if ( ((instruction & 0xF000000)>>24 == 0b1111) && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction_valid) {
-				fprintf(logfile, "SWI 0x%08X  (PC: 0x%08X)\n", instruction, cur_pc);
-				//run_enable = 0;
+				old_pc = cur_pc;
 			}
 		}
 
-		top->sys_clk = !(top->sys_clk&1);
+		top->i_wb_ack = top->o_wb_stb;
+
+		if (top->o_wb_stb && top->i_wb_ack) {
+			// Handle writes to Main RAM, with byte masking...
+			if (top->o_wb_adr >= 0x00000000 && top->o_wb_adr <= 0x001FFFFF && top->o_wb_we) {                // 2MB masked.
+				//printf("Main RAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
+				if (top->o_wb_sel & 8) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // ram_ptr is now BYTE addressed.
+				if (top->o_wb_sel & 4) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 2MB, ignore the lower two bits, add the offset.
+				if (top->o_wb_sel & 2) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
+				if (top->o_wb_sel & 1) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
+			}
+
+			// Handle writes to VRAM, with byte masking...
+			if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x002FFFFF && top->o_wb_we) {                // 1MB masked.
+				//printf("VRAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
+				if (top->o_wb_sel & 8) vram_ptr[(top->o_wb_adr & 0xffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // vram_ptr is now BYTE addressed.
+				if (top->o_wb_sel & 4) vram_ptr[(top->o_wb_adr & 0xffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 1MB, ignore the lower two bits, add the offset.
+				if (top->o_wb_sel & 2) vram_ptr[(top->o_wb_adr & 0xffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
+				if (top->o_wb_sel & 1) vram_ptr[(top->o_wb_adr & 0xffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
+			}
+
+			// Handle writes to NVRAM...
+			if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315ffff && top->o_wb_we) {          // 128KB Masked.
+				nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] = top->o_wb_dat & 0xff;       // Only writes the lower byte from the core to 8-bit NVRAM. o_wb_adr is the BYTE address, so shouldn't need shifting.
+			}
+
+			// Handle Xbus writes...
+			/*if ((top->o_wb_adr == 0x03400400) && top->o_wb_we) {	// XBUS direction.
+				if (!(top->o_wb_dat & 0x800)) top->rootp->core_3do__DOT__clio_inst__DOT__expctl = top->o_wb_dat;
+			}*/
+			if ((top->o_wb_adr >= 0x03400500) && (top->o_wb_adr < 0x03400540) && top->o_wb_we) sim_xbus_set_sel(top->o_wb_dat);
+			else if ((top->o_wb_adr >= 0x03400540) && (top->o_wb_adr < 0x03400580) && top->o_wb_we) sim_xbus_set_poll(top->o_wb_dat);
+			else if ((top->o_wb_adr >= 0x03400580) && (top->o_wb_adr < 0x034005C0) && top->o_wb_we) sim_xbus_fifo_set_cmd(top->o_wb_dat);	// on FIFO Filled execute the command.
+			else if ((top->o_wb_adr >= 0x034005C0) && (top->o_wb_adr < 0x03400600) && top->o_wb_we) sim_xbus_fifo_set_data(top->o_wb_dat);	// on FIFO Filled execute the command.
+
+			uint8_t rom_byte0 = rom_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;      // rom_ptr is now BYTE addressed.
+			uint8_t rom_byte1 = rom_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;      // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
+			uint8_t rom_byte2 = rom_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
+			uint8_t rom_byte3 = rom_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
+			uint32_t rom_word = rom_byte0 << 24 | rom_byte1 << 16 | rom_byte2 << 8 | rom_byte3;
+
+			uint8_t rom2_byte0 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;    // rom2_ptr is now BYTE addressed.
+			uint8_t rom2_byte1 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;    // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
+			uint8_t rom2_byte2 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
+			uint8_t rom2_byte3 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
+			uint32_t rom2_word = rom2_byte0 << 24 | rom2_byte1 << 16 | rom2_byte2 << 8 | rom2_byte3;
+
+			uint8_t ram_byte0 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] & 0xff;     // ram_ptr is now BYTE addressed.
+			uint8_t ram_byte1 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] & 0xff;     // Mask o_wb_adr to 2MB, ignorring the lower two bits, add the offset.
+			uint8_t ram_byte2 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 2] & 0xff;
+			uint8_t ram_byte3 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] & 0xff;
+			uint32_t ram_word = ram_byte0 << 24 | ram_byte1 << 16 | ram_byte2 << 8 | ram_byte3;
+
+			uint8_t vram_byte0 = vram_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;     // vram_ptr is now BYTE addressed.
+			uint8_t vram_byte1 = vram_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;     // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
+			uint8_t vram_byte2 = vram_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
+			uint8_t vram_byte3 = vram_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
+			uint32_t vram_word = vram_byte0 << 24 | vram_byte1 << 16 | vram_byte2 << 8 | vram_byte3;
+
+			//if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Addr: 0x%08X ", top->o_wb_adr);
+			if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Addr: 0x%08X ", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_address_ff);
+				
+			//top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_data_wb_we;
+
+			// Tech manual suggests "Any write to this area will unmap the BIOS".
+			if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x001FFFFF && top->o_wb_we) map_bios = 0;
+			//if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x00000000 && top->o_wb_we) map_bios = 0;
+
+			// Main RAM reads...
+			if (top->o_wb_adr >= 0x00000000 && top->o_wb_adr <= 0x001FFFFF) {
+				if (map_bios) top->i_wb_dat = rom_word;
+				else top->i_wb_dat = ram_word;
+			}
+
+			else if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x003FFFFF) { /*fprintf(logfile, "VRAM            ");*/ top->i_wb_dat = vram_word; }
+
+			// BIOS reads...
+			//else if (top->o_wb_adr >= 0x03000510 && top->o_wb_adr <= 0x03000510) top->i_wb_dat = 0xE1A00000;  // NOP ! (MOV R0,R0) Skip another delay.
+			//else if (top->o_wb_adr >= 0x03000504 && top->o_wb_adr <= 0x0300050C) top->i_wb_dat = 0xE1A00000;  // NOP ! (MOV R0,R0) Skip another delay.
+			//else if (top->o_wb_adr >= 0x03000340 && top->o_wb_adr <= 0x03000340) top->i_wb_dat = 0xE1A00000;  // NOP ! (MOV R0,R0) Skip endless loop on mem size check fail.
+			//else if (top->o_wb_adr >= 0x030006a8 && top->o_wb_adr <= 0x030006b0) top->i_wb_dat = 0xE1A00000;  // NOP ! (MOV R0,R0) Skip test_vram_svf.
+			else if (top->o_wb_adr >= 0x03000000 && top->o_wb_adr <= 0x030FFFFF) { /*fprintf(logfile, "BIOS            ");*/
+				if (rom2_select == 0) top->i_wb_dat = rom_word; else { top->i_wb_dat = rom2_word; }
+			}
+
+			//else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0xBADACCE5; }
+			else if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x0313FFFF) { fprintf(logfile, "Brooktree       "); top->i_wb_dat = 0x0000006A; }
+
+			else if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315FFFF) { fprintf(logfile, "NVRAM           "); top->i_wb_dat = nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] & 0xff; }
+			else if (top->o_wb_adr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); sim_diag_port_send(top->o_wb_dat); }
+			else if (top->o_wb_adr == 0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = sim_diag_port_get(); }
+			else if (top->o_wb_adr >= 0x03180004 && top->o_wb_adr <= 0x031BFFFF) { fprintf(logfile, "Slow Bus        "); }
+
+			else if (top->o_wb_adr >= 0x03200000 && top->o_wb_adr <= 0x03200fff && !top->o_wb_we) { fprintf(logfile, "VRAM SVF Source "); svf_set_source(); top->i_wb_dat = 0x00000000; }
+			else if (top->o_wb_adr >= 0x03200000 && top->o_wb_adr <= 0x03200fff && top->o_wb_we) { fprintf(logfile, "VRAM SVF Copy   "); svf_page_copy(); }
+			else if (top->o_wb_adr >= 0x03202000 && top->o_wb_adr <= 0x03202fff && top->o_wb_we) { fprintf(logfile, "VRAM SVF Color  "); svf_set_color(); }
+			else if (top->o_wb_adr >= 0x03204000 && top->o_wb_adr <= 0x03204fff && top->o_wb_we) { fprintf(logfile, "VRAM SVF Flash  ");  svf_flash_write(); }
+			else if (top->o_wb_adr >= 0x03206000 && top->o_wb_adr <= 0x03206fff) { fprintf(logfile, "VRAM SVF Refresh"); top->i_wb_dat = 0xBADACCE5; }
+
+			else if (top->o_wb_adr >= 0x032F0000 && top->o_wb_adr <= 0x032FFFFF) { fprintf(logfile, "Unknown         "); top->i_wb_dat = 0xBADACCE5; }
+
+
+			// Every core access from here down, gets its data from the Verilog MADAM / CLIO...
+			// 
+			// MADAM...
+			else if (top->o_wb_adr == 0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); }
+			else if (top->o_wb_adr == 0x03300000 && top->o_wb_we) { fprintf(logfile, "MADAM Print     "); MyAddLog("%c", top->o_wb_dat & 0xff); printf("%c", top->o_wb_dat & 0xff); }
+
+			else if (top->o_wb_adr == 0x03300004) { fprintf(logfile, "MADAM msysbits  "); /*if (top->o_wb_we==0) trace=1;*/ }
+			else if (top->o_wb_adr == 0x03300008) { fprintf(logfile, "MADAM mctl      "); }
+			else if (top->o_wb_adr == 0x0330000C) { fprintf(logfile, "MADAM sltime    "); }
+			else if (top->o_wb_adr >= 0x03300010 && top->o_wb_adr <= 0x0330001f) { fprintf(logfile, "MADAM MultiChip "); }
+			else if (top->o_wb_adr == 0x03300020) { fprintf(logfile, "MADAM Abortbits "); }
+			else if (top->o_wb_adr == 0x03300218) { fprintf(logfile, "MADAM Fence ?   "); }
+			else if (top->o_wb_adr == 0x0330021c) { fprintf(logfile, "MADAM Fence ?   "); }
+			else if (top->o_wb_adr == 0x03300238) { fprintf(logfile, "MADAM Fence ?   "); }
+			else if (top->o_wb_adr == 0x0330023c) { fprintf(logfile, "MADAM Fence ?   "); }
+			else if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PBUS str  "); }
+			else if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PBUS len  "); }
+			else if (top->o_wb_adr == 0x03300578) { fprintf(logfile, "MADAM PBUS end  "); }
+			else if (top->o_wb_adr == 0x03300580) { fprintf(logfile, "MADAM vdl_addr! "); }
+			else if (top->o_wb_adr >= 0x03300000 && top->o_wb_adr <= 0x033FFFFF) { fprintf(logfile, "MADAM ?         "); }
+
+			// CLIO...
+			else if (top->o_wb_adr == 0x03400000) { fprintf(logfile, "CLIO Revision   "); }
+			else if (top->o_wb_adr == 0x03400004) { fprintf(logfile, "CLIO csysbits   "); }
+			else if (top->o_wb_adr == 0x03400008) { fprintf(logfile, "CLIO vint0      "); }
+			else if (top->o_wb_adr == 0x0340000C) { fprintf(logfile, "CLIO vint1      "); }
+			else if (top->o_wb_adr == 0x03400024) { fprintf(logfile, "CLIO audout     "); }
+			else if (top->o_wb_adr == 0x03400028) { fprintf(logfile, "CLIO cstatbits  "); }
+			else if (top->o_wb_adr == 0x0340002C) { fprintf(logfile, "CLIO WatchDog   "); }
+			else if (top->o_wb_adr == 0x03400034) { /*fprintf(logfile, "CLIO vcnt       ");*/ }
+
+			else if (top->o_wb_adr == 0x03400040) { fprintf(logfile, "CLIO irq0 set   "); }
+			else if (top->o_wb_adr == 0x03400044) { fprintf(logfile, "CLIO irq0 clear "); }
+			else if (top->o_wb_adr == 0x03400048) { fprintf(logfile, "CLIO mask0 set  "); }
+			else if (top->o_wb_adr == 0x0340004c) { fprintf(logfile, "CLIO mask0 clear"); }
+
+			else if (top->o_wb_adr == 0x03400060) { fprintf(logfile, "CLIO irq1 set   "); }
+			else if (top->o_wb_adr == 0x03400064) { fprintf(logfile, "CLIO irq1 clear "); }
+			else if (top->o_wb_adr == 0x03400068) { fprintf(logfile, "CLIO mask1 set  "); }
+			else if (top->o_wb_adr == 0x0340006c) { fprintf(logfile, "CLIO mask1 clear"); }
+
+			else if (top->o_wb_adr == 0x03400040 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 read  "); }
+			else if (top->o_wb_adr == 0x03400048 && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read "); }
+
+			else if (top->o_wb_adr == 0x03400060 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 read  "); }
+			else if (top->o_wb_adr == 0x03400068 && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read "); }
+
+			else if (top->o_wb_adr == 0x03400080) { fprintf(logfile, "CLIO hdelay     "); }
+			else if (top->o_wb_adr == 0x03400084 && !top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); }
+			else if (top->o_wb_adr == 0x03400084 && top->o_wb_we) { fprintf(logfile, "CLIO adbio      ");
+																	rom2_select = (top->o_wb_dat & 0x04);				// bit 2 selects Kanji ROM (ROM2).
+																	/*if (rom2_select) fprintf(logfile, "ROM2 selected!");
+																	else fprintf(logfile, "ROM1 selected!");*/ }
+			else if (top->o_wb_adr == 0x03400088) { fprintf(logfile, "CLIO adbctl     "); }
+			else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && !(top->o_wb_adr & 4)) { fprintf(logfile, "CLIO tmr_cnt    "); }
+			else if (top->o_wb_adr >= 0x03400100 && top->o_wb_adr <= 0x0340017F && (top->o_wb_adr & 4)) { fprintf(logfile, "CLIO tmr_bkp    "); }
+			else if (top->o_wb_adr == 0x03400200) { fprintf(logfile, "CLIO tmr_lwr set"); }
+			else if (top->o_wb_adr == 0x03400204) { fprintf(logfile, "CLIO tmr_lwr clr"); }
+			else if (top->o_wb_adr == 0x03400208) { fprintf(logfile, "CLIO tmr_upr set"); }
+			else if (top->o_wb_adr == 0x0340020C) { fprintf(logfile, "CLIO tmr_upr clr"); }
+			else if (top->o_wb_adr == 0x03400220) { fprintf(logfile, "CLIO TmrSlack   "); }
+			else if (top->o_wb_adr == 0x03400304) { fprintf(logfile, "CLIO dma        "); }
+			else if (top->o_wb_adr == 0x03400308) { fprintf(logfile, "CLIO dmareqdis  "); }
+			else if (top->o_wb_adr == 0x03400400) { fprintf(logfile, "CLIO expctl_set "); }
+			else if (top->o_wb_adr == 0x03400404) { fprintf(logfile, "CLIO expctl_clr "); }
+			else if (top->o_wb_adr == 0x03400408) { fprintf(logfile, "CLIO type0_4    "); }
+			else if (top->o_wb_adr == 0x03400410) { fprintf(logfile, "CLIO dipir1     "); }
+			//else if (top->o_wb_adr == 0x03400414) { fprintf(logfile, "CLIO dipir2     "); }
+
+			// XBUS...
+			//else if (top->o_wb_adr >= 0x03400500 && top->o_wb_adr <= 0x0340053f) { fprintf(logfile, "CLIO sel        "); }
+			//else if (top->o_wb_adr >= 0x03400540 && top->o_wb_adr <= 0x0340057f) { fprintf(logfile, "CLIO poll       "); }
+			//else if (top->o_wb_adr == 0x03400580) { fprintf(logfile, "CLIO CmdStFIFO  "); }
+
+			// Handle Xbus reads...
+			//else if (top->o_wb_adr == 0x03400400) top->i_wb_dat = /*top->rootp->core_3do__DOT__clio_inst__DOT__expctl*/ 0x00000080;
+			else if (top->o_wb_adr == 0x03400414) { fprintf(logfile, "CLIO dipir2     "); top->i_wb_dat = 0x4000; }	// TO CHECK!!! requested by CDROMDIPIR.
+			else if ((top->o_wb_adr >= 0x03400500) && (top->o_wb_adr < 0x03400540)) { fprintf(logfile, "CLIO sel        "); top->i_wb_dat = sim_xbus_get_res(); }
+			else if ((top->o_wb_adr >= 0x03400540) && (top->o_wb_adr < 0x03400580)) { fprintf(logfile, "CLIO poll       "); top->i_wb_dat = sim_xbus_get_poll(); }
+			else if ((top->o_wb_adr >= 0x03400580) && (top->o_wb_adr < 0x034005C0)) { fprintf(logfile, "CLIO CmdStFIFO  "); top->i_wb_dat = sim_xbus_fifo_get_status(); }
+			else if ((top->o_wb_adr >= 0x034005C0) && (top->o_wb_adr < 0x03400600)) { fprintf(logfile, "CLIO Data FIFO  "); top->i_wb_dat = sim_xbus_fifo_get_data(); }
+
+			// DSP...
+			else if (top->o_wb_adr == 0x034017d0) { fprintf(logfile, "CLIO sema       "); }
+			else if (top->o_wb_adr == 0x034017d4) { fprintf(logfile, "CLIO semaack    "); }
+			else if (top->o_wb_adr == 0x034017e0) { fprintf(logfile, "CLIO dspdma     "); }
+			else if (top->o_wb_adr == 0x034017e4) { fprintf(logfile, "CLIO dspprst0   "); }
+			else if (top->o_wb_adr == 0x034017e8) { fprintf(logfile, "CLIO dspprst1   "); }
+			else if (top->o_wb_adr == 0x034017f4) { fprintf(logfile, "CLIO dspppc     "); }
+			else if (top->o_wb_adr == 0x034017f8) { fprintf(logfile, "CLIO dsppnr     "); }
+			else if (top->o_wb_adr == 0x034017fc) { fprintf(logfile, "CLIO dsppgw     "); }
+			else if (top->o_wb_adr == 0x034039dc) { fprintf(logfile, "CLIO dsppclkreload"); }
+
+			else if (top->o_wb_adr >= 0x03401800 && top->o_wb_adr <= 0x03401fff) { fprintf(logfile, "CLIO DSPP  N 32 "); }
+			else if (top->o_wb_adr >= 0x03402000 && top->o_wb_adr <= 0x03402fff) { fprintf(logfile, "CLIO DSPP  N 16 "); }
+			else if (top->o_wb_adr >= 0x03403000 && top->o_wb_adr <= 0x034031ff) { fprintf(logfile, "CLIO DSPP EI 32 "); }
+			else if (top->o_wb_adr >= 0x03403400 && top->o_wb_adr <= 0x034037ff) { fprintf(logfile, "CLIO DSPP EI 16 "); }
+
+			// Uncle spoofing stuff handled in clio.v now. ElectronAsh...
+			else if (top->o_wb_adr == 0x0340C000) { fprintf(logfile, "CLIO unc_rev    "); }
+			else if (top->o_wb_adr == 0x0340C004) { fprintf(logfile, "CLIO unc_soft_rv"); }
+			else if (top->o_wb_adr == 0x0340C008) { fprintf(logfile, "CLIO unc_addr   "); }
+			else if (top->o_wb_adr == 0x0340C00c) { fprintf(logfile, "CLIO unc_rom    "); }
+			else if (top->o_wb_adr == 0x03400000) { fprintf(logfile, "CLIO ?          "); }
+			//else { fprintf(logfile, "UNKNOWN ?? Addr: 0x%08X  o_wb_we: %d\n", top->o_wb_adr, top->o_wb_we); top->i_wb_dat = 0xBADACCE5; }
+
+			/*
+			uint32_t zap_din = top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat;
+			if ((top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034fffff && top->o_wb_adr != 0x03400034) ) {
+				if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);
+				else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", zap_din, cur_pc);
+			}
+			*/
+
+			//if (top->o_wb_adr == 0x03300008 && top->o_wb_we && top->o_wb_dat & 0x8000) pbus_dma();
+			if (top->rootp->core_3do__DOT__madam_inst__DOT__mctl & 0x8000) pbus_dma();
+		}
+
+		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == top->rootp->core_3do__DOT__clio_inst__DOT__vcnt_max && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) frame_count++;
+		if ( (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt & 0x7)==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) {
+			sim_process_vdl();
+			opera_process_vdl();
+		}
+
+		if (old_fiq_n == 1 && top->rootp->core_3do__DOT__clio_inst__DOT__firq_n == 0) { // firq_n falling edge.
+			fprintf(logfile, "FIQ triggered!  (PC: 0x%08X)\n", cur_pc);
+		}
+		old_fiq_n = top->rootp->core_3do__DOT__clio_inst__DOT__firq_n;
+
+		uint32_t instruction = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction;
+		if ( ((instruction & 0xF000000)>>24 == 0b1111) && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction_valid) {
+			fprintf(logfile, "SWI 0x%08X  (PC: 0x%08X)\n", instruction, cur_pc);
+			//run_enable = 0;
+		}
+
+		if (sim_xbus_fiq_request) {
+			sim_xbus_fiq_request = 0;
+			top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= 1 << 2;	// Set irq0_pend, bit 2.)
+		}
+
+		top->sys_clk = 0;
 		top->eval();
 
-		// Technically this stuff will evaluate while sys_clk is already LOW, because we MUST run eval() in order for zap_din to update correctly for the fprintfs...
-		//
 		uint32_t zap_din = top->rootp->core_3do__DOT__zap_top_inst__DOT__i_wb_dat;
-		if ((top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034fffff && top->o_wb_adr != 0x03400034) && top->o_wb_stb && top->i_wb_ack && top->sys_clk==0) {
+		if ((top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034fffff && top->o_wb_adr != 0x03400034) && top->o_wb_stb && top->i_wb_ack) {
 			if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);
 			else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", zap_din, cur_pc);
 		}
+
+		top->sys_clk = 1;
+		top->eval();
 
 		return 1;
 	}
@@ -1353,8 +1379,8 @@ int main(int argc, char** argv, char** env) {
 	sim_diag_port_init(-1);		// Normal BIOS startup.
 	//sim_diag_port_init(0xf1);
 
-	//opera_diag_port_init(-1);	// Normal BIOS startup.
-	opera_diag_port_init(0xf1);
+	opera_diag_port_init(-1);	// Normal BIOS startup.
+	//opera_diag_port_init(0xf1);
 
 	/*
 	0z00      DIAGNOSTICS TEST (1F,24,25,32,50,51,60,61,62,68,71,75,80,81,90)

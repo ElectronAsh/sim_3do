@@ -155,8 +155,10 @@ wire [31:0] clio_dout;
 //wire svf_cs   = (o_wb_adr>=32'h03200000 && o_wb_adr<=32'h0320FFFF);
 wire madam_cs = (o_wb_adr>=32'h03300000 && o_wb_adr<=32'h0330FFFF);
 wire clio_cs  = (o_wb_adr>=32'h03400000 && o_wb_adr<=32'h0340FFFF);
+wire xbus_cs  = ( /*(o_wb_adr==32'h03400400) ||*/ (o_wb_adr==32'h03400414) || (o_wb_adr>=32'h03400500 && o_wb_adr<32'h03400600) ); 
 
 wire [31:0] zap_din = (madam_cs) ? madam_dout :
+					   (xbus_cs) ? i_wb_dat :
 					   (clio_cs) ? clio_dout :
 									i_wb_dat;	// Else, take input from the C code in the sim. (TESTING, for BIOS, DRAM, VRAM, NVRAM, SVF etc.)
 

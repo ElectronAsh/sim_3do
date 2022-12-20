@@ -117,6 +117,9 @@
     <ClCompile Include="..\..\libopera\opera_diag_port.c">
       <Filter>Source Files\libopera</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\sim_xbus.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\out\Vcore_3do.cpp">
       <Filter>Source Files\Vcore</Filter>
     </ClCompile>
@@ -328,6 +331,9 @@
     </ClInclude>
     <ClInclude Include="..\..\libopera\opera_diag_port.h">
       <Filter>Source Files\libopera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\sim_xbus.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\out\Vcore_3do.h">
       <Filter>Source Files\Vcore</Filter>
