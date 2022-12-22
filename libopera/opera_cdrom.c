@@ -91,7 +91,7 @@ opera_cdrom_set_callbacks(opera_cdrom_get_size_cb_t    get_size_,
 void
 opera_cdrom_init(cdrom_device_t *cd_)
 {
-  uint32_t file_size_in_blocks;
+  static uint32_t file_size_in_blocks;
 
   cd_->current_sector = 0;
   CDROM_SET_SECTOR(cd_->current_sector);

@@ -79,12 +79,12 @@ sim_xbus_fifo_get_data(void)
 uint8_t
 sim_xbus_get_poll(void)
 {
-	uint32_t res = 0x30;
+	uint32_t res = 0x30;	// Start with 0x30 bits in poll set. DATA and STATUS ready bits???
 
-	if (XBUS.xb_sel_l == 0x0F) res = XBUS.polf;
+	if (XBUS.xb_sel_l == 0x0F) res = XBUS.polf;	// If the lower nibble of sel matches 0x0F (device 15, CDROM drive), set result to poll.
 	else if (xdev[XBUS.xb_sel_l]) res = (uintptr_t)xdev[XBUS.xb_sel_l](XBP_GET_POLL, NULL);
 
-	if (XBUS.xb_sel_h & 0x80) res &= 0x0F;
+	if (XBUS.xb_sel_h & 0x80) res &= 0x0F;	// If the MSB bit of sel is set, mask the lower nibble of poll?
 
 	return res;
 }

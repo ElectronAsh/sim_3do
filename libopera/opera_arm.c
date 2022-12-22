@@ -2084,44 +2084,44 @@ void print_to_log(uint32_t addr_, uint32_t val_, uint8_t write, uint32_t cur_pc)
          case 0x03400084: { fprintf(logfile, "CLIO adbio      "); break; }
          case 0x03400088: { fprintf(logfile, "CLIO adbctl     "); break; }
 
-         case 0x03400100: { fprintf(logfile, "CLIO tmr_cnt_0   "); break; }
-         case 0x03400108: { fprintf(logfile, "CLIO tmr_cnt_1   "); break; }
-         case 0x03400110: { fprintf(logfile, "CLIO tmr_cnt_2   "); break; }
-         case 0x03400118: { fprintf(logfile, "CLIO tmr_cnt_3   "); break; }
-         case 0x03400120: { fprintf(logfile, "CLIO tmr_cnt_4   "); break; }
-         case 0x03400128: { fprintf(logfile, "CLIO tmr_cnt_5   "); break; }
-         case 0x03400130: { fprintf(logfile, "CLIO tmr_cnt_6   "); break; }
-         case 0x03400138: { fprintf(logfile, "CLIO tmr_cnt_7   "); break; }
-         case 0x03400140: { fprintf(logfile, "CLIO tmr_cnt_8   "); break; }
-         case 0x03400148: { fprintf(logfile, "CLIO tmr_cnt_9   "); break; }
-         case 0x03400150: { fprintf(logfile, "CLIO tmr_cnt_10  "); break; }
-         case 0x03400158: { fprintf(logfile, "CLIO tmr_cnt_11  "); break; }
-         case 0x03400160: { fprintf(logfile, "CLIO tmr_cnt_12  "); break; }
-         case 0x03400168: { fprintf(logfile, "CLIO tmr_cnt_13  "); break; }
-         case 0x03400170: { fprintf(logfile, "CLIO tmr_cnt_14  "); break; }
-         case 0x03400178: { fprintf(logfile, "CLIO tmr_cnt_15  "); break; }
+         case 0x03400100: { fprintf(logfile, "CLIO tmr_cnt_0  "); break; }
+         case 0x03400108: { fprintf(logfile, "CLIO tmr_cnt_1  "); break; }
+         case 0x03400110: { fprintf(logfile, "CLIO tmr_cnt_2  "); break; }
+         case 0x03400118: { fprintf(logfile, "CLIO tmr_cnt_3  "); break; }
+         case 0x03400120: { fprintf(logfile, "CLIO tmr_cnt_4  "); break; }
+         case 0x03400128: { fprintf(logfile, "CLIO tmr_cnt_5  "); break; }
+         case 0x03400130: { fprintf(logfile, "CLIO tmr_cnt_6  "); break; }
+         case 0x03400138: { fprintf(logfile, "CLIO tmr_cnt_7  "); break; }
+         case 0x03400140: { fprintf(logfile, "CLIO tmr_cnt_8  "); break; }
+         case 0x03400148: { fprintf(logfile, "CLIO tmr_cnt_9  "); break; }
+         case 0x03400150: { fprintf(logfile, "CLIO tmr_cnt_10 "); break; }
+         case 0x03400158: { fprintf(logfile, "CLIO tmr_cnt_11 "); break; }
+         case 0x03400160: { fprintf(logfile, "CLIO tmr_cnt_12 "); break; }
+         case 0x03400168: { fprintf(logfile, "CLIO tmr_cnt_13 "); break; }
+         case 0x03400170: { fprintf(logfile, "CLIO tmr_cnt_14 "); break; }
+         case 0x03400178: { fprintf(logfile, "CLIO tmr_cnt_15 "); break; }
 
-         case 0x03400104: { fprintf(logfile, "CLIO tmr_bkp_0   "); break; }
-         case 0x0340010c: { fprintf(logfile, "CLIO tmr_bkp_1   "); break; }
-         case 0x03400114: { fprintf(logfile, "CLIO tmr_bkp_2   "); break; }
-         case 0x0340011c: { fprintf(logfile, "CLIO tmr_bkp_3   "); break; }
-         case 0x03400124: { fprintf(logfile, "CLIO tmr_bkp_4   "); break; }
-         case 0x0340012c: { fprintf(logfile, "CLIO tmr_bkp_5   "); break; }
-         case 0x03400134: { fprintf(logfile, "CLIO tmr_bkp_6   "); break; }
-         case 0x0340013c: { fprintf(logfile, "CLIO tmr_bkp_7   "); break; }
-         case 0x03400144: { fprintf(logfile, "CLIO tmr_bkp_8   "); break; }
-         case 0x0340014c: { fprintf(logfile, "CLIO tmr_bkp_9   "); break; }
-         case 0x03400154: { fprintf(logfile, "CLIO tmr_bkp_10  "); break; }
-         case 0x0340015c: { fprintf(logfile, "CLIO tmr_bkp_11  "); break; }
-         case 0x03400164: { fprintf(logfile, "CLIO tmr_bkp_12  "); break; }
-         case 0x0340016c: { fprintf(logfile, "CLIO tmr_bkp_13  "); break; }
-         case 0x03400174: { fprintf(logfile, "CLIO tmr_bkp_14  "); break; }
-         case 0x0340017c: { fprintf(logfile, "CLIO tmr_bkp_15  "); break; }
+         case 0x03400104: { fprintf(logfile, "CLIO tmr_bkp_0  "); break; }
+         case 0x0340010c: { fprintf(logfile, "CLIO tmr_bkp_1  "); break; }
+         case 0x03400114: { fprintf(logfile, "CLIO tmr_bkp_2  "); break; }
+         case 0x0340011c: { fprintf(logfile, "CLIO tmr_bkp_3  "); break; }
+         case 0x03400124: { fprintf(logfile, "CLIO tmr_bkp_4  "); break; }
+         case 0x0340012c: { fprintf(logfile, "CLIO tmr_bkp_5  "); break; }
+         case 0x03400134: { fprintf(logfile, "CLIO tmr_bkp_6  "); break; }
+         case 0x0340013c: { fprintf(logfile, "CLIO tmr_bkp_7  "); break; }
+         case 0x03400144: { fprintf(logfile, "CLIO tmr_bkp_8  "); break; }
+         case 0x0340014c: { fprintf(logfile, "CLIO tmr_bkp_9  "); break; }
+         case 0x03400154: { fprintf(logfile, "CLIO tmr_bkp_10 "); break; }
+         case 0x0340015c: { fprintf(logfile, "CLIO tmr_bkp_11 "); break; }
+         case 0x03400164: { fprintf(logfile, "CLIO tmr_bkp_12 "); break; }
+         case 0x0340016c: { fprintf(logfile, "CLIO tmr_bkp_13 "); break; }
+         case 0x03400174: { fprintf(logfile, "CLIO tmr_bkp_14 "); break; }
+         case 0x0340017c: { fprintf(logfile, "CLIO tmr_bkp_15 "); break; }
 
-         case 0x03400200: { fprintf(logfile, "CLIO tmr_set_l   "); break; }
-         case 0x03400204: { fprintf(logfile, "CLIO tmr_clr_l   "); break; }
-         case 0x03400208: { fprintf(logfile, "CLIO tmr_set_u   "); break; }
-         case 0x0340020C: { fprintf(logfile, "CLIO tmr_clr_u   "); break; }
+         case 0x03400200: { fprintf(logfile, "CLIO tmr_set_l  "); break; }
+         case 0x03400204: { fprintf(logfile, "CLIO tmr_clr_l  "); break; }
+         case 0x03400208: { fprintf(logfile, "CLIO tmr_set_u  "); break; }
+         case 0x0340020C: { fprintf(logfile, "CLIO tmr_clr_u  "); break; }
 
          case 0x03400220: { fprintf(logfile, "CLIO TmrSlack   "); break; }
          case 0x03400304: { fprintf(logfile, "CLIO SetDMAEna  "); break; }

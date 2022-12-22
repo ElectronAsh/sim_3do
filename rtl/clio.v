@@ -89,7 +89,8 @@ module clio (			// IC140 on FZ1.
 	input vram_busy
 );
 
-wire [31:0] irq0_masked = irq0_pend & irq0_enable;	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set. (set in the clocked always block!)
+//wire [31:0] irq0_masked = irq0_pend & irq0_enable;	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set. (set in the clocked always block!)
+wire [30:0] irq0_masked = irq0_pend[30:0] & irq0_enable[30:0];	// 
 wire irq0_trig = |irq0_masked;
 
 wire [31:0] irq1_masked = irq1_pend & irq1_enable;
@@ -272,17 +273,19 @@ always @(*) begin
 	16'h003c: cpu_dout = random;	// 0x3c - read only?
 
 // IRQs...
-												// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.
-	16'h0040,16'h0044: cpu_dout = irq0_pend;	// 0x40/0x44 - Writing to 0x40 SETs irq0_pend bits. Writing to 0x44 CLEARs irq0_pend bits. Reading = PENDING irq0_pend bits.
-	16'h0048,16'h004c: cpu_dout = irq0_enable;	// 0x48/0x4c - Writing to 0x48 SETs irq0_enable bits. Writing to 0x4c CLEARSs irq0_enable bits.
+	16'h0040: cpu_dout = {irq1_trig, irq0_pend[30:0]};	// Read = irq0_pend (PENDING) bits.
+	16'h0044: cpu_dout = {irq1_trig, irq0_pend[30:0]};	// Read = Return zeros?
+	16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
+	16'h004c: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = Return zeros? 
 
-	16'h0050,16'h0054: cpu_dout = mode;			// 0x50/0x54 - Writing to 0x50 SETs mode bits. Writing to 0x54 CLEARs mode bits. Reading = ?
-	16'h0058: cpu_dout = badbits;				// 0x58 - for reading things like DMA fail reasons?
-	16'h005c: cpu_dout = spare;					// 0x5c - ?
+	16'h0050,16'h0054: cpu_dout = mode;		// 0x50/0x54 - Writing to 0x50 SETs mode bits. Writing to 0x54 CLEARs mode bits. Reading = ?
+	16'h0058: cpu_dout = badbits;			// 0x58 - for reading things like DMA fail reasons?
+	16'h005c: cpu_dout = spare;				// 0x5c - ?
 
-												// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.
-	16'h0060,16'h0064: cpu_dout = irq1_pend;	// 0x60/0x64 - Writing to 0x60 SETs irq1_pend bits. Writing to 0x64 CLEARs irq1_pend bits. Reading = PENDING irq1_pend bits.
-	16'h0068,16'h006c: cpu_dout = irq1_enable;	// 0x68/0x6c - Writing to 0x68 SETs irq1_enable bits. Writing to 0x6c CLEARSs irq1_enable bits.
+	16'h0060: cpu_dout = irq1_pend;			// Read = irq1_pend (PENDING) bits.
+	16'h0064: cpu_dout = irq1_pend;			// Read = Return zeros?
+	16'h0068: cpu_dout = irq1_enable;		// Read = irq1_enable (MASK) bits.
+	16'h006c: cpu_dout = irq1_enable;		// Read = Return zeros? 
 
 
 // hdelay / adbio stuff...
@@ -292,38 +295,38 @@ always @(*) begin
 
 
 // Timers... (16-bit wide?)
-	16'h0100: cpu_dout = {16'h0000, tmr_read_mux};	// 0x100
-	16'h0104: cpu_dout = {16'h0000, tmr_read_mux};	// 0x104
-	16'h0108: cpu_dout = {16'h0000, tmr_read_mux};	// 0x108
-	16'h010c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x10c
-	16'h0110: cpu_dout = {16'h0000, tmr_read_mux};	// 0x110
-	16'h0114: cpu_dout = {16'h0000, tmr_read_mux};	// 0x114
-	16'h0118: cpu_dout = {16'h0000, tmr_read_mux};	// 0x118
-	16'h011c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x11c
-	16'h0120: cpu_dout = {16'h0000, tmr_read_mux};	// 0x120
-	16'h0124: cpu_dout = {16'h0000, tmr_read_mux};	// 0x124
-	16'h0128: cpu_dout = {16'h0000, tmr_read_mux};	// 0x128
-	16'h012c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x12c
-	16'h0130: cpu_dout = {16'h0000, tmr_read_mux};	// 0x130
-	16'h0134: cpu_dout = {16'h0000, tmr_read_mux};	// 0x134
-	16'h0138: cpu_dout = {16'h0000, tmr_read_mux};	// 0x138
-	16'h013c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x13c
-	16'h0140: cpu_dout = {16'h0000, tmr_read_mux};	// 0x140
-	16'h0144: cpu_dout = {16'h0000, tmr_read_mux};	// 0x144
-	16'h0148: cpu_dout = {16'h0000, tmr_read_mux};	// 0x148
-	16'h014c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x14c
-	16'h0150: cpu_dout = {16'h0000, tmr_read_mux};	// 0x150
-	16'h0154: cpu_dout = {16'h0000, tmr_read_mux};	// 0x154
-	16'h0158: cpu_dout = {16'h0000, tmr_read_mux};	// 0x158
-	16'h015c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x15c
-	16'h0160: cpu_dout = {16'h0000, tmr_read_mux};	// 0x160
-	16'h0164: cpu_dout = {16'h0000, tmr_read_mux};	// 0x164
-	16'h0168: cpu_dout = {16'h0000, tmr_read_mux};	// 0x168
-	16'h016c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x16c
-	16'h0170: cpu_dout = {16'h0000, tmr_read_mux};	// 0x170
-	16'h0174: cpu_dout = {16'h0000, tmr_read_mux};	// 0x174
-	16'h0178: cpu_dout = {16'h0000, tmr_read_mux};	// 0x178
-	16'h017c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x17c
+	16'h0100: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x100
+	16'h0104: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x104
+	16'h0108: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x108
+	16'h010c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x10c
+	16'h0110: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x110
+	16'h0114: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x114
+	16'h0118: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x118
+	16'h011c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x11c
+	16'h0120: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x120
+	16'h0124: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x124
+	16'h0128: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x128
+	16'h012c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x12c
+	16'h0130: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x130
+	16'h0134: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x134
+	16'h0138: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x138
+	16'h013c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x13c
+	16'h0140: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x140
+	16'h0144: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x144
+	16'h0148: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x148
+	16'h014c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x14c
+	16'h0150: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x150
+	16'h0154: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x154
+	16'h0158: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x158
+	16'h015c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x15c
+	16'h0160: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x160
+	16'h0164: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x164
+	16'h0168: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x168
+	16'h016c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x16c
+	16'h0170: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x170
+	16'h0174: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x174
+	16'h0178: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x178
+	16'h017c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x17c
 
 // Writing to 0x200 SETs the LOWER 32-bits of timer_ctrl.
 // Writing to 0x204 CLEARs the LOWER 32-bits of timer_ctrl.
@@ -421,7 +424,8 @@ wire wdgrst = 0;
 wire dipir = 0;
 
 wire [31:0] hcnt_max = 32'd1590;
-wire [31:0] vcnt_max = 32'd262;
+//wire [31:0] vcnt_max = 32'd262;
+wire [31:0] vcnt_max = 32'd263;		// From Opera?
 reg field;
 
 reg [3:0] fifo_idx;
@@ -524,6 +528,8 @@ else begin
 	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
 
 	irq0_pend[31] <= |irq1_pend;	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
+
+	//if (irq0_enable[30]) irq0_pend[30] <= 1'b1;
 
 	if (hcnt==hcnt_max) begin
 		hcnt <= 32'd0;
@@ -663,10 +669,10 @@ else begin
 		16'h17f8: dsppnr <= cpu_din;	// 0x17f8.
 		16'h17fc: dsppgw <= cpu_din;	// 0x17fc. Start / Stop the DSP.
 
-		// 0x1800 - 0x1fff. DSP Mem write.
-		// 0x2000 - 0x2fff. DSP Mem write.
-		// 0x3000 - 0x33ff. DSP Imem write.
-		// 0x3400 - 0x37ff. DSP Imem write.
+		// 0x1800 - 0x1fff. DSP Mem write.  clio_DSPPN32bit ??
+		// 0x2000 - 0x2fff. DSP Mem write.  
+		// 0x3000 - 0x33ff. DSP Imem write. 
+		// 0x3400 - 0x37ff. DSP Imem write. 
 
 		16'h39dc: dsppclkreload <= cpu_din;	// 0x39dc. ?
 

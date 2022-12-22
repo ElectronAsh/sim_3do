@@ -33,13 +33,13 @@ struct xbus_datum_s
 
 typedef struct xbus_datum_s xbus_datum_t;
 
-static xbus_datum_t      XBUS;
+volatile xbus_datum_t      XBUS;
 
 int sim_xbus_fiq_request;
 
 typedef void* (*sim_xbus_device)(int, void*);
 
-static sim_xbus_device xdev[16];
+volatile sim_xbus_device xdev[16];
 
 void     sim_xbus_init(sim_xbus_device zero_dev_);
 void     sim_xbus_destroy(void);
