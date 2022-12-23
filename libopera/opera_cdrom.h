@@ -147,6 +147,8 @@ enum CDROM_Commands
 
 EXTERN_C_BEGIN
 
+volatile uint32_t   CDIMAGE_SECTOR;
+
 struct toc_entry_s
 {
   uint8_t res0;

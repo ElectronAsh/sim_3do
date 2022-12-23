@@ -18,7 +18,8 @@
   - add pseudo random 3bit pattern for second clut bypass mode
 */
 
-//static vdlp_t   g_VDLP          = {0};
+static vdlp_t   g_VDLP          = {0};
+
 static uint8_t *g_VRAM          = NULL;
 static void    *g_BUF           = NULL;
 static void    *g_CURBUF        = NULL;
@@ -739,7 +740,7 @@ visible_scanline(const int line_)
 void
 opera_vdlp_process_line(int line_)
 {
-  int y;
+  //int y;
 
   if(line_ < 5)
     return;

@@ -46,6 +46,8 @@ volatile extern xbus_datum_t      XBUS;
 volatile extern sim_xbus_device xdev[16];
 //extern cdrom_device_t g_CDROM_DEVICE;
 
+volatile extern uint32_t CDIMAGE_SECTOR;
+
 uint8_t* dram;
 uint8_t* vram;
 int flagtime;
@@ -278,14 +280,14 @@ extern opera_cdrom_read_sector_cb_t CDROM_READ_SECTOR;
 
 #define CDIMAGE_SECTOR_SIZE 2048
 
-static uint32_t   CDIMAGE_SECTOR;
+
 
 static
 uint32_t
 cdimage_get_size(void)
 {
 	//return retro_cdimage_get_number_of_logical_blocks(&CDIMAGE);
-	return (iso_size / 2048);
+	return (iso_size / CDIMAGE_SECTOR_SIZE);
 }
 
 static
@@ -298,14 +300,11 @@ cdimage_set_sector(const uint32_t sector_)
 static
 void
 cdimage_read_sector(void* buf_)
-{
-	uint8_t sector_buf [2048];
-	uint32_t start_byte = CDIMAGE_SECTOR*2048;
-	if ( start_byte>(iso_size-2048) ) start_byte=(iso_size-2048);	// Clamp the max offset.
-	fseek(isofile, start_byte, SEEK_SET);
-	fread(sector_buf, 1, 2048, isofile);
-	memcpy(buf_, sector_buf, 2048);
-	if ( CDIMAGE_SECTOR<(iso_size/2048) ) CDIMAGE_SECTOR++;	// If CDIMAGE_SECTOR is not greater than the ISO size, Auto-increment to next LBA.
+{	uint32_t start_offset = CDIMAGE_SECTOR* CDIMAGE_SECTOR_SIZE;
+	if ( start_offset>(iso_size- CDIMAGE_SECTOR_SIZE) ) start_offset=(iso_size- CDIMAGE_SECTOR_SIZE);	// Clamp the max offset.
+	fseek(isofile, start_offset, SEEK_SET);
+	fread(buf_, 1, CDIMAGE_SECTOR_SIZE, isofile);
+	//if ( CDIMAGE_SECTOR<(iso_size/ CDIMAGE_SECTOR_SIZE) ) CDIMAGE_SECTOR++;	// If CDIMAGE_SECTOR is not greater than the ISO size, Auto-increment to next LBA.
 	//retro_cdimage_read(&CDIMAGE, CDIMAGE_SECTOR, buf_, CDIMAGE_SECTOR_SIZE);
 }
 
@@ -370,9 +369,8 @@ void my_opera_init() {
 	// 0x40 for start from 3D0-CD
 	// 0x01/0x02 from PhotoCD ??
 	// (NO use 0x40/0x02 for BIOS test)
-
-	//opera_clio_init(0x40);
-	opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits. bit[0]= cstatbits.
+	opera_clio_init(0x40);
+	//opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits. bit[0]= cstatbits.
 	opera_dsp_init();
 	opera_xbus_device_load(0, NULL);
 
@@ -468,15 +466,15 @@ void sim_process_vdl() {
 	clut[0x10] = 0x848484; clut[0x11] = 0x8C8C8C; clut[0x12] = 0x949494; clut[0x13] = 0x9C9C9C; clut[0x14] = 0xA5A5A5; clut[0x15] = 0xADADAD; clut[0x16] = 0xB5B5B5; clut[0x17] = 0xBDBDBD;
 	clut[0x18] = 0xC5C5C5; clut[0x19] = 0xCECECE; clut[0x1A] = 0xD6D6D6; clut[0x1B] = 0xDEDEDE; clut[0x1C] = 0xE6E6E6; clut[0x1D] = 0xEFEFEF; clut[0x1E] = 0xF8F8F8; clut[0x1F] = 0xFFFFFF;
 
-	uint32_t offset = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;
+	uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;
 
 	// Read the VDL / CLUT from vram_ptr...
 	for (int i = 0; i <= 35; i++) {
-		if (i == 0) vdl_ctl = vram_ptr[(offset >> 2) + i];
-		else if (i == 1) vdl_curr = vram_ptr[(offset >> 2) + i];
-		else if (i == 2) vdl_prev = vram_ptr[(offset >> 2) + i];
-		else if (i == 3) vdl_next = vram_ptr[(offset >> 2) + i];
-		//else if (i>=4) clut[i-4] = vram_ptr[ (offset>>2)+i ];         // TESTING !!!
+		if (i == 0) vdl_ctl = vram_ptr[(header >> 2) + i];
+		else if (i == 1) vdl_curr = vram_ptr[(header >> 2) + i];
+		else if (i == 2) vdl_prev = vram_ptr[(header >> 2) + i];
+		else if (i == 3) vdl_next = vram_ptr[(header >> 2) + i];
+		//else if (i>=4) clut[i-4] = vram_ptr[ (header>>2)+i ];         // TESTING !!!
 	}
 
 	// Copy the VRAM pixels into disp_ptr...
@@ -487,9 +485,9 @@ void sim_process_vdl() {
 	//
 	uint32_t my_line = 0;
 
-	offset = 0xC0000;
-	//offset = vdl_curr & 0xfffff;
-	//offset = vdl_next & 0xfffff;
+	uint32_t offset = 0xC0000;
+	//uint32_t offset = vdl_curr & 0xfffff;
+	//uint32_t offset = vdl_next & 0xfffff;
 
 	for (int i = 0; i < (vram_size / 16); i++) {
 		uint16_t pixel;
@@ -517,15 +515,15 @@ void opera_process_vdl() {
 	clut[0x10] = 0x848484; clut[0x11] = 0x8C8C8C; clut[0x12] = 0x949494; clut[0x13] = 0x9C9C9C; clut[0x14] = 0xA5A5A5; clut[0x15] = 0xADADAD; clut[0x16] = 0xB5B5B5; clut[0x17] = 0xBDBDBD;
 	clut[0x18] = 0xC5C5C5; clut[0x19] = 0xCECECE; clut[0x1A] = 0xD6D6D6; clut[0x1B] = 0xDEDEDE; clut[0x1C] = 0xE6E6E6; clut[0x1D] = 0xEFEFEF; clut[0x1E] = 0xF8F8F8; clut[0x1F] = 0xFFFFFF;
 
-	uint32_t offset = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;
+	volatile uint32_t header = (uint32_t)(g_VDLP.curr_vdl & 0xfffff);
 
 	// Read the VDL / CLUT from vram_ptr...
 	for (int i = 0; i <= 35; i++) {
-		if (i == 0) vdl_ctl = vram[offset+i];
-		else if (i == 1) vdl_curr = vram[offset+i];
-		else if (i == 2) vdl_prev = vram[offset+i];
-		else if (i == 3) vdl_next = vram[offset+i];
-		//else if (i>=4) clut[i-4] = vram_ptr[offset+i];         // TESTING !!!
+		if (i == 0) vdl_ctl = vram[header +i];
+		else if (i == 1) vdl_curr = vram[header +i];
+		else if (i == 2) vdl_prev = vram[header +i];
+		else if (i == 3) vdl_next = vram[header +i];
+		//else if (i>=4) clut[i-4] = vram_ptr[header+i];         // TESTING !!!
 	}
 
 	// Copy the VRAM pixels into disp_ptr...
@@ -536,9 +534,12 @@ void opera_process_vdl() {
 	//
 	uint32_t my_line = 0;
 
-	offset = g_VDLP.head_vdl;
-	//offset = vdl_curr & 0xfffff;
-	//offset = vdl_next & 0xfffff;
+	//uint32_t offset = g_VDLP.head_vdl & 0xfffff;
+	//uint32_t offset = vdl_curr & 0xfffff;
+	//uint32_t offset = vdl_next & 0xfffff;
+
+	//uint32_t offset = (uint32_t)(g_VDLP.curr_bmp & 0xfffff);
+	uint32_t offset = 0x20000;
 
 	for (int i = 0; i < (vram_size / 16); i++) {
 		uint16_t pixel;
@@ -1654,9 +1655,9 @@ int main(int argc, char** argv, char** env) {
 				}
 				*/
 				
-				verilate();
-				//opera_tick();
-				//if ( (main_time&0x7ff)==0 ) opera_process_vdl();
+				//verilate();
+				opera_tick();
+				if ( (main_time&0x7ff)==0 ) opera_process_vdl();
 
 				if (run_enable==0) break;
 				main_time++;
