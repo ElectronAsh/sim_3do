@@ -285,12 +285,10 @@ extern opera_cdrom_read_sector_cb_t CDROM_READ_SECTOR;
 #define CDIMAGE_SECTOR_SIZE 2048
 
 
-
 static
 uint32_t
 cdimage_get_size(void)
 {
-	//return retro_cdimage_get_number_of_logical_blocks(&CDIMAGE);
 	return (iso_size / CDIMAGE_SECTOR_SIZE);
 }
 
@@ -308,36 +306,8 @@ cdimage_read_sector(void* buf_)
 	if ( start_offset>(iso_size- CDIMAGE_SECTOR_SIZE) ) start_offset=(iso_size- CDIMAGE_SECTOR_SIZE);	// Clamp the max offset.
 	fseek(isofile, start_offset, SEEK_SET);
 	fread(buf_, 1, CDIMAGE_SECTOR_SIZE, isofile);
-	//if ( CDIMAGE_SECTOR<(iso_size/ CDIMAGE_SECTOR_SIZE) ) CDIMAGE_SECTOR++;	// If CDIMAGE_SECTOR is not greater than the ISO size, Auto-increment to next LBA.
-	//retro_cdimage_read(&CDIMAGE, CDIMAGE_SECTOR, buf_, CDIMAGE_SECTOR_SIZE);
 }
 
-/*
-static
-void*
-libopera_callback(int   cmd_,
-	void* data_)
-{
-	////switch (cmd_)
-	{
-	case EXT_DSP_TRIGGER:
-		//opera_lr_dsp_process();
-		sound_out = opera_dsp_loop();	// Almost certain this is the DSP sound output. ElectronAsh.
-		//fprintf(soundfile, "Sound 0x%08X: ", sound_out);
-		if (soundtrace) {
-			fputc((sound_out >> 24) & 0xff, soundfile);
-			fputc((sound_out >> 16) & 0xff, soundfile);
-			fputc((sound_out >> 8) & 0xff, soundfile);
-			fputc((sound_out >> 0) & 0xff, soundfile);
-		}
-		break;
-	default:
-		break;
-	}
-
-	return NULL;
-}
-*/
 
 uint32_t g_OPT_VIDEO_WIDTH = 0;
 uint32_t g_OPT_VIDEO_HEIGHT = 0;
@@ -365,20 +335,20 @@ void my_opera_init() {
 	opera_sport_init(vram);
 	opera_madam_init(dram);
 	opera_nvram_init();
-	opera_xbus_init(xbus_cdrom_plugin);
+	//opera_xbus_init(xbus_cdrom_plugin);
+	//opera_xbus_device_load(0, NULL);
 
-	//sim_xbus_init(xbus_cdrom_plugin);
+	sim_xbus_init(xbus_cdrom_plugin);
+	sim_xbus_device_load(0, NULL);
+
 	cdimage_set_sector(0);
 
 	// 0x40 for start from 3D0-CD
 	// 0x01/0x02 from PhotoCD ??
 	// (NO use 0x40/0x02 for BIOS test)
-	opera_clio_init(0x40);
-	//opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits. bit[0]= cstatbits.
+	opera_clio_init(0x40);	// bit[6]=DIPIR?
+	//opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits. bit[0]=POR.
 	opera_dsp_init();
-	opera_xbus_device_load(0, NULL);
-
-	//sim_xbus_device_load(0, NULL);
 }
 
 
@@ -932,6 +902,7 @@ int verilate() {
 			uint8_t rom2_byte2 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
 			uint8_t rom2_byte3 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
 			uint32_t rom2_word = rom2_byte0 << 24 | rom2_byte1 << 16 | rom2_byte2 << 8 | rom2_byte3;
+			//uint32_t rom2_word = 0x00000000;	// TESTING. Disable the Kanji ROM for now. Text on BIOS should then be in English.
 
 			uint8_t ram_byte0 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] & 0xff;     // ram_ptr is now BYTE addressed.
 			uint8_t ram_byte1 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] & 0xff;     // Mask o_wb_adr to 2MB, ignorring the lower two bits, add the offset.
@@ -954,11 +925,8 @@ int verilate() {
 			else if ((top->o_wb_adr >= 0x03400580) && (top->o_wb_adr <= 0x034005bf) && top->o_wb_we) { fprintf(logfile, "CLIO CmdStFIFO  "); sim_xbus_fifo_set_cmd(top->o_wb_dat & 0xff); }		// on FIFO Filled execute the command.
 			else if ((top->o_wb_adr >= 0x034005C0) && (top->o_wb_adr <= 0x034005ff) && top->o_wb_we) { fprintf(logfile, "CLIO Data FIFO  "); sim_xbus_fifo_set_data(top->o_wb_dat & 0xff); }	// on FIFO Filled execute the command.
 
-			//top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__o_data_wb_we;
-
 			// Tech manual suggests "Any write to this area will unmap the BIOS".
 			if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x001FFFFF && top->o_wb_we) map_bios = 0;
-			//if (top->o_wb_adr >= 0x00000000 && top->o_wb_dat <= 0x00000000 && top->o_wb_we) map_bios = 0;
 
 			// Main RAM reads...
 			if (top->o_wb_adr >= 0x00000000 && top->o_wb_adr <= 0x001FFFFF) {
@@ -997,7 +965,7 @@ int verilate() {
 			// Every core access from here down, gets its data from the Verilog MADAM / CLIO...
 			// 
 			// MADAM...
-			if (top->o_wb_adr == 0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); }
+			else if (top->o_wb_adr == 0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); }
 			else if (top->o_wb_adr == 0x03300000 && top->o_wb_we) { fprintf(logfile, "MADAM Print     "); MyAddLog("%c", top->o_wb_dat & 0xff); printf("%c", top->o_wb_dat & 0xff); }
 			else if (top->o_wb_adr == 0x03300004) { fprintf(logfile, "MADAM msysbits  "); /*if (top->o_wb_we==0) trace=1;*/ }
 			else if (top->o_wb_adr == 0x03300008) { fprintf(logfile, "MADAM mctl      "); }
@@ -1024,32 +992,29 @@ int verilate() {
 			if (top->o_wb_adr == 0x0340002C) { fprintf(logfile, "CLIO WatchDog   "); }
 			if (top->o_wb_adr == 0x03400034) { /*fprintf(logfile, "CLIO vcnt       ");*/ }
 
-			if (top->o_wb_adr == 0x03400040 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 set    "); }
-			if (top->o_wb_adr == 0x03400044 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 clear  "); }
-			if (top->o_wb_adr == 0x03400048 && top->o_wb_we) { fprintf(logfile, "CLIO mask0 set   "); }
-			if (top->o_wb_adr == 0x0340004c && top->o_wb_we) { fprintf(logfile, "CLIO mask0 clear "); }
+			if (top->o_wb_adr == 0x03400040 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 set   "); }
+			if (top->o_wb_adr == 0x03400044 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 clear "); }
+			if (top->o_wb_adr == 0x03400048 && top->o_wb_we) { fprintf(logfile, "CLIO mask0 set  "); }
+			if (top->o_wb_adr == 0x0340004c && top->o_wb_we) { fprintf(logfile, "CLIO mask0 clear"); }
 
-			if (top->o_wb_adr == 0x03400060 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 set    "); }
-			if (top->o_wb_adr == 0x03400064 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 clear  "); }
-			if (top->o_wb_adr == 0x03400068 && top->o_wb_we) { fprintf(logfile, "CLIO mask1 set   "); }
-			if (top->o_wb_adr == 0x0340006c && top->o_wb_we) { fprintf(logfile, "CLIO mask1 clear "); }
+			if (top->o_wb_adr == 0x03400060 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 set   "); }
+			if (top->o_wb_adr == 0x03400064 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 clear "); }
+			if (top->o_wb_adr == 0x03400068 && top->o_wb_we) { fprintf(logfile, "CLIO mask1 set  "); }
+			if (top->o_wb_adr == 0x0340006c && top->o_wb_we) { fprintf(logfile, "CLIO mask1 clear"); }
 
-			if (top->o_wb_adr == 0x03400040 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 pend  "); }
-			if (top->o_wb_adr == 0x03400044 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 pend  "); }
-			if (top->o_wb_adr == 0x03400048 && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read "); }
-			if (top->o_wb_adr == 0x0340004c && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read "); }
+			if (top->o_wb_adr == 0x03400040 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 pend "); }
+			if (top->o_wb_adr == 0x03400044 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 pend "); }
+			if (top->o_wb_adr == 0x03400048 && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read"); }
+			if (top->o_wb_adr == 0x0340004c && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read"); }
 
-			if (top->o_wb_adr == 0x03400060 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 pend  "); }
-			if (top->o_wb_adr == 0x03400064 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 pend  "); }
-			if (top->o_wb_adr == 0x03400068 && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read "); }
-			if (top->o_wb_adr == 0x0340006c && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read "); }
+			if (top->o_wb_adr == 0x03400060 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 pend "); }
+			if (top->o_wb_adr == 0x03400064 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 pend "); }
+			if (top->o_wb_adr == 0x03400068 && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read"); }
+			if (top->o_wb_adr == 0x0340006c && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read"); }
 
 			if (top->o_wb_adr == 0x03400080) { fprintf(logfile, "CLIO hdelay     "); }
 			if (top->o_wb_adr == 0x03400084 && !top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); }
-			if (top->o_wb_adr == 0x03400084 && top->o_wb_we) { fprintf(logfile, "CLIO adbio      ");
-																	rom2_select = (top->o_wb_dat & 0x04);				// bit 2 selects Kanji ROM (ROM2).
-																	/*if (rom2_select) fprintf(logfile, "ROM2 selected!");
-																	else fprintf(logfile, "ROM1 selected!");*/ }
+			if (top->o_wb_adr == 0x03400084 && top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); rom2_select = (top->o_wb_dat & 0x04); }
 			if (top->o_wb_adr == 0x03400088) { fprintf(logfile, "CLIO adbctl     "); }
 
 			if (top->o_wb_adr == 0x03400100) { fprintf(logfile, "CLIO tmr_cnt_0  "); }
@@ -1133,16 +1098,10 @@ int verilate() {
 			if (top->o_wb_adr == 0x03400404) { fprintf(logfile, "CLIO expctl_clr "); }
 			if (top->o_wb_adr == 0x03400408) { fprintf(logfile, "CLIO type0_4    "); }
 			if (top->o_wb_adr == 0x03400410) { fprintf(logfile, "CLIO dipir1     "); }
-			if (top->o_wb_adr == 0x03400414) { fprintf(logfile, "CLIO dipir2     "); }
-
-			// XBUS...
-			//if (top->o_wb_adr >= 0x03400500 && top->o_wb_adr <= 0x0340053f) { fprintf(logfile, "CLIO sel        "); }
-			//if (top->o_wb_adr >= 0x03400540 && top->o_wb_adr <= 0x0340057f) { fprintf(logfile, "CLIO poll       "); }
-			//if (top->o_wb_adr == 0x03400580) { fprintf(logfile, "CLIO CmdStFIFO  "); }
+			if (top->o_wb_adr == 0x03400414) { fprintf(logfile, "CLIO dipir2     "); top->i_wb_dat = 0x4000; }	// TO CHECK!!! requested by CDROMDIPIR.
 
 			// Handle Xbus reads...
 			//if (top->o_wb_adr == 0x03400400) top->i_wb_dat = /*top->rootp->core_3do__DOT__clio_inst__DOT__expctl*/ 0x00000080;
-			if (top->o_wb_adr == 0x03400414) { fprintf(logfile, "CLIO dipir2     "); top->i_wb_dat = 0x4000; }	// TO CHECK!!! requested by CDROMDIPIR.
 			if ((top->o_wb_adr >= 0x03400500) && (top->o_wb_adr <= 0x0340053f) && !top->o_wb_we) { fprintf(logfile, "CLIO sel        "); top->i_wb_dat = sim_xbus_get_res(); }
 			if ((top->o_wb_adr >= 0x03400540) && (top->o_wb_adr <= 0x0340057f) && !top->o_wb_we) { fprintf(logfile, "CLIO poll       "); top->i_wb_dat = sim_xbus_get_poll(); }
 			if ((top->o_wb_adr >= 0x03400580) && (top->o_wb_adr <= 0x034005bf) && !top->o_wb_we) { fprintf(logfile, "CLIO CmdStFIFO  "); top->i_wb_dat = sim_xbus_fifo_get_status(); }
@@ -1189,6 +1148,10 @@ int verilate() {
 			sim_process_vdl();
 			opera_process_vdl();
 		}
+		
+		//if (top->o_wb_adr==0x03400178 && top->o_wb_we) run_enable = 0;
+		if (top->o_wb_adr== 0x03400580 && top->o_wb_we && top->o_wb_dat==0x00000010) run_enable = 0;
+		if (cur_pc== 0x000014A8) run_enable = 0;
 
 		/*
 		if (old_fiq_n == 1 && top->rootp->core_3do__DOT__clio_inst__DOT__firq_n == 0) { // firq_n falling edge.
@@ -1361,9 +1324,9 @@ int main(int argc, char** argv, char** env) {
 
 	FILE* romfile;
 	//romfile = fopen("panafz1.bin", "rb");
-	romfile = fopen("panafz10.bin", "rb");                  // This is the version MAME v226b uses by default, with "mame64 3do".
+	//romfile = fopen("panafz10.bin", "rb");                  // This is the version MAME v226b uses by default, with "mame64 3do".
 	//romfile = fopen("panafz10-norsa.bin", "rb");
-	//romfile = fopen("sanyotry.bin", "rb");
+	romfile = fopen("sanyotry.bin", "rb");
 	//romfile = fopen("goldstar.bin", "rb");
 	//if (romfile != NULL) { sprintf(my_string, "\nBIOS file loaded OK.\n");  MyAddLog(my_string); }
 	//else { sprintf(my_string, "\nBIOS file not found!\n\n"); MyAddLog(my_string); return 0; }
@@ -1408,7 +1371,7 @@ int main(int argc, char** argv, char** env) {
 
 	// Build texture atlas
 	int width = 320;
-	int height = 240;
+	int height = 263;
 
 	// Upload texture to graphics system
 	D3D11_TEXTURE2D_DESC desc;
@@ -1577,7 +1540,7 @@ int main(int argc, char** argv, char** env) {
 
 		ImGui::Begin("Virtual Dev Board v1.0");		// Create a window called "Virtual Dev Board v1.0" and append into it.
 
-		//ShowMyExampleAppConsole(&show_app_console);
+		ShowMyExampleAppConsole(&show_app_console);
 
 		if (ImGui::Button("RESET")) {
 			my_opera_init();
@@ -1681,9 +1644,9 @@ int main(int argc, char** argv, char** env) {
 				}
 				*/
 				
-				//verilate();
-				opera_tick();
-				/*if ( (main_time&0xfff)==0 )*/ opera_process_vdl();
+				verilate();
+				//opera_tick();
+				//if ( (main_time&0xf)==0 ) opera_process_vdl();
 
 				if (run_enable==0) break;
 				main_time++;
@@ -1711,6 +1674,7 @@ int main(int argc, char** argv, char** env) {
 				top->eval();
 				*/
 				verilate();
+				if (run_enable == 0) break;
 				main_time++;
 			}
 		}
@@ -1767,8 +1731,6 @@ int main(int argc, char** argv, char** env) {
 		//ImGui::Text("   o_wb_bte: 0x%01X", top->o_wb_bte);
 		ImGui::Separator();
 		ImGui::Text("      i_fiq: %d", top->rootp->core_3do__DOT__zap_top_inst__DOT__i_fiq);
-
-		//ImGui::Text(" i_mem_addr: 0x%08X", top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_memory_main__DOT__i_mem_address_ff2);
 
 
 		uint32_t reg_src = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__o_alu_source_ff;
@@ -2121,8 +2083,6 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("   XBUS.cmdptrf: 0x%02X", XBUS.cmdptrf);
 		ImGui::Separator();
 		ImGui::End();
-
-		if (XBUS.cmdptrf >= 7) run_enable = 0;
 
 		/*
 		ImGui::Begin("Matrix Engine");

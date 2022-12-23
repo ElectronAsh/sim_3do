@@ -295,38 +295,38 @@ always @(*) begin
 
 
 // Timers... (16-bit wide?)
-	16'h0100: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x100
-	16'h0104: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x104
-	16'h0108: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x108
-	16'h010c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x10c
-	16'h0110: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x110
-	16'h0114: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x114
-	16'h0118: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x118
-	16'h011c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x11c
-	16'h0120: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x120
-	16'h0124: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x124
-	16'h0128: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x128
-	16'h012c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x12c
-	16'h0130: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x130
-	16'h0134: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x134
-	16'h0138: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x138
-	16'h013c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x13c
-	16'h0140: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x140
-	16'h0144: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x144
-	16'h0148: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x148
-	16'h014c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x14c
-	16'h0150: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x150
-	16'h0154: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x154
-	16'h0158: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x158
-	16'h015c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x15c
-	16'h0160: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x160
-	16'h0164: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x164
-	16'h0168: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x168
-	16'h016c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x16c
-	16'h0170: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x170
-	16'h0174: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x174
-	16'h0178: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x178
-	16'h017c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x17c
+	16'h0100: cpu_dout = {16'h0000, tmr_read_mux};	// 0x100
+	16'h0104: cpu_dout = {16'h0000, tmr_read_mux};	// 0x104
+	16'h0108: cpu_dout = {16'h0000, tmr_read_mux};	// 0x108
+	16'h010c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x10c
+	16'h0110: cpu_dout = {16'h0000, tmr_read_mux};	// 0x110
+	16'h0114: cpu_dout = {16'h0000, tmr_read_mux};	// 0x114
+	16'h0118: cpu_dout = {16'h0000, tmr_read_mux};	// 0x118
+	16'h011c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x11c
+	16'h0120: cpu_dout = {16'h0000, tmr_read_mux};	// 0x120
+	16'h0124: cpu_dout = {16'h0000, tmr_read_mux};	// 0x124
+	16'h0128: cpu_dout = {16'h0000, tmr_read_mux};	// 0x128
+	16'h012c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x12c
+	16'h0130: cpu_dout = {16'h0000, tmr_read_mux};	// 0x130
+	16'h0134: cpu_dout = {16'h0000, tmr_read_mux};	// 0x134
+	16'h0138: cpu_dout = {16'h0000, tmr_read_mux};	// 0x138
+	16'h013c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x13c
+	16'h0140: cpu_dout = {16'h0000, tmr_read_mux};	// 0x140
+	16'h0144: cpu_dout = {16'h0000, tmr_read_mux};	// 0x144
+	16'h0148: cpu_dout = {16'h0000, tmr_read_mux};	// 0x148
+	16'h014c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x14c
+	16'h0150: cpu_dout = {16'h0000, tmr_read_mux};	// 0x150
+	16'h0154: cpu_dout = {16'h0000, tmr_read_mux};	// 0x154
+	16'h0158: cpu_dout = {16'h0000, tmr_read_mux};	// 0x158
+	16'h015c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x15c
+	16'h0160: cpu_dout = {16'h0000, tmr_read_mux};	// 0x160
+	16'h0164: cpu_dout = {16'h0000, tmr_read_mux};	// 0x164
+	16'h0168: cpu_dout = {16'h0000, tmr_read_mux};	// 0x168
+	16'h016c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x16c
+	16'h0170: cpu_dout = {16'h0000, tmr_read_mux};	// 0x170
+	16'h0174: cpu_dout = {16'h0000, tmr_read_mux};	// 0x174
+	16'h0178: cpu_dout = {16'h0000, tmr_read_mux};	// 0x178
+	16'h017c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x17c
 
 // Writing to 0x200 SETs the LOWER 32-bits of timer_ctrl.
 // Writing to 0x204 CLEARs the LOWER 32-bits of timer_ctrl.
@@ -441,16 +441,16 @@ wire [7:0] fifo_spoof = (fifo_idx==4'd0)  ? 8'h83 : // CDROM_CMD_READ_ID
 						(fifo_idx==4'd8)  ? 8'h00 :
 						(fifo_idx==4'd9)  ? 8'h00 : // flag bytes
 						(fifo_idx==4'd10) ? 8'h00 :
-						//(fifo_idx==4'd11) ? 8'hE1 : // CDST_RDY|CDST_TRAY|CDST_DISC|CDST_SPIN (CD drive's actual status)
-						(fifo_idx==4'd11) ? 8'h01 : // CDST_RDY (CD drive's actual status)
+						(fifo_idx==4'd11) ? 8'hE1 : // CDST_RDY|CDST_TRAY|CDST_DISC|CDST_SPIN (CD drive's actual status)
+						//(fifo_idx==4'd11) ? 8'h01 : // CDST_RDY (CD drive's actual status)
 						(fifo_idx==4'd12) ? 8'h01 :	// device driver size. ??
 											8'h00;	// default value.
 
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera returns 0x02020000.
-	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
-	//cstatbits[6] <= 1'b1;			// Set bit 0 (DIPIR). TESTING !!
+	//cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
+	cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
 	expctl <= 32'h00000080;			// Opera starts with this -> 0x80; // ARM has the expansion bus.
 	field <= 1'b0;
 	hcnt <= 32'd0;
@@ -576,9 +576,9 @@ else begin
 		16'h0050: mode <= mode |  cpu_din;		// 0x50. Writing to 0x50 SETs mode bits.
 		16'h0054: mode <= mode & ~cpu_din;		// 0x54. Writing to 0x54 CLEARs mode bits.
 		
-		16'h0058: badbits <= cpu_din;				// 0x58. for reading things like DMA fail reasons?
+		16'h0058: badbits <= cpu_din;			// 0x58. for reading things like DMA fail reasons?
 		
-		16'h005c: spare <= cpu_din;					// 0x5c. ?
+		16'h005c: spare <= cpu_din;				// 0x5c. ?
 
 															// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.
 		16'h0060: begin irq1_pend <= irq1_pend |  cpu_din; $display("Write to irq1_pend SET."); end		// 0x60. Writing to 0x60 SETs irq1_pend bits.
@@ -845,6 +845,7 @@ wire [15:0] tmr_read_mux = (tmr0_cs)  ? tmr0_dout :
 						   (tmr14_cs) ? tmr14_dout :
 										tmr15_dout;
 
+wire [9:0] tmr_slack = slack;
 
 
 clio_timer  tmr0_inst (
@@ -859,7 +860,8 @@ clio_timer  tmr0_inst (
 	.tmr_cas_bit( tmr0_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr0_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr0_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr0_cas )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr0_cas ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr1_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -873,7 +875,8 @@ clio_timer  tmr1_inst (
 	.tmr_cas_bit( tmr1_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr1_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr1_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr0_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr0_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr2_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -887,7 +890,8 @@ clio_timer  tmr2_inst (
 	.tmr_cas_bit( tmr2_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr2_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr2_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr1_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr1_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr3_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -901,7 +905,8 @@ clio_timer  tmr3_inst (
 	.tmr_cas_bit( tmr3_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr3_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr3_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr2_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr2_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr4_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -915,7 +920,8 @@ clio_timer  tmr4_inst (
 	.tmr_cas_bit( tmr4_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr4_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr4_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr3_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr3_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr5_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -929,7 +935,8 @@ clio_timer  tmr5_inst (
 	.tmr_cas_bit( tmr5_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr5_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr5_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr4_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr4_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr6_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -943,7 +950,8 @@ clio_timer  tmr6_inst (
 	.tmr_cas_bit( tmr6_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr6_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr6_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr5_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr5_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr7_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -957,7 +965,8 @@ clio_timer  tmr7_inst (
 	.tmr_cas_bit( tmr7_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr7_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr7_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr6_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr6_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr8_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -971,7 +980,8 @@ clio_timer  tmr8_inst (
 	.tmr_cas_bit( tmr8_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr8_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr8_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr7_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr7_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr9_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -985,7 +995,8 @@ clio_timer  tmr9_inst (
 	.tmr_cas_bit( tmr9_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr9_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr9_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr8_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr8_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr10_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -999,7 +1010,8 @@ clio_timer  tmr10_inst (
 	.tmr_cas_bit( tmr10_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr10_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr10_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr9_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr9_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr11_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -1013,7 +1025,8 @@ clio_timer  tmr11_inst (
 	.tmr_cas_bit( tmr11_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr11_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr11_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr10_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr10_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr12_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -1027,7 +1040,8 @@ clio_timer  tmr12_inst (
 	.tmr_cas_bit( tmr12_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr12_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr12_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr11_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr11_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr13_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -1041,7 +1055,8 @@ clio_timer  tmr13_inst (
 	.tmr_cas_bit( tmr13_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr13_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr13_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr12_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr12_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr14_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -1055,7 +1070,8 @@ clio_timer  tmr14_inst (
 	.tmr_cas_bit( tmr14_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr14_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr14_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr13_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr13_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr15_inst (
 	.reset_n( reset_n ),			// input  reset_n
@@ -1069,7 +1085,8 @@ clio_timer  tmr15_inst (
 	.tmr_cas_bit( tmr15_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr15_wrap ),		// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr15_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr14_wrap )		// input  tmr_cas_clk
+	.tmr_cas_clk( tmr14_wrap ),		// input  tmr_cas_clk
+	.tmr_slack( tmr_slack )
 );
 
 endmodule
@@ -1092,30 +1109,39 @@ module clio_timer (
 	output reg tmr_wrap,
 	output reg tmr_ena_clr,
 	
-	input tmr_cas_clk
+	input tmr_cas_clk,
+	
+	input [9:0] tmr_slack
 );
 
 // Handle reg reads...
 assign tmr_dout = (!tmr_a2) ? tmr_cnt : tmr_bkp;
 
+reg [9:0] slack_cnt;
 reg [3:0] tmr_ctrl;
 reg [15:0] tmr_cnt;
+reg [15:0] tmr_cnt_prev;
 reg [15:0] tmr_bkp;
 
-// If tmr_cas_bit (from tmr_ctrl) is Low, then just decrement using "clock".
-// Else, if tmr_cas_bit is High, then decrement using "tmr_cas_clk".
-wire tmr_dec = !tmr_cas_bit || (tmr_cas_bit&&tmr_cas_clk);
+// If tmr_cas_bit (from tmr_ctrl) is High, then using "tmr_cas_clk".
+// Else, if tmr_cas_bit is Low, decrement the timer when tmr_slack hits zero.
+wire tmr_dec = tmr_cas_bit ? tmr_cas_clk : (slack_cnt==10'd0);
 
 always @(posedge clock)
 if (!reset_n) begin
+	slack_cnt <= 10'd0;
 	tmr_wrap <= 1'b0;
 	tmr_ena_clr <= 1'b0;
-	tmr_cnt <= 16'h0000;
-	tmr_bkp <= 16'h0000;
+	tmr_cnt <= 16'hFFFF;
+	tmr_cnt_prev <= 16'h0000;
+	tmr_bkp <= 16'hFFFF;
 end
 else begin
 	tmr_wrap <= 1'b0;
 	tmr_ena_clr <= 1'b0;
+
+	if (slack_cnt==10'd0) slack_cnt <= tmr_slack>>1;	// Kludge for sim. Our CPU is "clocked" the same time as MADAM and CLIO in the sim atm.
+	else slack_cnt <= slack_cnt - 10'd1;				// So from the CPU's perspective, the timers are running twice as slow as they should. ElectronAsh.
 
 	// Handle reg writes.
 	if (tmr_we) begin
@@ -1124,10 +1150,11 @@ else begin
 	end
 
 	if (tmr_ena) begin
-		if (tmr_cnt==16'hFFFF) begin			// Timer has wrapped...
-			tmr_wrap <= 1'b1;					// PULSE the tmr_wrap bit. (to optionally clock the next timer, via the cascade input).
-			if (tmr_reload) tmr_cnt <= tmr_bkp;	// If Reload bit is set, reload the "backup" count value.
-			else tmr_ena_clr <= 1'b1;			// If Reload bit is NOT set, PULSE, to clear the Enable bit.
+		tmr_cnt_prev <= tmr_cnt;
+		if (tmr_cnt==16'hFFFF && tmr_cnt_prev==16'h0000) begin		// Timer has wrapped...
+			tmr_wrap <= 1'b1;					// PULSE the tmr_wrap bit. (to optionally clock the next timer, via its cascade input).
+			if (tmr_reload) tmr_cnt <= tmr_bkp;	// If Reload bit is HIGH, reload the "backup" count value.
+			else tmr_ena_clr <= 1'b1;			// If Reload bit is LOW, PULSE tmr_ena_clr, to clear the Enable bit.
 		end
 		else if (tmr_dec) tmr_cnt <= tmr_cnt - 1'b1;	// Decrement.
 	end
