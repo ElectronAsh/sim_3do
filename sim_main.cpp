@@ -39,6 +39,9 @@
 
 #include "sim_xbus.h"
 
+#include "opera_vdlp_i.h"
+extern vdlp_t   g_VDLP;
+
 volatile extern xbus_datum_t      XBUS;
 volatile extern sim_xbus_device xdev[16];
 //extern cdrom_device_t g_CDROM_DEVICE;
@@ -299,7 +302,7 @@ cdimage_read_sector(void* buf_)
 	uint8_t sector_buf [2048];
 	uint32_t start_byte = CDIMAGE_SECTOR*2048;
 	if ( start_byte>(iso_size-2048) ) start_byte=(iso_size-2048);	// Clamp the max offset.
-	fseek(isofile, 0L, start_byte);
+	fseek(isofile, start_byte, SEEK_SET);
 	fread(sector_buf, 1, 2048, isofile);
 	memcpy(buf_, sector_buf, 2048);
 	if ( CDIMAGE_SECTOR<(iso_size/2048) ) CDIMAGE_SECTOR++;	// If CDIMAGE_SECTOR is not greater than the ISO size, Auto-increment to next LBA.
@@ -533,7 +536,7 @@ void opera_process_vdl() {
 	//
 	uint32_t my_line = 0;
 
-	offset = 0xC0000;
+	offset = g_VDLP.head_vdl;
 	//offset = vdl_curr & 0xfffff;
 	//offset = vdl_next & 0xfffff;
 
@@ -1542,12 +1545,12 @@ int main(int argc, char** argv, char** env) {
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		static float f = 0.1f;
-		static int counter = 0;
+		//static float f = 0.1f;
+		//static int counter = 0;
 
 		ImGui::Begin("Virtual Dev Board v1.0");		// Create a window called "Virtual Dev Board v1.0" and append into it.
 
-		ShowMyExampleAppConsole(&show_app_console);
+		//ShowMyExampleAppConsole(&show_app_console);
 
 		if (ImGui::Button("RESET")) {
 			my_opera_init();
@@ -1650,7 +1653,11 @@ int main(int argc, char** argv, char** env) {
 					m_trace->flush();
 				}
 				*/
+				
 				verilate();
+				//opera_tick();
+				//if ( (main_time&0x7ff)==0 ) opera_process_vdl();
+
 				if (run_enable==0) break;
 				main_time++;
 			}

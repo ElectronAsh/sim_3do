@@ -134,6 +134,8 @@ struct vdlp_s
   int32_t line_cnt;
 };
 
+static vdlp_t   g_VDLP = { 0 };
+
 #if 0
 STATIC_ASSERT(sizeof(background_value_word_u) == sizeof(uint32_t),
               background_value_word_not_4_bytes);
