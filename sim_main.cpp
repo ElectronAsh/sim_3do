@@ -54,6 +54,10 @@ FILE* inst_file;
 FILE* soundfile;
 FILE* isofile;
 
+
+uint32_t sound_out;
+
+
 extern int sim_xbus_fiq_request = 0;
 
 #include <d3d11.h>
@@ -118,8 +122,6 @@ bool inst_trace = 0;
 bool soundtrace = 0;
 
 int pix_count = 0;
-
-uint8_t wait_ticks = 0;
 
 uint32_t cur_pc;
 uint32_t old_pc;
@@ -294,14 +296,42 @@ static
 void
 cdimage_read_sector(void* buf_)
 {
+	uint8_t sector_buf [2048];
 	uint32_t start_byte = CDIMAGE_SECTOR*2048;
 	if ( start_byte>(iso_size-2048) ) start_byte=(iso_size-2048);	// Clamp the max offset.
 	fseek(isofile, 0L, start_byte);
-	fread(buf_, 1, 2048, isofile);
+	fread(sector_buf, 1, 2048, isofile);
+	memcpy(buf_, sector_buf, 2048);
 	if ( CDIMAGE_SECTOR<(iso_size/2048) ) CDIMAGE_SECTOR++;	// If CDIMAGE_SECTOR is not greater than the ISO size, Auto-increment to next LBA.
 	//retro_cdimage_read(&CDIMAGE, CDIMAGE_SECTOR, buf_, CDIMAGE_SECTOR_SIZE);
 }
 
+/*
+static
+void*
+libopera_callback(int   cmd_,
+	void* data_)
+{
+	////switch (cmd_)
+	{
+	case EXT_DSP_TRIGGER:
+		//opera_lr_dsp_process();
+		sound_out = opera_dsp_loop();	// Almost certain this is the DSP sound output. ElectronAsh.
+		//fprintf(soundfile, "Sound 0x%08X: ", sound_out);
+		if (soundtrace) {
+			fputc((sound_out >> 24) & 0xff, soundfile);
+			fputc((sound_out >> 16) & 0xff, soundfile);
+			fputc((sound_out >> 8) & 0xff, soundfile);
+			fputc((sound_out >> 0) & 0xff, soundfile);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return NULL;
+}
+*/
 
 uint32_t g_OPT_VIDEO_WIDTH = 0;
 uint32_t g_OPT_VIDEO_HEIGHT = 0;
@@ -312,6 +342,8 @@ uint32_t g_OPT_ACTIVE_DEVICES = 0;
 
 void my_opera_init() {
 	opera_cdrom_set_callbacks(cdimage_get_size, cdimage_set_sector, cdimage_read_sector);
+
+	//opera_3do_init(libopera_callback);
 
 	opera_clock_init();
 	opera_arm_init();
@@ -329,7 +361,7 @@ void my_opera_init() {
 	opera_nvram_init();
 	opera_xbus_init(xbus_cdrom_plugin);
 
-	sim_xbus_init(xbus_cdrom_plugin);
+	//sim_xbus_init(xbus_cdrom_plugin);
 	cdimage_set_sector(0);
 
 	// 0x40 for start from 3D0-CD
@@ -341,7 +373,7 @@ void my_opera_init() {
 	opera_dsp_init();
 	opera_xbus_device_load(0, NULL);
 
-	sim_xbus_device_load(0, NULL);
+	//sim_xbus_device_load(0, NULL);
 }
 
 
@@ -690,16 +722,15 @@ void pbus_dma() {
 	}
 }
 
-uint32_t sound_out;
-
 void opera_tick() {
-	//opera_3do_process_frame();
+	opera_3do_process_frame();	// Tweaked, to render one LINE at a time. ElectronAsh.
 
-	opera_arm_execute();		// <- This contains all of our Opera fprintfs.
-	opera_clock_push_cycles(main_time);
+	//opera_arm_execute();		// <- This contains all of our Opera fprintfs.
+	//opera_clock_push_cycles(main_time);
 
 	//if (opera_clock_dsp_queued()) libopera_callback(EXT_DSP_TRIGGER, NULL);
 	//if (opera_clock_dsp_queued()) opera_lr_dsp_process();
+
 	if (opera_clock_dsp_queued()) {
 		//g_DSP_BUF[g_DSP_BUF_IDX++] = opera_dsp_loop();
 		//g_DSP_BUF_IDX &= DSP_BUF_SIZE_MASK;
@@ -712,21 +743,8 @@ void opera_tick() {
 			fputc( (sound_out>>0)  & 0xff, soundfile);
 		}
 	}
-
-	if (opera_clock_timer_queued()) opera_clio_timer_execute();
-
-	if (opera_clock_vdl_queued())
-	{
-		opera_clio_vcnt_update(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt, top->rootp->core_3do__DOT__clio_inst__DOT__field);
-		//opera_vdlp_process_line(top->rootp->core_3do__DOT__clio_inst__DOT__vcnt);
-
-		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint0()) opera_clio_fiq_generate(1<<0, 0);
-		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == opera_clio_line_vint1()) opera_clio_fiq_generate(1<<1, 0);
-		//(*line_)++;
-	}
 }
 
-uint32_t arm_skip = 40;
 
 int verilate() {
 	if (!Verilated::gotFinish()) {
@@ -738,17 +756,6 @@ int verilate() {
 		}
 
 		if (top->reset_n) {
-			/*
-			if (wait_ticks == 0) {
-				if (arm_skip == 0) arm_skip = 40;
-				else arm_skip--;
-
-				if (arm_skip > 0) opera_tick();		// "operatic"... geddit? lol
-				wait_ticks = 2;
-			}
-			else wait_ticks--;
-			*/
-
 			//if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_valid) opera_tick();
 			if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_valid &&
 				top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_uop_last)
@@ -1442,7 +1449,7 @@ int main(int argc, char** argv, char** env) {
 	ID3D11Texture2D* pTexture2 = NULL;
 	D3D11_SUBRESOURCE_DATA subResource2;
 	subResource2.pSysMem = disp2_ptr;
-	//subResource2.pSysMem = vga_ptr;
+	//subResource2.pSysMem = g_VIDEO_BUFFER;
 	subResource2.SysMemPitch = desc2.Width * 4;
 	subResource2.SysMemSlicePitch = 0;
 	g_pd3dDevice->CreateTexture2D(&desc2, &subResource2, &pTexture2);
@@ -2127,6 +2134,7 @@ int main(int argc, char** argv, char** env) {
 		g_pd3dDeviceContext->UpdateSubresource(pTexture, 0, NULL, disp_ptr, width * 4, 0);
 
 		g_pd3dDeviceContext->UpdateSubresource(pTexture2, 0, NULL, disp2_ptr, width * 4, 0);
+		//g_pd3dDeviceContext->UpdateSubresource(pTexture2, 0, NULL, g_VIDEO_BUFFER, width * 4, 0);
 
 		// Rendering
 		ImGui::Render();

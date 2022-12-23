@@ -155,22 +155,27 @@ opera_3do_internal_frame(uint32_t  cycles_,
     }
 }
 
+int32_t cnt = 0;
+uint32_t line = 0;
+static int field = 0;
+
 void
 opera_3do_process_frame(void)
 {
-  int32_t cnt;
-  uint32_t line;
-  uint32_t scanlines;
-  static int field = 0;
+	//int32_t cnt;
+	//uint32_t line;
+	//static int field = 0;
+	uint32_t scanlines;
 
   if(flagtime)
     flagtime--;
 
-  cnt  = 0;
-  line = 0;
+  //cnt  = 0;
+  //line = 0;
   scanlines = opera_region_scanlines();
-  do
-    {
+  
+  //do
+    //{
       if(opera_madam_fsm_get() == FSM_INPROCESS)
         {
           opera_madam_cel_handle();
@@ -183,9 +188,12 @@ opera_3do_process_frame(void)
           opera_3do_internal_frame(cnt,&line,field);
           cnt -= 32;
         }
-    } while(line < scanlines);
+    //} while(line < scanlines);
 
-  field = !field;
+	if (line==scanlines) {
+		line = 0;
+		field = !field;
+	}
 }
 
 uint32_t
