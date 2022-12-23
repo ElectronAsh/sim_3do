@@ -117,7 +117,7 @@ union vdl_ctrl_word_u
   av_output_ctrl_word_s   aocw;
 };
 
-//EXTERN_C_BEGIN
+EXTERN_C_BEGIN
 
 typedef struct vdlp_s vdlp_t;
 struct vdlp_s
@@ -136,9 +136,9 @@ struct vdlp_s
   int32_t line_cnt;
 };
 
-static vdlp_t   g_VDLP;
+extern vdlp_t   g_VDLP;
 
-//EXTERN_C_END
+EXTERN_C_END
 
 #if 0
 STATIC_ASSERT(sizeof(background_value_word_u) == sizeof(uint32_t),

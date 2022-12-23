@@ -40,7 +40,11 @@
 #include "sim_xbus.h"
 
 #include "opera_vdlp_i.h"
-extern vdlp_t   g_VDLP;
+//extern vdlp_t   g_VDLP;
+
+uint32_t opera_line;
+uint32_t opera_field;
+
 
 volatile extern xbus_datum_t      XBUS;
 volatile extern sim_xbus_device xdev[16];
@@ -515,7 +519,7 @@ void opera_process_vdl() {
 	clut[0x10] = 0x848484; clut[0x11] = 0x8C8C8C; clut[0x12] = 0x949494; clut[0x13] = 0x9C9C9C; clut[0x14] = 0xA5A5A5; clut[0x15] = 0xADADAD; clut[0x16] = 0xB5B5B5; clut[0x17] = 0xBDBDBD;
 	clut[0x18] = 0xC5C5C5; clut[0x19] = 0xCECECE; clut[0x1A] = 0xD6D6D6; clut[0x1B] = 0xDEDEDE; clut[0x1C] = 0xE6E6E6; clut[0x1D] = 0xEFEFEF; clut[0x1E] = 0xF8F8F8; clut[0x1F] = 0xFFFFFF;
 
-	volatile uint32_t header = (uint32_t)(g_VDLP.curr_vdl & 0xfffff);
+	volatile uint32_t header = g_VDLP.curr_vdl & 0xfffff;
 
 	// Read the VDL / CLUT from vram_ptr...
 	for (int i = 0; i <= 35; i++) {
@@ -532,15 +536,35 @@ void opera_process_vdl() {
 	// vram_ptr is 32-bit wide!
 	// vram_size = 1MB, so needs to be divided by 4 if used as an index.
 	//
-	uint32_t my_line = 0;
+
 
 	//uint32_t offset = g_VDLP.head_vdl & 0xfffff;
 	//uint32_t offset = vdl_curr & 0xfffff;
 	//uint32_t offset = vdl_next & 0xfffff;
 
-	//uint32_t offset = (uint32_t)(g_VDLP.curr_bmp & 0xfffff);
-	uint32_t offset = 0x20000;
+	uint32_t offset = g_VDLP.curr_bmp & 0xfffff;
+	//uint32_t offset = 0x21000;
+	//uint32_t offset = 0xC0000;
 
+	uint32_t my_line = opera_line;
+
+	for (int i = 0; i < 320; i++) {
+		uint16_t pixel;
+
+		pixel = vram[offset + (i * 4) + 3] << 8 | vram[offset + (i * 4) + 2];
+		rgb[0] = clut[(pixel & 0x7C00) >> 10] >> 16;
+		rgb[1] = clut[(pixel & 0x03E0) >> 5] >> 8;
+		rgb[2] = clut[(pixel & 0x001F) << 0] >> 0;
+		disp2_ptr[i + (my_line * 320)] = 0xff << 24 | rgb[2] << 16 | rgb[1] << 8 | rgb[0];			// Our debugger framebuffer is in the 32-bit ABGR format.
+
+		pixel = vram[offset + (i * 4) + 1] << 8 | vram[offset + (i * 4) + 0];
+		rgb[0] = clut[(pixel & 0x7C00) >> 10] >> 16;
+		rgb[1] = clut[(pixel & 0x03E0) >> 5] >> 8;
+		rgb[2] = clut[(pixel & 0x001F) << 0] >> 0;
+		disp2_ptr[i + (my_line * 320) + 320] = 0xff << 24 | rgb[2] << 16 | rgb[1] << 8 | rgb[0];	// Our debugger framebuffer is in the 32-bit ABGR format.
+	}
+
+	/*
 	for (int i = 0; i < (vram_size / 16); i++) {
 		uint16_t pixel;
 
@@ -558,6 +582,7 @@ void opera_process_vdl() {
 		rgb[2] = clut[(pixel & 0x001F) << 0] >> 0;
 		disp2_ptr[i + (my_line * 320) + 320] = 0xff << 24 | rgb[2] << 16 | rgb[1] << 8 | rgb[0];	// Our debugger framebuffer is in the 32-bit ABGR format.
 	}
+	*/
 }
 
 uint32_t svf_src_addr = 00;
@@ -726,8 +751,9 @@ void pbus_dma() {
 	}
 }
 
+
 void opera_tick() {
-	opera_3do_process_frame();	// Tweaked, to render one LINE at a time. ElectronAsh.
+	opera_3do_process_frame(&opera_line, &opera_field);	// Tweaked, to render one LINE at a time. ElectronAsh.
 
 	//opera_arm_execute();		// <- This contains all of our Opera fprintfs.
 	//opera_clock_push_cycles(main_time);
@@ -1657,7 +1683,7 @@ int main(int argc, char** argv, char** env) {
 				
 				//verilate();
 				opera_tick();
-				if ( (main_time&0x7ff)==0 ) opera_process_vdl();
+				/*if ( (main_time&0xfff)==0 )*/ opera_process_vdl();
 
 				if (run_enable==0) break;
 				main_time++;

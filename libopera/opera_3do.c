@@ -160,7 +160,7 @@ uint32_t line = 0;
 static int field = 0;
 
 void
-opera_3do_process_frame(void)
+opera_3do_process_frame(uint32_t *opera_line, uint32_t *opera_field)
 {
 	//int32_t cnt;
 	//uint32_t line;
@@ -194,6 +194,8 @@ opera_3do_process_frame(void)
 		line = 0;
 		field = !field;
 	}
+	*opera_line = line;
+	*opera_field = field;
 }
 
 uint32_t
