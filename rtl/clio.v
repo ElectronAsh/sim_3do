@@ -89,9 +89,8 @@ module clio (			// IC140 on FZ1.
 	input vram_busy
 );
 
-//wire [31:0] irq0_masked = irq0_pend & irq0_enable;	// Bit 31 of irq0_pend denotes one or more irq1_pend bits are set. (set in the clocked always block!)
-wire [30:0] irq0_masked = irq0_pend[30:0] & irq0_enable[30:0];	// 
-wire irq0_trig = |irq0_masked;
+wire [31:0] irq0_masked = irq0_pend & irq0_enable;	// Opera suggests irq0_enable (mask) *can* be used to mask the MSB bit.
+wire irq0_trig = |irq0_masked;						// (which denotes that any irq1_pend bits are set).
 
 wire [31:0] irq1_masked = irq1_pend & irq1_enable;
 wire irq1_trig = |irq1_masked;		// bitwise OR, after masking irq1_pend with the irq1_enable bits.
@@ -158,10 +157,7 @@ reg [31:0] tmr_ctrl_u;		// 0x208,0x20c. Controls the lower timers 8 (lowermost n
 
 reg [9:0] slack;			// 0x220. Only the lower 10 bits get written?
 
-// 0x304 DMA starter thingy.
-
-// 0x308 DMA stopper thingy.
-reg [31:0] dmareqdis;		//
+reg [31:0] dmactrl;		// Write 0x304 to set bits. Write to 0x308 to clear bits.
 
 // Only bits 15,14,11,9 are written to in MAME? Opera calls this reg "XBUS Direction"...
 reg [31:0] expctl;	// 0x400/0x404. Writing to 0x400 SETs bits of expctl. Writing to 0x404 CLEARs bits of expctl.
@@ -171,8 +167,6 @@ reg [31:0] type0_4;	// 0x408. ??? Opera doesn't seem to use this, but allows reg
 
 reg [31:0] dipir1;	// 0x410. DIPIR (Disc Inserted Provide Interrupt Response) 1.
 reg [31:0] dipir2;	// 0x414. DIPIR (Disc Inserted Provide Interrupt Response) 2.
-
-reg [31:0] dmastarter;
 
 parameter POLSTMASK = 8'h01;
 parameter POLDTMASK = 8'h02;
@@ -275,10 +269,10 @@ always @(*) begin
 	16'h003c: cpu_dout = random;	// 0x3c - read only?
 
 // IRQs...
-	16'h0040: cpu_dout = {irq1_trig, irq0_pend[30:0]};	// Read = irq0_pend (PENDING) bits.
-	16'h0044: cpu_dout = {irq1_trig, irq0_pend[30:0]};	// Read = Return zeros?
-	16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
-	16'h004c: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = Return zeros? 
+	16'h0040: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
+	16'h0044: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
+	16'h0048: cpu_dout = irq0_enable;		// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
+	16'h004c: cpu_dout = irq0_enable;		// Read = Return zeros? 
 
 	16'h0050,16'h0054: cpu_dout = mode;		// 0x50/0x54 - Writing to 0x50 SETs mode bits. Writing to 0x54 CLEARs mode bits. Reading = ?
 	16'h0058: cpu_dout = badbits;			// 0x58 - for reading things like DMA fail reasons?
@@ -291,9 +285,9 @@ always @(*) begin
 
 
 // hdelay / adbio stuff...
-	16'h0080: cpu_dout = hdelay;		// 0x80
-	16'h0084: /*cpu_dout = {28'h0000000, adbio_reg[7:4]};*/ cpu_dout = 32'h00000000;	// 0x84
-	16'h0088: cpu_dout = adbctl;		// 0x88
+	16'h0080: cpu_dout = hdelay;	// 0x80
+	16'h0084: cpu_dout = adbio_reg;	// cpu_dout = 32'h00000000; // 0x84
+	16'h0088: cpu_dout = adbctl;	// 0x88
 
 
 // Timers... (16-bit wide?)
@@ -339,12 +333,10 @@ always @(*) begin
 	16'h0208: cpu_dout = tmr_ctrl_u;
 	16'h020c: cpu_dout = tmr_ctrl_u;
 
-	16'h0220: cpu_dout = slack;				// 0x220. Only the lower 10 bits get written?
+	16'h0220: cpu_dout = slack;			// 0x220. Only the lower 10 bits get written?
 
-// 0x304 DMA starter thingy.
-	16'h0304: cpu_dout = dmastarter;
-
-	16'h0308: cpu_dout = dmareqdis;	// 0x308 DMA stopper thingy.
+	16'h0304: cpu_dout = dmactrl;	// 0x304 SET bits of dmactrl.   (read back)
+	16'h0308: cpu_dout = dmactrl;	// 0x308 CLEAR bits of dmactrl. (read back)
 
 // Only bits 15,14,11,9 are written to in MAME? Opera calls this reg "XBUS Direction"...
 	16'h0400: cpu_dout = expctl;	// 0x400/0x404. Writing to 0x400 SETs bits of expctl. Writing to 0x404 CLEARs bits of expctl.
@@ -451,8 +443,8 @@ wire [7:0] fifo_spoof = (fifo_idx==4'd0)  ? 8'h83 : // CDROM_CMD_READ_ID
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera returns 0x02020000.
-	//cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
-	cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
+	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
+	//cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
 	expctl <= 32'h00000080;			// Opera starts with this -> 0x80; // ARM has the expansion bus.
 	field <= 1'b0;
 	hcnt <= 32'd0;
@@ -473,7 +465,12 @@ if (!reset_n) begin
 	irq1_pend <= 32'h00000000;
 	irq1_enable <= 32'h00000000;
 	
-	dmastarter <= 32'h00000000;
+	dmactrl <= 32'h00000000;
+	
+	//vint0 <= 11'd240;
+	//vint1 <= 11'd5;
+	vint0 <= 11'd0;
+	vint1 <= 11'd0;
 end
 else begin
 	// Setting an upper nibble bit of the adbio reg will set the corresponding lower bit.
@@ -528,26 +525,19 @@ else begin
 	irq0_pend[2] <= ((poll_0&POLST) && (poll_0&POLSTMASK)) || ((poll_0&POLDT) && (poll_0&POLDTMASK));
 	*/
 	
-	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
-	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
+	if ( hcnt==32'd12 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
+	if ( hcnt==32'd12 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
 
 	irq0_pend[31] <= |irq1_pend;	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
 
-	//if (irq0_enable[30]) irq0_pend[30] <= 1'b1;
-
+	hcnt <= hcnt + 1'd1;
 	if (hcnt==hcnt_max) begin
 		hcnt <= 32'd0;
-		
 		if (vcnt==vcnt_max) begin
 			vcnt <= 32'd0;
 			field <= !field;
 		end
-		else begin
-			vcnt <= vcnt + 1'd1;
-		end
-	end
-	else begin
-		hcnt <= hcnt + 1'd1;
+		else vcnt <= vcnt + 1'd1;
 	end
 
 	if (wdgrst) cstatbits[1] <= 1'b1;		// Set bit 1 (WDT).
@@ -593,7 +583,7 @@ else begin
 
 		// hdelay / adbio stuff...
 		16'h0080: hdelay <= cpu_din;		// 0x80
-		16'h0084: adbio_reg <= cpu_din;		// 0x84
+		16'h0084: /*adbio_reg <= cpu_din*/;		// 0x84
 		16'h0088: adbctl <= cpu_din;		// 0x88
 
 		// Timers... (timers are handled in each timer module now).
@@ -611,10 +601,8 @@ else begin
 		
 		16'h0220: slack <= cpu_din;				// 0x220. Only the lower 10 bits get written?
 
-		// 0x304 DMA starter thingy.
-		16'h0304: dmastarter <= cpu_din;
-
-		16'h0308: dmareqdis <= cpu_din;	// 0x308 DMA stopper thingy.
+		16'h0304: dmactrl <= (dmactrl | cpu_din);		// Writing to 0x304 SETs bits in dmactrl.
+		16'h0308: dmactrl <= (dmactrl & ~cpu_din);		// Writing to 0x308 CLEARs bits in dmactrl.
 
 		// Only bits 15,14,11,9 are written to in MAME? Opera calls this reg "XBUS Direction"...
 		// Opera starts with this -> 0x80; // ARM has the expansion bus.
@@ -1136,9 +1124,9 @@ if (!reset_n) begin
 	slack_cnt <= 10'd0;
 	tmr_wrap <= 1'b0;
 	tmr_ena_clr <= 1'b0;
-	tmr_cnt <= 16'hFFFF;
+	tmr_cnt <= 16'h0001;
 	tmr_cnt_prev <= 16'h0000;
-	tmr_bkp <= 16'hFFFF;
+	tmr_bkp <= 16'h0001;
 end
 else begin
 	tmr_wrap <= 1'b0;

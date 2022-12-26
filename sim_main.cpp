@@ -716,10 +716,12 @@ void pbus_dma() {
 	top->rootp->core_3do__DOT__clio_inst__DOT__irq1_pend |= 1;              // Bit 0 of irq1_pend is the PBUS DMA Done bit.
 	top->rootp->core_3do__DOT__madam_inst__DOT__mctl &= ~0x8000;			// Clear bit 15 (PBUS DMA Enable) of mctl reg.
 
+	/*
 	for (int i=str; i<end; i+=4) {
 		fprintf(logfile, "0x%08X: ", i);
 		fprintf(logfile, "0x%02X%02X%02X%02X\n", ram_ptr[i+0], ram_ptr[i+1], ram_ptr[i+2], ram_ptr[i+3]);
 	}
+	*/
 }
 
 
@@ -751,9 +753,9 @@ void
 clio_handle_dma(uint32_t val_)
 {
 	//CLIO.regs[0x304] |= val_;
-	top->rootp->core_3do__DOT__clio_inst__DOT__dmastarter |= val_;
+	//top->rootp->core_3do__DOT__clio_inst__DOT__dmactrl |= val_;	// This is handled directly in clio.v now.
 
-	if (val_ & 0x00100000)
+	if (val_ & 0x00100000)	// Check if the Xbus DMA Enable bit in the write to 0x03400304 (CLIO dmactrl) is set.
 	{
 		int len;
 		unsigned trg;
@@ -761,17 +763,17 @@ clio_handle_dma(uint32_t val_)
 
 		//trg = opera_madam_peek(0x540);
 		//len = opera_madam_peek(0x544);
-		trg = top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_targ;	// 0x03300540.
-		len = top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_len;		// 0x03300544.
+		trg = top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_targ;	// 0x03300540. DMA Target (Source/Dest address). Likely always the dest, for a CDROM DMA?
+		len = top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_len;		// 0x03300544. DMA Length (in BYTES).
 
 		//CLIO.regs[0x304] &= ~0x00100000;
 		//CLIO.regs[0x400] &= ~0x80;
-		top->rootp->core_3do__DOT__clio_inst__DOT__dmastarter &= ~0x00100000;
-		top->rootp->core_3do__DOT__clio_inst__DOT__expctl &= ~0x80;
+		top->rootp->core_3do__DOT__clio_inst__DOT__dmactrl &= ~0x00100000;	// Clear the bit in the CLIO dmactrl reg.
+		top->rootp->core_3do__DOT__clio_inst__DOT__expctl &= ~0x80;			// Clear bit [7] in the CLIO expctl reg "DMA has control of Xbus".
 
 		//if (CLIO.regs[0x404] & 0x200)
-		if (top->rootp->core_3do__DOT__clio_inst__DOT__expctl & 0x200)
-		{
+		//if (top->rootp->core_3do__DOT__clio_inst__DOT__expctl & 0x200)	// ??
+		//{
 			while (len >= 0)
 			{
 				b3 = sim_xbus_fifo_get_data();
@@ -783,31 +785,56 @@ clio_handle_dma(uint32_t val_)
 				//opera_mem_write8(trg + 1, b1);
 				//opera_mem_write8(trg + 2, b2);
 				//opera_mem_write8(trg + 3, b3);
-				dram[ (trg&0x1fffff)+0 ] = b0;
-				dram[ (trg&0x1fffff)+1 ] = b1;
-				dram[ (trg&0x1fffff)+2 ] = b2;
-				dram[ (trg&0x1fffff)+3 ] = b3;
+
+				// Mask address, so DMA can only target 2MB main DRAM or 1MB VRAM (not registers). ElectronAsh.
+				dram[ (trg&0x2fffff)+0 ] = b0;
+				dram[ (trg&0x2fffff)+1 ] = b1;
+				dram[ (trg&0x2fffff)+2 ] = b2;
+				dram[ (trg&0x2fffff)+3 ] = b3;
 
 				trg += 4;
 				len -= 4;
 			}
 
 			//CLIO.regs[0x400] |= 0x80;
-			top->rootp->core_3do__DOT__clio_inst__DOT__expctl |= 0x80;
-		}
+			top->rootp->core_3do__DOT__clio_inst__DOT__expctl |= 0x80;	// Set bit [7] in the CLIO expctl reg "ARM has control of Xbus".
+		//}
 
 		//opera_madam_poke(0x544, 0xFFFFFFFC);
-		top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_len = 0xFFFFFFFC;
+		top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_len = 0xFFFFFFFC;	// Length reg should end up with this value once it wraps 0?
 
 		//opera_clio_fiq_generate(1 << 29, 0);
-		top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= 1 << 29;
+		top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= (1<<29);	// Set the IRQ0 Pending bit, for "XBus DMA Done"!
 	}
+}
+
+static
+void
+sim_if_set_set_reset(uint32_t* output_,
+	uint32_t  val_,
+	uint32_t  mask_chk_,
+	uint32_t  mask_set_)
+{
+	if ((val_ & mask_chk_) == mask_chk_)
+	{
+		*output_ = ((val_ & mask_set_) ?
+			(*output_ | mask_set_) :
+			(*output_ & ~mask_set_));
+	}
+}
+
+void handle_adbio_write() {
+	sim_if_set_set_reset(&top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg, top->o_wb_dat, 0x10, 0x01);
+	sim_if_set_set_reset(&top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg, top->o_wb_dat, 0x20, 0x02);
+	sim_if_set_set_reset(&top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg, top->o_wb_dat, 0x40, 0x04);
+	sim_if_set_set_reset(&top->rootp->core_3do__DOT__clio_inst__DOT__adbio_reg, top->o_wb_dat, 0x80, 0x08);
 }
 
 int verilate() {
 	if (!Verilated::gotFinish()) {
 		if (main_time < 50) {
 			top->reset_n = 0;		// Assert reset (active LOW)
+			frame_count = 0;
 		}
 		if (main_time == 50) {		// Do == here, so we can still reset it in the main loop.
 			top->reset_n = 1;		// Deassert reset./
@@ -822,7 +849,7 @@ int verilate() {
 		}
 
 		pix_count++;
-		
+
 		//jp_a = top->rootp->core_3do__DOT__clio_inst__DOT__field;	// Toggling "A" button, to test joypad. (works in BIOS joypad test)
 
 		//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__pc_from_alu;
@@ -830,7 +857,8 @@ int verilate() {
 		//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_pc_plus_8_ff - 8;
 		cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_pc_plus_8_buf_ff - 8;
 
-		if (cur_pc==0x00000ee0) run_enable=0;
+		//if (cur_pc==0x00000ee0) run_enable=0;
+		//if (top->o_wb_adr==0x0000FEDC && top->o_wb_we) run_enable = 0;
 
 		/*
 		if (frame_count==30 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0 && top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==9) {
@@ -838,8 +866,6 @@ int verilate() {
 			//inst_trace = 1;
 		}
 		*/
-		if (top->o_wb_adr==0x0000FEDC && top->o_wb_we) run_enable = 0;
-		
 
 		/*
 		if (cur_pc == 0x000117F8) {
@@ -1068,19 +1094,19 @@ int verilate() {
 			if (top->o_wb_adr == 0x03400068 && top->o_wb_we) { fprintf(logfile, "CLIO mask1 set  "); }
 			if (top->o_wb_adr == 0x0340006c && top->o_wb_we) { fprintf(logfile, "CLIO mask1 clear"); }
 
-			if (top->o_wb_adr == 0x03400040 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 pend "); }
-			if (top->o_wb_adr == 0x03400044 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 pend "); }
-			if (top->o_wb_adr == 0x03400048 && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read"); }
-			if (top->o_wb_adr == 0x0340004c && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read"); }
+			if (top->o_wb_adr == 0x03400040 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 pend  "); }
+			if (top->o_wb_adr == 0x03400044 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 pend  "); }
+			if (top->o_wb_adr == 0x03400048 && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read "); }
+			if (top->o_wb_adr == 0x0340004c && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read "); }
 
-			if (top->o_wb_adr == 0x03400060 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 pend "); }
-			if (top->o_wb_adr == 0x03400064 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 pend "); }
-			if (top->o_wb_adr == 0x03400068 && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read"); }
-			if (top->o_wb_adr == 0x0340006c && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read"); }
+			if (top->o_wb_adr == 0x03400060 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 pend  "); }
+			if (top->o_wb_adr == 0x03400064 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 pend  "); }
+			if (top->o_wb_adr == 0x03400068 && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read "); }
+			if (top->o_wb_adr == 0x0340006c && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read "); }
 
 			if (top->o_wb_adr == 0x03400080) { fprintf(logfile, "CLIO hdelay     "); }
 			if (top->o_wb_adr == 0x03400084 && !top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); }
-			if (top->o_wb_adr == 0x03400084 && top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); rom2_select = (top->o_wb_dat & 0x04); }
+			if (top->o_wb_adr == 0x03400084 && top->o_wb_we) { fprintf(logfile, "CLIO adbio      "); rom2_select = (top->o_wb_dat & 0x04); handle_adbio_write(); }
 			if (top->o_wb_adr == 0x03400088) { fprintf(logfile, "CLIO adbctl     "); }
 
 			if (top->o_wb_adr == 0x03400100) { fprintf(logfile, "CLIO tmr_cnt_0  "); }
@@ -1123,9 +1149,8 @@ int verilate() {
 			if (top->o_wb_adr == 0x0340020C) { fprintf(logfile, "CLIO tmr_clr_u  "); }
 
 			if (top->o_wb_adr == 0x03400220) { fprintf(logfile, "CLIO TmrSlack   "); }
-			if (top->o_wb_adr == 0x03400304 && !top->o_wb_we) { fprintf(logfile, "CLIO SetDMAEna  "); }
-			if (top->o_wb_adr == 0x03400304 && top->o_wb_we) { fprintf(logfile, "CLIO SetDMAEna  "); clio_handle_dma(top->o_wb_dat); }
-			if (top->o_wb_adr == 0x03400304) { fprintf(logfile, "CLIO SetDMAEna  "); }
+			if (top->o_wb_adr == 0x03400304 && !top->o_wb_we) { fprintf(logfile, "CLIO dmactrl    "); }
+			if (top->o_wb_adr == 0x03400304 && top->o_wb_we) { fprintf(logfile, "CLIO dmactrl    "); clio_handle_dma(top->o_wb_dat); }
 			if (top->o_wb_adr == 0x03400308) { fprintf(logfile, "CLIO ClrDMAEna  "); }
 
 			if (top->o_wb_adr == 0x03400380) { fprintf(logfile, "CLIO DMA DSPP0  "); }
@@ -1206,12 +1231,13 @@ int verilate() {
 				else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", zap_din, cur_pc);
 			}
 			*/
-
-			//if (top->o_wb_adr == 0x03300008 && top->o_wb_we && top->o_wb_dat & 0x8000) pbus_dma();
-			if (top->rootp->core_3do__DOT__madam_inst__DOT__mctl & 0x8000) pbus_dma();
 		}
 
-		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == top->rootp->core_3do__DOT__clio_inst__DOT__vcnt_max && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) frame_count++;
+		if (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt == top->rootp->core_3do__DOT__clio_inst__DOT__vcnt_max && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0) {
+			frame_count++;
+			fprintf(logfile, "frame: %d\n", frame_count);
+		}
+
 		if ( (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt & 0x7)==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) {
 			sim_process_vdl();
 			opera_process_vdl();
@@ -1248,6 +1274,8 @@ int verilate() {
 			if (top->o_wb_we) fprintf(logfile, "Write: 0x%08X  (PC: 0x%08X)\n", top->o_wb_dat, cur_pc);
 			else fprintf(logfile, " Read: 0x%08X  (PC: 0x%08X)\n", zap_din, cur_pc);
 		}
+
+		if (top->rootp->core_3do__DOT__madam_inst__DOT__mctl & 0x8000) pbus_dma();
 
 		top->sys_clk = 1;
 		top->eval();
@@ -1549,7 +1577,7 @@ int main(int argc, char** argv, char** env) {
 	my_opera_init();
 
 	/* select test, use -1 -- if don't need tests */
-	sim_diag_port_init(-1);		// Normal BIOS startup.
+	sim_diag_port_init(-1);	// Normal BIOS startup.
 	//sim_diag_port_init(0xf1);
 
 	opera_diag_port_init(-1);	// Normal BIOS startup.
@@ -1988,8 +2016,8 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("      adbctl: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__adbctl);			// 0x88
 		ImGui::Separator();
 		ImGui::Text("       slack: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__slack);			// 0x220
-		ImGui::Text("   dmareqdis: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dmareqdis);		// 0x308
-		ImGui::Text("      expctl: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__expctl);			// 0x400
+		ImGui::Text("     dmactrl: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dmactrl);		// 0x304 set / 0x308 clear.
+		ImGui::Text("      expctl: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__expctl);			// 0x400 set / 0x404 clear.
 		ImGui::Text("     type0_4: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__type0_4);		// 0x408
 		ImGui::Text("      dipir1: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dipir1);			// 0x410
 		ImGui::Text("      dipir2: 0x%08X", top->rootp->core_3do__DOT__clio_inst__DOT__dipir2);			// 0x414

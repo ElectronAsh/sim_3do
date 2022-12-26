@@ -381,10 +381,8 @@ else begin
 			// 0x04E0 = FMV DMA Group 1?
 			// 0x04E4 = FMV DMA Group 1?
 
-			// 0x0540 = XBUS DMA: Source / Dest Address.
-			// 0x0544 = XBUX DMA: Length.
-			16'h0540: xbus_dma_targ <= cpu_din;
-			16'h0544: xbus_dma_len <= cpu_din;
+			16'h0540: xbus_dma_targ <= cpu_din;	// 0x0540 = XBUS DMA: Source / Dest Address.
+			16'h0544: xbus_dma_len <= cpu_din;	// 0x0544 = XBUX DMA: Length.
 			
 			// 0x0550 = FMV DMA Group 2?
 			// 0x0554 = FMV DMA Group 2?
@@ -402,7 +400,6 @@ else begin
 	
 	if (cpu_wr && cpu_addr[15:0]==16'h0008 && cpu_din[15]) begin	// Bit 15 of a mctl triggers a PBUS DMA.
 		trig_pbus_dma <= 1'b1;
-		
 	end
 end
 		
