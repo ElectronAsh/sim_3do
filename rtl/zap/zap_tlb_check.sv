@@ -109,11 +109,25 @@ localparam [64 - `ZAP_LPAGE_TLB_WDT   - 1 : 0] CONST_0_LP = {(64 - `ZAP_LPAGE_TL
 localparam [64 - `ZAP_FPAGE_TLB_WDT   - 1 : 0] CONST_0_FP = {(64 - `ZAP_FPAGE_TLB_WDT  ){1'd0}};
 localparam [64 - `ZAP_SECTION_TLB_WDT - 1 : 0] CONST_0_SE = {(64 - `ZAP_SECTION_TLB_WDT){1'd0}};
 
+logic [3:0] match; 
+
+// 0: Small Page
+assign  match[0] = (i_sptlb_rdata[`ZAP_SPAGE_TLB__TAG] == i_va[`ZAP_VA__SPAGE_TAG]) && i_sptlb_rdav; 
+
+// 1: Large Page
+assign  match[1] = (i_lptlb_rdata[`ZAP_LPAGE_TLB__TAG] == i_va[`ZAP_VA__LPAGE_TAG]) && i_lptlb_rdav; 
+
+// 2: Section
+assign  match[2] = (i_setlb_rdata[`ZAP_SECTION_TLB__TAG] == i_va[`ZAP_VA__SECTION_TAG]) && i_setlb_rdav;
+
+// 3: Fine Page
+assign  match[3] = (i_fptlb_rdata[`ZAP_FPAGE_TLB__TAG] == i_va[`ZAP_VA__FPAGE_TAG]) && i_fptlb_rdav; 
+
 always @ ( posedge i_clk ) if ( i_clkena )
 begin:blk1
         logic dummy;       
         logic unused;
- 
+
         dummy  <= 1'd0;
         unused <= |dummy;
 
@@ -124,9 +138,12 @@ begin:blk1
         o_walk      <= 0;        // Walk disabled.
         o_cacheable <= 0;        // Uncacheable.
 
+
         if ( i_mmu_en && (i_rd || i_wr) ) // MMU enabled and R/W operation.
         begin
-                unique if ( (i_sptlb_rdata[`ZAP_SPAGE_TLB__TAG] == i_va[`ZAP_VA__SPAGE_TAG]) && i_sptlb_rdav )
+                case ( match[3:0] )
+
+                4'b0001:
                 begin
                         // Entry found in small page TLB.
                         o_fsr <= get_fsr
@@ -145,7 +162,8 @@ begin:blk1
                         {dummy, o_cacheable} <= i_sptlb_rdata[`ZAP_SECTION_TLB__CB] >> 1;
 
                 end
-                else if ( (i_lptlb_rdata[`ZAP_LPAGE_TLB__TAG] == i_va[`ZAP_VA__LPAGE_TAG]) && i_lptlb_rdav )
+
+                4'b0010:
                 begin
                         // Entry found in large page TLB.
                         o_fsr <= get_fsr
@@ -163,13 +181,14 @@ begin:blk1
                         o_phy_addr <= {i_lptlb_rdata[`ZAP_LPAGE_TLB__BASE], i_va[15:0]};
                         {dummy, o_cacheable} <= i_lptlb_rdata[`ZAP_LPAGE_TLB__CB] >> 1;
                 end
-                else if ( (i_setlb_rdata[`ZAP_SECTION_TLB__TAG] == i_va[`ZAP_VA__SECTION_TAG]) && i_setlb_rdav )
+
+                4'b0100:
                 begin
                         // Entry found in section TLB.
                         o_fsr <= get_fsr
                         (
                                 1'd1, 1'd0, 1'd0, 1'd0,         // Section.
-                                2'd0,                           // DONT CARE. Sections do not further divisions in AP SEL.
+                                2'd0,                           // DONT CARE. Sections don't subdv in AP SEL.
                                 i_cpsr[`ZAP_CPSR_MODE] == USR,
                                 i_rd,
                                 i_wr,
@@ -181,7 +200,8 @@ begin:blk1
                         o_phy_addr <= {i_setlb_rdata[`ZAP_SECTION_TLB__BASE], i_va[19:0]};
                         {dummy, o_cacheable} <= i_setlb_rdata[`ZAP_SECTION_TLB__CB] >> 1;
                 end
-                else if( (i_fptlb_rdata[`ZAP_FPAGE_TLB__TAG] == i_va[`ZAP_VA__FPAGE_TAG]) && i_fptlb_rdav )
+
+                4'b1000:
                 begin
                         // Entry found in fine page TLB.
                         o_fsr <= get_fsr
@@ -199,11 +219,23 @@ begin:blk1
                         o_phy_addr <= {i_fptlb_rdata[`ZAP_FPAGE_TLB__BASE], i_va[9:0]};
                         {dummy, o_cacheable} <= i_fptlb_rdata[`ZAP_FPAGE_TLB__CB] >> 1;
                 end
-                else
+
+                4'b0000:
                 begin
-                        // Trigger TLB walk.
+                        // No match. Trigger TLB walk.
                         o_walk <= 1'd1;
                 end
+
+                default: // Mimics full case.
+                begin
+                        o_fsr      <= 'X;
+                        o_phy_addr <= 'X;
+                        o_walk     <= 'X;
+                        o_far      <= 'X;
+                        o_cacheable<= 'X;
+                end
+                endcase
+
         end // Else MMU disabled.
 end
 
@@ -236,7 +268,7 @@ begin
 
         // Get AP and DAC.
 
-        unique if ( section ) // section.
+        if ( section ) // section.
         begin
                         apsr[3:2]  = (tlb  [ `ZAP_SECTION_TLB__AP ]);
                 {dummy,  dac[1:0]} = (dac_reg >> (tlb  [ `ZAP_SECTION_TLB__DAC_SEL ] << 1));
@@ -274,15 +306,15 @@ begin
                 end
                 else
                 begin
-                        unique if ( section )  get_fsr = {tlb[`ZAP_SECTION_TLB__DAC_SEL], FSR_SECTION_PERMISSION_FAULT};
-                          else if ( spage   )  get_fsr = {tlb[`ZAP_SPAGE_TLB__DAC_SEL]  , FSR_PAGE_PERMISSION_FAULT   };
-                          else if ( fpage   )  get_fsr = {tlb[`ZAP_FPAGE_TLB__DAC_SEL]  , FSR_PAGE_PERMISSION_FAULT   };
-                          else if ( lpage   )  get_fsr = {tlb[`ZAP_LPAGE_TLB__DAC_SEL]  , FSR_PAGE_PERMISSION_FAULT   };
+                          if ( section )  get_fsr = {tlb[`ZAP_SECTION_TLB__DAC_SEL], FSR_SECTION_PERMISSION_FAULT};
+                     else if ( spage   )  get_fsr = {tlb[`ZAP_SPAGE_TLB__DAC_SEL]  , FSR_PAGE_PERMISSION_FAULT};
+                     else if ( fpage   )  get_fsr = {tlb[`ZAP_FPAGE_TLB__DAC_SEL]  , FSR_PAGE_PERMISSION_FAULT};
+                     else if ( lpage   )  get_fsr = {tlb[`ZAP_LPAGE_TLB__DAC_SEL]  , FSR_PAGE_PERMISSION_FAULT};
                 end
 
         default: 
         begin 
-                unique if  ( section )  get_fsr = {tlb[`ZAP_SECTION_TLB__DAC_SEL], FSR_SECTION_DOMAIN_FAULT};
+                       if  ( section )  get_fsr = {tlb[`ZAP_SECTION_TLB__DAC_SEL], FSR_SECTION_DOMAIN_FAULT};
                   else if  ( spage   )  get_fsr = {tlb[`ZAP_SPAGE_TLB__DAC_SEL],   FSR_PAGE_DOMAIN_FAULT   };
                   else if  ( fpage   )  get_fsr = {tlb[`ZAP_FPAGE_TLB__DAC_SEL],   FSR_PAGE_DOMAIN_FAULT   };
                   else if  ( lpage   )  get_fsr = {tlb[`ZAP_LPAGE_TLB__DAC_SEL],   FSR_PAGE_DOMAIN_FAULT   };

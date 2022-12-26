@@ -335,9 +335,9 @@ void my_opera_init() {
 	opera_sport_init(vram);
 	opera_madam_init(dram);
 	opera_nvram_init();
+	
 	//opera_xbus_init(xbus_cdrom_plugin);
 	//opera_xbus_device_load(0, NULL);
-
 	sim_xbus_init(xbus_cdrom_plugin);
 	sim_xbus_device_load(0, NULL);
 
@@ -346,7 +346,7 @@ void my_opera_init() {
 	// 0x40 for start from 3D0-CD
 	// 0x01/0x02 from PhotoCD ??
 	// (NO use 0x40/0x02 for BIOS test)
-	opera_clio_init(0x40);	// bit[6]=DIPIR?
+	opera_clio_init(0x40);	// bit[6]=DIPIR.
 	//opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits. bit[0]=POR.
 	opera_dsp_init();
 }
@@ -513,6 +513,7 @@ void opera_process_vdl() {
 	//uint32_t offset = vdl_next & 0xfffff;
 
 	uint32_t offset = g_VDLP.curr_bmp & 0xfffff;
+	//uint32_t offset = opera_vdlp_bmp_origin & 0xfffff;
 	//uint32_t offset = 0x21000;
 	//uint32_t offset = 0xC0000;
 
@@ -745,6 +746,63 @@ void opera_tick() {
 	}
 }
 
+static
+void
+clio_handle_dma(uint32_t val_)
+{
+	//CLIO.regs[0x304] |= val_;
+	top->rootp->core_3do__DOT__clio_inst__DOT__dmastarter |= val_;
+
+	if (val_ & 0x00100000)
+	{
+		int len;
+		unsigned trg;
+		uint8_t b0, b1, b2, b3;
+
+		//trg = opera_madam_peek(0x540);
+		//len = opera_madam_peek(0x544);
+		trg = top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_targ;	// 0x03300540.
+		len = top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_len;		// 0x03300544.
+
+		//CLIO.regs[0x304] &= ~0x00100000;
+		//CLIO.regs[0x400] &= ~0x80;
+		top->rootp->core_3do__DOT__clio_inst__DOT__dmastarter &= ~0x00100000;
+		top->rootp->core_3do__DOT__clio_inst__DOT__expctl &= ~0x80;
+
+		//if (CLIO.regs[0x404] & 0x200)
+		if (top->rootp->core_3do__DOT__clio_inst__DOT__expctl & 0x200)
+		{
+			while (len >= 0)
+			{
+				b3 = sim_xbus_fifo_get_data();
+				b2 = sim_xbus_fifo_get_data();
+				b1 = sim_xbus_fifo_get_data();
+				b0 = sim_xbus_fifo_get_data();
+
+				//opera_mem_write8(trg + 0, b0);
+				//opera_mem_write8(trg + 1, b1);
+				//opera_mem_write8(trg + 2, b2);
+				//opera_mem_write8(trg + 3, b3);
+				dram[ (trg&0x1fffff)+0 ] = b0;
+				dram[ (trg&0x1fffff)+1 ] = b1;
+				dram[ (trg&0x1fffff)+2 ] = b2;
+				dram[ (trg&0x1fffff)+3 ] = b3;
+
+				trg += 4;
+				len -= 4;
+			}
+
+			//CLIO.regs[0x400] |= 0x80;
+			top->rootp->core_3do__DOT__clio_inst__DOT__expctl |= 0x80;
+		}
+
+		//opera_madam_poke(0x544, 0xFFFFFFFC);
+		top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_len = 0xFFFFFFFC;
+
+		//opera_clio_fiq_generate(1 << 29, 0);
+		top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= 1 << 29;
+	}
+}
 
 int verilate() {
 	if (!Verilated::gotFinish()) {
@@ -756,10 +814,11 @@ int verilate() {
 		}
 
 		if (top->reset_n) {
-			//if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_valid) opera_tick();
+			/*
 			if (top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_valid &&
 				top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_uop_last)
 				opera_tick();
+			*/
 		}
 
 		pix_count++;
@@ -771,7 +830,7 @@ int verilate() {
 		//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_pc_plus_8_ff - 8;
 		cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_pc_plus_8_buf_ff - 8;
 
-		uint32_t word_addr = (top->o_wb_adr) >> 2;
+		if (cur_pc==0x00000ee0) run_enable=0;
 
 		/*
 		if (frame_count==30 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt==0 && top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==9) {
@@ -779,6 +838,8 @@ int verilate() {
 			//inst_trace = 1;
 		}
 		*/
+		if (top->o_wb_adr==0x0000FEDC && top->o_wb_we) run_enable = 0;
+		
 
 		/*
 		if (cur_pc == 0x000117F8) {
@@ -818,9 +879,12 @@ int verilate() {
 		strrev(memory_string);
 		strrev(rb_string);
 
+		/*
 		if (inst_trace && decode_string != "IGNORE" && top->o_wb_stb && top->i_wb_ack) {
-			fprintf(inst_file, "PC: 0x%08X   Inst: %s\n", cur_pc, decode_string);
+			//fprintf(inst_file, "PC: 0x%08X   Inst: %s\n", cur_pc, decode_string);
+			fprintf(logfile, "PC: 0x%08X   Inst: %s\n", cur_pc, decode_string);
 		}
+		*/
 
 		/*
 		if (top->o_wb_adr == 0x03400000 && top->o_wb_we) {
@@ -976,6 +1040,8 @@ int verilate() {
 			else if (top->o_wb_adr == 0x0330021c) { fprintf(logfile, "MADAM Fence ?   "); }
 			else if (top->o_wb_adr == 0x03300238) { fprintf(logfile, "MADAM Fence ?   "); }
 			else if (top->o_wb_adr == 0x0330023c) { fprintf(logfile, "MADAM Fence ?   "); }
+			else if (top->o_wb_adr == 0x03300540) { fprintf(logfile, "MADAM DMA Targ  "); }
+			else if (top->o_wb_adr == 0x03300544) { fprintf(logfile, "MADAM DMA Len   "); }
 			else if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PBUS str  "); }
 			else if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PBUS len  "); }
 			else if (top->o_wb_adr == 0x03300578) { fprintf(logfile, "MADAM PBUS end  "); }
@@ -1057,6 +1123,8 @@ int verilate() {
 			if (top->o_wb_adr == 0x0340020C) { fprintf(logfile, "CLIO tmr_clr_u  "); }
 
 			if (top->o_wb_adr == 0x03400220) { fprintf(logfile, "CLIO TmrSlack   "); }
+			if (top->o_wb_adr == 0x03400304 && !top->o_wb_we) { fprintf(logfile, "CLIO SetDMAEna  "); }
+			if (top->o_wb_adr == 0x03400304 && top->o_wb_we) { fprintf(logfile, "CLIO SetDMAEna  "); clio_handle_dma(top->o_wb_dat); }
 			if (top->o_wb_adr == 0x03400304) { fprintf(logfile, "CLIO SetDMAEna  "); }
 			if (top->o_wb_adr == 0x03400308) { fprintf(logfile, "CLIO ClrDMAEna  "); }
 
@@ -1150,17 +1218,16 @@ int verilate() {
 		}
 		
 		//if (top->o_wb_adr==0x03400178 && top->o_wb_we) run_enable = 0;
-		if (top->o_wb_adr== 0x03400580 && top->o_wb_we && top->o_wb_dat==0x00000010) run_enable = 0;
-		if (cur_pc== 0x000014A8) run_enable = 0;
+		//if (top->o_wb_adr== 0x03400580 && top->o_wb_we && top->o_wb_dat==0x00000010) run_enable = 0;
+		//if (cur_pc== 0x000014A8) run_enable = 0;
+		if (top->o_wb_adr == 0x0000DEDC && top->o_wb_we && ((top->o_wb_dat&0xff) == 0xB5) ) run_enable = 0;
 
 		/*
 		if (old_fiq_n == 1 && top->rootp->core_3do__DOT__clio_inst__DOT__firq_n == 0) { // firq_n falling edge.
 			fprintf(logfile, "FIQ triggered!  (PC: 0x%08X)  irq0_pend: 0x%08X  irq1_pend: 0x%08X\n", cur_pc, top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend, top->rootp->core_3do__DOT__clio_inst__DOT__irq1_pend);
 		}
 		old_fiq_n = top->rootp->core_3do__DOT__clio_inst__DOT__firq_n;
-		*/
 
-		/*
 		uint32_t instruction = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction;
 		if ( ((instruction & 0xF000000)>>24 == 0b1111) && top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_decode_main__DOT__u_zap_decode__DOT__i_instruction_valid) {
 			fprintf(logfile, "SWI 0x%08X  (PC: 0x%08X)\n", instruction, cur_pc);
@@ -1325,8 +1392,8 @@ int main(int argc, char** argv, char** env) {
 	FILE* romfile;
 	//romfile = fopen("panafz1.bin", "rb");
 	//romfile = fopen("panafz10.bin", "rb");                  // This is the version MAME v226b uses by default, with "mame64 3do".
-	//romfile = fopen("panafz10-norsa.bin", "rb");
-	romfile = fopen("sanyotry.bin", "rb");
+	romfile = fopen("panafz10-norsa.bin", "rb");
+	//romfile = fopen("sanyotry.bin", "rb");
 	//romfile = fopen("goldstar.bin", "rb");
 	//if (romfile != NULL) { sprintf(my_string, "\nBIOS file loaded OK.\n");  MyAddLog(my_string); }
 	//else { sprintf(my_string, "\nBIOS file not found!\n\n"); MyAddLog(my_string); return 0; }
@@ -1813,6 +1880,8 @@ int main(int argc, char** argv, char** env) {
 		}
 
 		ImGui::TextColored(ImVec4(reg_col[17]), "       CPSR: 0x%08X", cpsr); ImGui::SameLine(); ImGui::Text("Opera CPSR: 0x%08X", CPU.CPSR);	// BAD / USR ??
+
+		//if (arm_reg[0]==0x100002B5) run_enable = 0;
 
 		/*
 		switch (CPU.CPSR & 0x1F) {

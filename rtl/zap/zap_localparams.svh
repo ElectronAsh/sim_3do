@@ -457,7 +457,6 @@ localparam [2:0] ROR_1   = 6; // ROR with instruction specified shift.
 localparam [2:0] LSL_SAT = 7; // Shift left saturated.
 
 // Wishbone CTI.
-localparam CTI_CLASSIC  = 3'b000;
 localparam CTI_BURST    = 3'b010;
 localparam CTI_EOB      = 3'b111;
 

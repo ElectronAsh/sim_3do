@@ -232,7 +232,7 @@ begin
                 o_wb_wen_ff             <= 0;
                 o_wb_sel_ff             <= 0;
                 o_wb_dat_ff             <= 0;
-                o_wb_cti_ff             <= CTI_CLASSIC;
+                o_wb_cti_ff             <= CTI_EOB;
                 o_wb_adr_ff             <= 0;
                 adr_ctr_ff              <= 0;
                 blk_ctr_ff              <= 0;
@@ -499,7 +499,7 @@ begin
         o_wb_adr_nxt = 0;
         o_wb_dat_nxt = 0;
         o_wb_sel_nxt = 0;
-        o_wb_cti_nxt = CTI_CLASSIC;
+        o_wb_cti_nxt = CTI_EOB;
 end
 endfunction
 

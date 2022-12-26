@@ -81,12 +81,13 @@ output logic      [31:0]                      o_address,
 output  logic                    o_wb_cyc_nxt,
 output  logic                    o_wb_stb_nxt,
 output  logic    [31:0]          o_wb_adr_nxt,
+output  logic    [3:0]           o_wb_sel_nxt,
 
 /* Wishbone Signals */
 output logic                     o_wb_cyc,
 output logic                     o_wb_stb,
 output logic                     o_wb_wen,
-output logic [3:0]               o_wb_sel, o_wb_sel_nxt,
+output logic [3:0]               o_wb_sel, 
 output logic [31:0]              o_wb_adr,
 input  logic [31:0]              i_wb_dat,
 input  logic                     i_wb_ack

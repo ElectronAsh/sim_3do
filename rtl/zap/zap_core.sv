@@ -27,11 +27,20 @@
 // -----------------------------------------------------------------------------
 
 
-
 module zap_core #(
+        // For CP15 purposes.
+        parameter [31:0] DATA_CACHE_SIZE = 1024,
+        parameter [31:0] CODE_CACHE_SIZE = 1024,
+        parameter [31:0] DATA_CACHE_LINE = 64,
+        parameter [31:0] CODE_CACHE_LINE = 64,
+
+        // Reset vector. Safe to not override.
         parameter [31:0] RESET_VECTOR     = 32'd0,
+
+        // Initial CPSR. Safe to not override.
         parameter [31:0] CPSR_INIT        = {24'd0, 1'd1,1'd1,1'd0,5'b10011},
 
+        // For CP15 purposes. Actual conversion is handled at a higher module.
         parameter BE_32_ENABLE     = 0,
 
         // Number of branch predictor entries.
@@ -1537,7 +1546,14 @@ u_zap_writeback
 // CP15 CB
 // ==================================
 
-zap_cp15_cb #(.BE_32_ENABLE(BE_32_ENABLE), .PHY_REGS(PHY_REGS)) u_zap_cp15_cb (
+zap_cp15_cb #(
+.BE_32_ENABLE(BE_32_ENABLE), 
+.PHY_REGS(PHY_REGS),
+.DATA_CACHE_SIZE(DATA_CACHE_SIZE),
+.CODE_CACHE_SIZE(CODE_CACHE_SIZE),
+.DATA_CACHE_LINE(DATA_CACHE_LINE),
+.CODE_CACHE_LINE(CODE_CACHE_LINE)
+) u_zap_cp15_cb (
         .i_clk                  (i_clk),
         .i_reset                (i_reset),
         .i_cp_word              (copro_word),

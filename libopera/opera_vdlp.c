@@ -740,8 +740,6 @@ visible_scanline(const int line_)
 void
 opera_vdlp_process_line(int line_)
 {
-  //int y;
-
   if(line_ < 5)
     return;
 
@@ -750,6 +748,7 @@ opera_vdlp_process_line(int line_)
       g_CURBUF = g_BUF;
       g_VDLP.curr_vdl = g_VDLP.head_vdl;
       vdlp_process_vdl_entry();
+	  opera_vdlp_bmp_origin = g_VDLP.curr_bmp;
     }
 
   if(g_VDLP.line_cnt == 0)
@@ -758,8 +757,7 @@ opera_vdlp_process_line(int line_)
   if(visible_scanline(line_))
     g_RENDERER();
 
-  g_VDLP.prev_bmp = ((g_VDLP.clut_ctrl.cdcw.prev_fba_tick) ?
-                     tick_fba(g_VDLP.prev_bmp) : g_VDLP.curr_bmp);
+  g_VDLP.prev_bmp = ((g_VDLP.clut_ctrl.cdcw.prev_fba_tick) ? tick_fba(g_VDLP.prev_bmp) : g_VDLP.curr_bmp);
   g_VDLP.curr_bmp = tick_fba(g_VDLP.curr_bmp);
 
   g_VDLP.disp_ctrl.dcw.vi_off_1_line = 0;

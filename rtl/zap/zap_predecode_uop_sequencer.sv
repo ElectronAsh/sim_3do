@@ -131,6 +131,9 @@ localparam BLX2_ARM_S0  = 14;
 localparam LDRD_STRD_S0 = 16;
 localparam LDRD_STRD_S1 = 17;
 localparam LDR_TO_PC_S0 = 18;
+localparam DEP_WAIT     = 19;
+localparam DEP_WAIT_1   = 20;
+localparam DEP_WAIT_2   = 21;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -345,18 +348,52 @@ begin:blk_a
                         state_nxt = IDLE;
                 end
 
+                // Issue ANDEQ R0, R0, R0 - block interrupts.
+                DEP_WAIT, DEP_WAIT_1:
+                begin
+                        o_stall_from_decode = 1'd1;
+                        o_instruction       = '0;
+                        state_nxt           = state_ff == DEP_WAIT ? DEP_WAIT_1 : DEP_WAIT_2;
+                end
+
+                // Issue ANDEQ R0, R0, R0 - block interrupts.
+                DEP_WAIT_2:
+                begin
+                        o_stall_from_decode = 1'd0;
+                        o_instruction       = '0;
+                        state_nxt           = IDLE;
+                end
+
                 IDLE:
                 begin
+                        // CLZ and saturating instruction - gap the issue.
+                        if ( 
+                               (i_instruction[31:0] ==? CLZ_INSTRUCTION ||
+                                i_instruction[31:0] ==? QADD            ||
+                                i_instruction[31:0] ==? QSUB            ||
+                                i_instruction[31:0] ==? QDADD           ||
+                                i_instruction[31:0] ==? QDSUB)          &&
+                                i_instruction_valid 
+                        )
+                        begin
+                                state_nxt           = DEP_WAIT;
+                                o_stall_from_decode = 1'd1;
+                                o_instruction       = {5'd0, i_instruction};
+                                o_irq               = i_irq;
+                                o_fiq               = i_fiq;
+                        end
                         // Instruction in coprocessor space.
-                        if ( i_instruction[31:0] ==? MRC  ||
-                             i_instruction[31:0] ==? MCR  ||
-                             i_instruction[31:0] ==? LDC  ||
-                             i_instruction[31:0] ==? STC  ||
-                             i_instruction[31:0] ==? CDP  ||
-                             i_instruction[31:0] ==? MCR2 || 
-                             i_instruction[31:0] ==? LDC2 ||
-                             i_instruction[31:0] ==? STC2 &&
-                             i_instruction_valid )
+                        else if ( 
+                             (i_instruction[31:0] ==? MRC   ||
+                              i_instruction[31:0] ==? MCR   ||
+                              i_instruction[31:0] ==? LDC   ||
+                              i_instruction[31:0] ==? STC   ||
+                              i_instruction[31:0] ==? CDP   ||
+                              i_instruction[31:0] ==? MCR2  || 
+                              i_instruction[31:0] ==? LDC2  ||
+                              i_instruction[31:0] ==? STC2) &&
+                              i_instruction_valid 
+                        )
                         begin
                                 o_instruction_valid = 1'd0;
                         end

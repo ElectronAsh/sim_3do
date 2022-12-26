@@ -225,7 +225,7 @@ begin
                 o_wb_wen_ff             <= 0;
                 o_wb_sel_ff             <= 0;
                 o_wb_dat_ff             <= 0;
-                o_wb_cti_ff             <= CTI_CLASSIC;
+                o_wb_cti_ff             <= CTI_EOB;
                 o_wb_adr_ff             <= 0;
                 cache_clean_req_ff      <= 0;
                 cache_inv_req_ff        <= 0;
@@ -355,7 +355,7 @@ begin:blk1
                                 o_wb_cyc_nxt    = 1'd1;
                                 o_wb_adr_nxt    = i_address;  
                                 o_wb_wen_nxt    = i_wr;
-                                o_wb_cti_nxt    = CTI_CLASSIC;
+                                o_wb_cti_nxt    = CTI_EOB;
                                 o_wb_dat_nxt    = i_din;
 
                                 if ( BE_32_ENABLE )
@@ -476,7 +476,7 @@ begin:blk1
                 o_wb_cyc_nxt    = 1'd1;
                 o_wb_adr_nxt    = i_phy_addr;
                 o_wb_wen_nxt    = i_wr;
-                o_wb_cti_nxt    = CTI_CLASSIC;
+                o_wb_cti_nxt    = CTI_EOB;
                 o_wb_dat_nxt    = i_din;
 
                 if ( BE_32_ENABLE )
@@ -779,7 +779,7 @@ begin
         o_wb_adr_nxt = 0;
         o_wb_dat_nxt = 0;
         o_wb_sel_nxt = 0;
-        o_wb_cti_nxt = CTI_CLASSIC;
+        o_wb_cti_nxt = CTI_EOB;
 end
 endfunction
 

@@ -241,7 +241,8 @@ logic                             cin;
 // 32-bit adder with carry input and carry output.
 logic [32:0]                      sum;
 
-logic [31:0]                      tmp_flags, tmp_sum;
+logic [31:0]                      tmp_flags, tmp_sum, tmp_sum_x;
+logic                             valid_x;
 
 // Opcode.
 logic [$clog2   (ALU_OPS)-1:0]   opcode;
@@ -352,7 +353,7 @@ begin
         rm          = i_shifted_source_value_ff;
         rn          = i_alu_source_value_ff;
         o_flags_ff  = flags_ff;
-        o_flags_nxt = flags_nxt;
+        o_flags_nxt = o_dav_nxt ? flags_nxt : flags_ff;
 end
 
 // -----------------------------------------------------------------------------
@@ -394,11 +395,11 @@ begin
         begin
                 // Clock out all flops normally.
 
-                o_alu_result_ff                  <= o_alu_result_nxt;
+                o_alu_result_ff                  <= valid_x ? tmp_sum_x : o_alu_result_nxt;
                 o_dav_ff                         <= o_dav_nxt;                
                 o_pc_plus_8_ff                   <= i_pc_plus_8_ff;
                 o_destination_index_ff           <= o_destination_index_nxt;
-                flags_ff                         <= flags_nxt;
+                flags_ff                         <= o_flags_nxt;
                 o_abt_ff                         <= i_abt_ff;
                 o_taken_ff                       <= i_taken_ff;
                 o_irq_ff                         <= i_irq_ff;
@@ -657,44 +658,69 @@ begin: alu_result
                              op == {1'd0, OP_QSUB } || 
                              op == {1'd0, OP_QDADD} || 
                              op == {1'd0, OP_QDSUB})
-                                tmp_flags[27] = (v || i_shift_sat_ff || tmp_flags[27]) ? 1'd1 : 1'd0; // Sticky.
-                        else
-                                tmp_flags[31:28] = {n,z,c,v};
-                end
-
-                // Write out the result.
-                tmp_sum = op == {1'd0, CLZ} ? {26'd0, clz_rm} : sum[31:0]; 
-
-                // Saturating operations.
-                if ( op == {1'd0, OP_QADD } || 
-                     op == {1'd0, OP_QSUB } || 
-                     op == {1'd0, OP_QDADD} || 
-                     op == {1'd0, OP_QDSUB} )
-                begin        
-                        if ( v ) // result saturated due to ALU operation.
                         begin
-                                if ( op == {1'd0, OP_QADD} || op == {1'd0, OP_QDADD} )
-                                begin
-                                        // Find the direction of saturation.
-                                        if ( rm[31] )
-                                                tmp_sum = {1'd1, {31{1'd0}}};
-                                        else
-                                                tmp_sum = {1'd0, {31{1'd1}}};
-                                end
-                                else
-                                begin
-                                        // Use rn to determine saturation.
-                                        if ( rn[31] )
-                                                tmp_sum = {1'd1, {31{1'd0}}};
-                                        else
-                                                tmp_sum = {1'd0, {31{1'd1}}};
-                                end
+                                tmp_flags[27] = (v || i_shift_sat_ff || tmp_flags[27]) ? 1'd1 : 1'd0; 
+                        end
+                        else
+                        begin
+                                tmp_flags[31:28] = {n,z,c,v};
                         end
                 end
+
+                tmp_sum = sum[31:0];
         end
 
-        // Drive nxt pin of result register.
         o_alu_result_nxt = tmp_sum;
+end
+
+// Handle CLZ and saturating operations.
+always_comb
+begin
+        if ( opcode == {1'd0, CLZ} )
+        begin
+                tmp_sum_x = {26'd0, clz_rm};       
+                valid_x   = 1'd1;
+        end
+        else if 
+        ( 
+             opcode == {1'd0, OP_QADD } || 
+             opcode == {1'd0, OP_QSUB } || 
+             opcode == {1'd0, OP_QDADD} || 
+             opcode == {1'd0, OP_QDSUB} 
+        )
+        begin
+                if ( tmp_flags[27] ) // result saturated due to ALU operation.
+                begin
+                        valid_x = 1'd1;
+
+                        if ( opcode == {1'd0, OP_QADD} || opcode == {1'd0, OP_QDADD} )
+                        begin
+                                // Find the direction of saturation.
+                                if ( rm[31] )
+                                        tmp_sum_x = {1'd1, {31{1'd0}}};
+                                else
+                                        tmp_sum_x = {1'd0, {31{1'd1}}};
+                        end
+                        else
+                        begin
+                                // Use rn to determine saturation.
+                                if ( rn[31] )
+                                        tmp_sum_x = {1'd1, {31{1'd0}}};
+                                else
+                                        tmp_sum_x = {1'd0, {31{1'd1}}};
+                        end
+                end
+                else
+                begin
+                        valid_x   = 1'd0;
+                        tmp_sum_x = {32{1'dx}};
+                end
+        end
+        else
+        begin
+                valid_x   = 1'd0;
+                tmp_sum_x = {32{1'dx}};
+        end
 end
 
 // ----------------------------------------------------------------------------
@@ -702,18 +728,20 @@ end
 // ----------------------------------------------------------------------------
 
 always_comb
-begin: flags_bp_feedback
+begin
+        o_dav_nxt  = is_cc_satisfied ( i_condition_code_ff, flags_ff[31:28] );
+        o_dav_nxt |= i_irq_ff || i_fiq_ff || i_abt_ff || i_und_ff;
+end
 
-        w_clear_from_alu         = 2'd0;
+always_comb
+begin
+        sleep_nxt  = i_irq_ff || i_fiq_ff || i_abt_ff || i_und_ff || (i_swi_ff && o_dav_nxt);
+        sleep_nxt |= i_mem_srcdest_index_ff == {2'd0, ARCH_PC} && o_dav_nxt && i_mem_load_ff;
+end
 
-        sleep_nxt                = sleep_ff;
-        flags_nxt                = tmp_flags;
-        o_destination_index_nxt  = i_destination_index_ff;
-        w_confirm_from_alu       = 1'd0;
-
-         // Check if condition is satisfied.
-        o_dav_nxt = is_cc_satisfied ( i_condition_code_ff, flags_ff[31:28] );
-
+// Debug
+always_comb
+begin
         // Decompile valid. Valid condition code but unqualified.
         if ( i_condition_code_ff != NV && !o_dav_nxt )
         begin
@@ -725,23 +753,23 @@ begin: flags_bp_feedback
                 o_decompile_valid_nxt = 1'd0;
                 o_uop_last_nxt        = o_dav_nxt ? i_uop_last : 1'd0;
         end
+end
 
-        if ( i_irq_ff || i_fiq_ff || i_abt_ff || (i_swi_ff && o_dav_nxt) || i_und_ff ) 
+always_comb
+begin: flags_bp_feedback
+
+        w_clear_from_alu         = 2'd0;
+        flags_nxt                = tmp_flags;
+        o_destination_index_nxt  = i_destination_index_ff;
+        w_confirm_from_alu       = 1'd0;
+
+        if ( (opcode == {1'd0, FMOV}) && o_dav_nxt ) // Writes to CPSR...
         begin
-                //
-                // Any sign of an interrupt is present, put unit to sleep.
-                // The current instruction will not be executed ultimately.
-                // However o_dav_nxt = 1 since interrupt must be carried on.
-                //
-                o_dav_nxt = 1'd1;
-                sleep_nxt = 1'd1;
-        end
-        else if ( (opcode == {1'd0, FMOV}) && o_dav_nxt ) // Writes to CPSR...
-        begin
-                w_clear_from_alu        = 2'd1; // Need to flush everything because we might end up fetching stuff in KERNEL instead of USER mode.
+                w_clear_from_alu        = 2'd1; // Resync pipeline.
 
                 // USR cannot change mode. Will silently fail.
-                flags_nxt[`ZAP_CPSR_MODE]   = (flags_nxt[`ZAP_CPSR_MODE] == USR) ? USR : flags_nxt[`ZAP_CPSR_MODE]; // Security.
+                flags_nxt[23:0]   = (flags_ff[`ZAP_CPSR_MODE] == USR) ? flags_ff[23:0] : 
+                flags_nxt[23:0]; // Security.
         end
         else if ( i_destination_index_ff == {2'd0, ARCH_PC} && (i_condition_code_ff != NV))
         begin
@@ -750,11 +778,10 @@ begin: flags_bp_feedback
                         o_destination_index_nxt     = PHY_RAZ_REGISTER;
                         w_clear_from_alu            = 2'd2;
 
-                        flags_nxt                   = i_mem_srcdest_value_ff;   
-                        // Restore CPSR from SPSR.
+                        flags_nxt                   = i_mem_srcdest_value_ff;   // Restore CPSR from SPSR.
 
-                        flags_nxt[`ZAP_CPSR_MODE]   = (flags_nxt[`ZAP_CPSR_MODE] == USR) ? 
-                        USR : flags_nxt[`ZAP_CPSR_MODE]; // Security.
+                        flags_nxt[23:0]   = (flags_ff[`ZAP_CPSR_MODE] == USR) ? flags_ff[23:0] : 
+                        flags_nxt[23:0]; // Security.
                 end
                 else if ( o_dav_nxt ) // Branch taken and no flag update.
                 begin
@@ -836,15 +863,6 @@ begin: flags_bp_feedback
                         end
                 end
         end
-        else if ( i_mem_srcdest_index_ff == {2'd0, ARCH_PC} && o_dav_nxt && i_mem_load_ff)
-        begin
-                // Loads to PC also puts the unit to sleep.
-                sleep_nxt = 1'd1;
-        end
-
-        // If the current instruction is invalid, do not update flags.
-        if ( o_dav_nxt == 1'd0 ) 
-                flags_nxt = flags_ff;
 end
 
 // ----------------------------------------------------------------------------
@@ -899,13 +917,13 @@ begin: adder_ip_mux
         begin              
                 op1 = rn     ; 
                 op2 = not_rm ; 
-                cin = !flag  ;              
+                cin = flag  ; 
         end
         {2'd0, RSC}: 
         begin              
                 op1 = rm     ; 
                 op2 = not_rn ; 
-                cin = !flag  ;              
+                cin = flag  ;              
         end
 
         // Target is not written.

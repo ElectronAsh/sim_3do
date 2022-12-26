@@ -170,6 +170,9 @@ reg [21:0] dmac_nextlen;	// 0x4CC. CPU RAM to DSP DMA Group 0xC: next length.
 // 0x0540 = XBUS DMA: Source / Dest Address.
 // 0x0544 = XBUX DMA: Length.
 
+reg [31:0] xbus_dma_targ;
+reg [31:0] xbus_dma_len;
+
 // 0x0550 = FMV DMA Group 2?
 // 0x0554 = FMV DMA Group 2?
 // 0x0560 = FMV DMA Group 2?
@@ -269,8 +272,8 @@ always @(*) begin
 		// 16'h04E0 = FMV DMA Group 1?
 		// 16'h04E4 = FMV DMA Group 1?
 
-		// 16'h0540 = XBUS DMA: Source / Dest Address.
-		// 16'h0544 = XBUX DMA: Length.
+		16'h0540: cpu_dout = xbus_dma_targ;	// XBUS DMA: Source / Dest Address.
+		16'h0544: cpu_dout = xbus_dma_len;	// XBUX DMA: Length.
 
 		// 16'h0550 = FMV DMA Group 2?
 		// 16'h0554 = FMV DMA Group 2?
@@ -294,6 +297,9 @@ if (!reset_n) begin
 	trig_pbus_dma <= 1'b0;
 	
 	pbus_len <= 32'hfffffffc;      // Set PBUS length reg to -4 ?
+	
+	xbus_dma_targ <= 32'h00000000;
+	xbus_dma_len <= 32'h00000000;
 end
 else begin
 	trig_pbus_dma <= 1'b0;
@@ -377,7 +383,9 @@ else begin
 
 			// 0x0540 = XBUS DMA: Source / Dest Address.
 			// 0x0544 = XBUX DMA: Length.
-
+			16'h0540: xbus_dma_targ <= cpu_din;
+			16'h0544: xbus_dma_len <= cpu_din;
+			
 			// 0x0550 = FMV DMA Group 2?
 			// 0x0554 = FMV DMA Group 2?
 			// 0x0560 = FMV DMA Group 2?

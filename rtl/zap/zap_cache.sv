@@ -130,7 +130,7 @@ logic                            hold;
 logic                            idle;
 
 // Selection 2 of Wishbone CTI[2x3] is always on all CPU supported modes.
-always_comb wb_cti[2] = 3'd0;
+always_comb wb_cti[2] = CTI_EOB;
 
 // Basic cache FSM - serves as Master 0.
 zap_cache_fsm #(.CACHE_SIZE(CACHE_SIZE), .CACHE_LINE(CACHE_LINE)) u_zap_cache_fsm (
@@ -287,7 +287,7 @@ begin
                 o_wb_stb <= 1'd0;
                 o_wb_cyc <= 1'd0; 
                 o_wb_adr <= 32'd0;
-                o_wb_cti <= CTI_CLASSIC;
+                o_wb_cti <= CTI_EOB;
                 o_wb_sel <= 4'd0;
                 o_wb_dat <= 32'd0;
                 o_wb_wen <= 1'd0;

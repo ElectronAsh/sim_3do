@@ -172,6 +172,8 @@ reg [31:0] type0_4;	// 0x408. ??? Opera doesn't seem to use this, but allows reg
 reg [31:0] dipir1;	// 0x410. DIPIR (Disc Inserted Provide Interrupt Response) 1.
 reg [31:0] dipir2;	// 0x414. DIPIR (Disc Inserted Provide Interrupt Response) 2.
 
+reg [31:0] dmastarter;
+
 parameter POLSTMASK = 8'h01;
 parameter POLDTMASK = 8'h02;
 parameter POLMAMASK = 8'h04;
@@ -340,14 +342,14 @@ always @(*) begin
 	16'h0220: cpu_dout = slack;				// 0x220. Only the lower 10 bits get written?
 
 // 0x304 DMA starter thingy.
-	//16'h0304: TODO
+	16'h0304: cpu_dout = dmastarter;
 
 	16'h0308: cpu_dout = dmareqdis;	// 0x308 DMA stopper thingy.
 
 // Only bits 15,14,11,9 are written to in MAME? Opera calls this reg "XBUS Direction"...
 	16'h0400: cpu_dout = expctl;	// 0x400/0x404. Writing to 0x400 SETs bits of expctl. Writing to 0x404 CLEARs bits of expctl.
-									// Opera starts with this -> 0x80; /* ARM has the expansion bus */
-
+	16'h0404: cpu_dout = expctl;	// Opera starts with this -> 0x80; /* ARM has the expansion bus */
+	
 	16'h0408: cpu_dout = type0_4;	// 0x408. ??? Opera doesn't seem to use this, but allows reg writes/reads.
 
 	16'h0410: cpu_dout = dipir1;	// 0x410. DIPIR (Disc Inserted Provide Interrupt Response) 1.
@@ -470,6 +472,8 @@ if (!reset_n) begin
 	irq0_enable <= 32'h00000000;
 	irq1_pend <= 32'h00000000;
 	irq1_enable <= 32'h00000000;
+	
+	dmastarter <= 32'h00000000;
 end
 else begin
 	// Setting an upper nibble bit of the adbio reg will set the corresponding lower bit.
@@ -608,7 +612,7 @@ else begin
 		16'h0220: slack <= cpu_din;				// 0x220. Only the lower 10 bits get written?
 
 		// 0x304 DMA starter thingy.
-		//16'h0304: TODO
+		16'h0304: dmastarter <= cpu_din;
 
 		16'h0308: dmareqdis <= cpu_din;	// 0x308 DMA stopper thingy.
 

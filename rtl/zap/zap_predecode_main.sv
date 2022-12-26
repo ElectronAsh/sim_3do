@@ -555,7 +555,8 @@ begin:bprblk1
                         arm_instruction[27:26] == 2'b00                                     &&
                         arm_instruction[15:12] == ARCH_PC                                   &&
                         (arm_instruction[25] || !arm_instruction[4] || !arm_instruction[7]) &&
-                        arm_instruction[24:21] inside {ADD, MOV}
+                        ( (arm_instruction[24:21] == ADD) || (arm_instruction[24:21] == MOV) ) 
+                        // arm_instruction inside {ADD, MOV}
                 )
         begin
                 // Jump table. Do what the BTB says. Dont correct it.

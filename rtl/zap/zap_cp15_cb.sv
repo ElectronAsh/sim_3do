@@ -32,8 +32,13 @@
 
 
 module zap_cp15_cb #(
-        parameter BE_32_ENABLE = 0,
-        parameter PHY_REGS = 64
+        parameter BE_32_ENABLE         = 0,
+        parameter PHY_REGS             = 64,
+        parameter ONLY_CORE            = 0,
+        parameter CODE_CACHE_LINE      = 64,
+        parameter DATA_CACHE_LINE      = 64,
+        parameter CODE_CACHE_SIZE      = 1024,
+        parameter DATA_CACHE_SIZE      = 1024
 )
 (
         // ----------------------------------------------------------------
@@ -178,6 +183,74 @@ localparam CASE_FLUSH_ID_TLB         = 7'b00?_0111;
 localparam CASE_FLUSH_I_TLB          = 7'b00?_0101;
 localparam CASE_FLUSH_D_TLB          = 7'b00?_0110;
 
+logic [1:0][11:0] xCACHE_TYPE_WORD;
+logic [31:0]      CACHE_TYPE_WORD ; // Provides cache info.
+
+///////////////////////////////////////////////////////////////////////////
+
+assign xCACHE_TYPE_WORD[0][1:0]  = CODE_CACHE_LINE == 16 ? 2'd1 : 
+                                   CODE_CACHE_LINE == 32 ? 2'd2 : 2'd3;
+
+assign xCACHE_TYPE_WORD[0][2]    = ONLY_CORE ? 1'd1 : 1'd0;
+
+assign xCACHE_TYPE_WORD[0][5:3]  = '0;
+
+always_comb
+begin
+        case(CODE_CACHE_SIZE)
+        512  : xCACHE_TYPE_WORD[0][8:6] = 3'd0;
+        1024 : xCACHE_TYPE_WORD[0][8:6] = 3'd1; 
+        2048 : xCACHE_TYPE_WORD[0][8:6] = 3'd2;
+        4096 : xCACHE_TYPE_WORD[0][8:6] = 3'd3;
+        8192 : xCACHE_TYPE_WORD[0][8:6] = 3'd4;
+        16384: xCACHE_TYPE_WORD[0][8:6] = 3'd5;
+        32768: xCACHE_TYPE_WORD[0][8:6] = 3'd6;
+        65536: xCACHE_TYPE_WORD[0][8:6] = 3'd7;
+        default:
+        begin
+                assert(ONLY_CORE) else $fatal(2, "Code cache size not in range.");
+        end
+        endcase
+end
+
+assign xCACHE_TYPE_WORD[0][11:9] = '0;
+
+//////////////////////////////////////////////////////////////////////////
+
+assign xCACHE_TYPE_WORD[1][1:0]  = DATA_CACHE_LINE == 16 ? 2'd1 :
+                                   DATA_CACHE_LINE == 32 ? 2'd2 : 2'd3;
+
+assign xCACHE_TYPE_WORD[1][2]    = ONLY_CORE ? 1'd1 : 1'd0;
+
+assign xCACHE_TYPE_WORD[1][5:3]  = '0;
+
+always_comb
+begin
+        case(DATA_CACHE_SIZE)
+        512  : xCACHE_TYPE_WORD[1][8:6] = 3'd0;
+        1024 : xCACHE_TYPE_WORD[1][8:6] = 3'd1; 
+        2048 : xCACHE_TYPE_WORD[1][8:6] = 3'd2;
+        4096 : xCACHE_TYPE_WORD[1][8:6] = 3'd3;
+        8192 : xCACHE_TYPE_WORD[1][8:6] = 3'd4;
+        16384: xCACHE_TYPE_WORD[1][8:6] = 3'd5;
+        32768: xCACHE_TYPE_WORD[1][8:6] = 3'd6;
+        65536: xCACHE_TYPE_WORD[1][8:6] = 3'd7;
+        default:
+        begin
+                assert(ONLY_CORE) else $fatal(2, "Data cache size not in range.");
+        end
+        endcase
+end
+
+assign xCACHE_TYPE_WORD[1][11:9] = '0;
+
+////////////////////////////////////////////////////////////////////////////
+
+// Build the CACHE_TYPE word.
+assign CACHE_TYPE_WORD[23:0]     = xCACHE_TYPE_WORD;
+assign CACHE_TYPE_WORD[24]       = 1'd1;                // S = 1, split cache.
+assign CACHE_TYPE_WORD[31:25]    = 7'h1;                // Block replacement policy = 0x1.
+
 // ---------------------------------------------
 // Sequential Logic
 // ---------------------------------------------
@@ -235,15 +308,9 @@ begin
                 r[6]           <= 32'd0;
                 r[13]          <= 32'd0; //FCSE
 
-                // R0 override.
+                // Overrides.
                 generate_r0;
-
-                // R1 override.
-                r[1][1]         <= 1'd1;
-                r[1][3]         <= 1'd1;    
-                r[1][6:4]       <= 3'b111; 
-                r[1][7]         <= BE_32_ENABLE ? 1'd1 : 1'd0;
-                r[1][11]        <= 1'd1;                
+                generate_r1;
         end
         else
         begin
@@ -464,7 +531,8 @@ begin
                                                 // Generate CPU Register write command. CP read.
                                                 o_reg_en        <= 1'd1;
                                                 o_reg_wr_index  <= translate( {2'd0, i_cp_word[15:12]}, i_cpsr[`ZAP_CPSR_MODE] ); 
-                                                o_reg_wr_data   <= r[ i_cp_word[19:16] ];
+                                                o_reg_wr_data   <= i_cp_word[19:16] == 0 && i_cp_word[`ZAP_OPCODE_2] == 1 ? CACHE_TYPE_WORD :
+                                                                r[ i_cp_word[19:16] ];
                                                 state           <= DONE;
                                         end
                                         else // Store to CPU register.
@@ -490,7 +558,8 @@ begin
                                         // Register write command.
                                         o_reg_en        <= 1'd1;
                                         o_reg_wr_index  <= translate( {2'd0, i_cp_word[15:12]}, i_cpsr[`ZAP_CPSR_MODE] ); 
-                                        o_reg_wr_data   <= r[ i_cp_word[19:16] ];
+                                        o_reg_wr_data   <= i_cp_word[19:16] == 0 && i_cp_word[`ZAP_OPCODE_2] == 1 ? CACHE_TYPE_WORD : 
+                                                        r[ i_cp_word[19:16] ];
                                         state           <= DONE;
                                 end
                                 else // Store to CPU register.
@@ -508,14 +577,7 @@ begin
 
                 // Default values. These bits are unchangeable.
                 generate_r0;
-
-                r[1][1]         <= 1'd1;
-                r[1][3]         <= 1'd1;    // Write buffer always enabled.
-                r[1][7]         <= BE_32_ENABLE ? 1'd1 : 1'd0;
-                r[1][6:4]       <= 3'b111;  // 1 = Base updated abort model.
-                                            // 1 = 32-bit address range, 
-                                            // 1 = 32-bit handlers enabled.
-                r[1][11]        <= 1'd1;                
+                generate_r1;
         end
 end
 
@@ -528,6 +590,25 @@ begin
         r[0][23:20] <= 4'd0;    // Variant 0.
         r[0][31:24] <= 8'd0;    // Implementor code = ZAP (Code = 0x0)
 end
+endtask
+
+task automatic generate_r1;
+        r[1][1]         <= 1'd1;
+        r[1][3]         <= 1'd0;    // Write buffer always disabled.
+        r[1][7]         <= BE_32_ENABLE ? 1'd1 : 1'd0;
+        r[1][6:4]       <= 3'b111;  // 1 = Base updated abort model.
+                                    // 1 = 32-bit address range, 
+                                    // 1 = 32-bit handlers enabled.
+        r[1][11]        <= 1'd1;    
+
+        // If only core is present, there is no cache - 
+        // so in that case, always set to 0.
+        if ( ONLY_CORE )
+        begin
+                r[1][2]  <= 1'd0;
+                r[1][12] <= 1'd0;
+                r[1][0]  <= 1'd0;
+        end
 endtask
 
 logic [31:0] r0;

@@ -67,7 +67,7 @@ sim_xbus_fifo_set_cmd(const uint8_t val_)
 	}
 }
 
-uint8_t
+uint32_t
 sim_xbus_fifo_get_data(void)
 {
 	if (xdev[XBUS.xb_sel_l])
@@ -76,7 +76,7 @@ sim_xbus_fifo_get_data(void)
 	return 0;
 }
 
-uint8_t
+uint32_t
 sim_xbus_get_poll(void)
 {
 	uint32_t res = 0x30;	// Start with 0x30 bits in poll set. DATA and STATUS ready bits???
@@ -89,7 +89,7 @@ sim_xbus_get_poll(void)
 	return res;
 }
 
-uint8_t
+uint32_t
 sim_xbus_get_res(void)
 {
 	if (xdev[XBUS.xb_sel_l])
@@ -98,10 +98,10 @@ sim_xbus_get_res(void)
 }
 
 
-uint8_t
+uint32_t
 sim_xbus_fifo_get_status(void)
 {
-	uint8_t rv;
+	uint32_t rv;
 
 	rv = 0;
 	if (xdev[XBUS.xb_sel_l])
