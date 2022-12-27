@@ -1266,12 +1266,13 @@ int verilate() {
 			if (top->o_wb_adr == 0x03300568) { fprintf(logfile, "MADAM DMA15 NAd "); }
 			if (top->o_wb_adr == 0x0330056c) { fprintf(logfile, "MADAM DMA15 NLn "); }
 
-			if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PB ToRam  "); } // ControlPort (PlayerBus)
-			if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PB Length "); }
-			if (top->o_wb_adr == 0x03300578) { fprintf(logfile, "MADAM PB FromRam"); }
-			if (top->o_wb_adr == 0x0330057c) { fprintf(logfile, "MADAM PB Refresh"); }
+			if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PbToRam   "); } // ControlPort (PlayerBus)
+			if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PbLength  "); }
+			if (top->o_wb_adr == 0x03300578) { fprintf(logfile, "MADAM PbFromRam "); }
+			if (top->o_wb_adr == 0x0330057c) { fprintf(logfile, "MADAM PbRefresh "); }
 
-			if (top->o_wb_adr == 0x03300580) { fprintf(logfile, "MADAM CLUT Ctrl "); } // CLUT_MID
+			//if (top->o_wb_adr == 0x03300580) { fprintf(logfile, "MADAM CLUT Ctrl "); } // CLUT_MID (CLUT Ctrl)
+			if (top->o_wb_adr == 0x03300580) { fprintf(logfile, "MADAM vdl_addr! "); }
 			if (top->o_wb_adr == 0x03300584) { fprintf(logfile, "MADAM CLUT Vid  "); }
 			if (top->o_wb_adr == 0x03300588) { fprintf(logfile, "MADAM CLUT Mid  "); }
 			if (top->o_wb_adr == 0x0330058c) { fprintf(logfile, "MADAM CMID Rsvd "); }
@@ -1300,9 +1301,6 @@ int verilate() {
 			if (top->o_wb_adr == 0x033005d4) { fprintf(logfile, "MADAM DMA22 Len "); }
 			if (top->o_wb_adr == 0x033005d8) { fprintf(logfile, "MADAM DMA22 NAd "); }
 			if (top->o_wb_adr == 0x033005dc) { fprintf(logfile, "MADAM DMA22 NLn "); }
-
-			if (top->o_wb_adr == 0x03300580) { fprintf(logfile, "MADAM vdl_addr! "); }
-			//if (top->o_wb_adr >= 0x03300000 && top->o_wb_adr <= 0x033FFFFF) { fprintf(logfile, "MADAM ?         "); }
 
 			if (top->o_wb_adr >= 0x03300600 && top->o_wb_adr <= 0x0330063f) { fprintf(logfile, "MADAM Matrix    "); }
 			if (top->o_wb_adr >= 0x03300640 && top->o_wb_adr <= 0x0330069c) { fprintf(logfile, "MADAM B0_B1     "); }
