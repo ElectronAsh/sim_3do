@@ -269,13 +269,22 @@ always @(*) begin
 	16'h003c: cpu_dout = random;	// 0x3c - read only?
 
 // IRQs...
+	//16'h0040: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
+	//16'h0044: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
+	//16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
+	//16'h004c: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = Return zeros?
+	
 	16'h0040: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
 	16'h0044: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
-	16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
-	16'h004c: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = Return zeros? 
+	
+	//16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};	// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
+	16'h0048: cpu_dout = irq0_enable;		// Read = irq0_enable (MASK) bits. Seemes to be needed for normal BIOS boot with cstatbits[0] (POR), and no DIPIR set?
+	16'h004c: cpu_dout = irq0_enable;		// Read = Return zeros? 
 
-	16'h0050,16'h0054: cpu_dout = mode;		// 0x50/0x54 - Writing to 0x50 SETs mode bits. Writing to 0x54 CLEARs mode bits. Reading = ?
+	16'h0050: cpu_dout = mode;				// 0x50 - Writing to 0x50 SETs mode bits. Reading = ?
+	16'h0054: cpu_dout = mode;				// 0x54 - Writing to 0x54 CLEARs mode bits. Reading = ?
 	16'h0058: cpu_dout = badbits;			// 0x58 - for reading things like DMA fail reasons?
+	
 	16'h005c: cpu_dout = spare;				// 0x5c - ?
 
 	16'h0060: cpu_dout = irq1_pend;			// Read = irq1_pend (PENDING) bits.
@@ -422,6 +431,8 @@ wire [31:0] hcnt_max = 32'd1590;
 wire [31:0] vcnt_max = 32'd263;		// From Opera?
 reg field;
 
+reg [31:0] irq1_pend_prev;
+
 reg [3:0] fifo_idx;
 
 wire [7:0] fifo_spoof = (fifo_idx==4'd0)  ? 8'h83 : // CDROM_CMD_READ_ID
@@ -464,6 +475,8 @@ if (!reset_n) begin
 	irq0_enable <= 32'h00000000;
 	irq1_pend <= 32'h00000000;
 	irq1_enable <= 32'h00000000;
+	
+	irq1_pend_prev <= 32'h00000000;
 	
 	dmactrl <= 32'h00000000;
 	
@@ -525,14 +538,16 @@ else begin
 	irq0_pend[2] <= ((poll_0&POLST) && (poll_0&POLSTMASK)) || ((poll_0&POLDT) && (poll_0&POLDTMASK));
 	*/
 	
-	if ( hcnt==32'd12 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
-	if ( hcnt==32'd12 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
+	if ( hcnt==32'd4 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
+	if ( hcnt==32'd4 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
 
-	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
-	irq0_pend[31] <= |irq1_pend;
 	
-	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend. Masked with irq0_enable[31].
-	//irq0_pend[31] <= (|irq1_pend) && irq0_enable[31];
+	//irq0_pend[31] <= (|irq1_pend);	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
+	
+	irq1_pend_prev <= irq1_pend;
+	// If irq1_pend has changed, and if ANY irq1_pend bits (bitwise OR) are high, set bit [31] of irq0_pend.
+	if ( (irq1_pend_prev!=irq1_pend) && (|irq1_pend) ) irq0_pend[31] <= 1'b1;
+	
 
 	hcnt <= hcnt + 1'd1;
 	if (hcnt==hcnt_max) begin
@@ -1131,8 +1146,10 @@ if (!reset_n) begin
 	tmr_wrap <= 1'b0;
 	tmr_ena_clr <= 1'b0;
 	tmr_cnt_prev <= 16'h0000;
-	tmr_cnt <= 16'h0200;
-	tmr_bkp <= 16'h0200;
+	//tmr_cnt <= 16'hFFFF;
+	//tmr_bkp <= 16'hFFFF;
+	tmr_cnt <= 16'h0001;
+	tmr_bkp <= 16'h0001;
 end
 else begin
 	tmr_wrap <= 1'b0;
@@ -1148,17 +1165,13 @@ else begin
 	else slack_cnt <= slack_cnt - 10'd1;				// So from the CPU's perspective, the timers are running twice as slow as they should. ElectronAsh.
 
 	if (tmr_ena) begin
-		if (tmr_dec) tmr_cnt <= tmr_cnt - 1'b1;	// Decrement.
 		tmr_cnt_prev <= tmr_cnt;
-	
 		if (tmr_cnt==16'hffff && tmr_cnt_prev==16'h0000) begin	// Timer has wrapped...
 			tmr_wrap <= 1'b1;					// PULSE the tmr_wrap bit. (to optionally clock the next timer, via its cascade input).
 			if (tmr_reload) tmr_cnt <= tmr_bkp;	// If Reload bit is HIGH, reload the "backup" count value.
-			else begin
-				tmr_ena_clr <= 1'b1;			// If Reload bit is LOW, PULSE tmr_ena_clr, to clear the Enable bit.
-				//tmr_cnt_prev <= 16'hffff;		// Kludge.
-			end
+			else tmr_ena_clr <= 1'b1;			// If Reload bit is LOW, PULSE tmr_ena_clr, to clear the Enable bit.
 		end
+		else if (tmr_dec) tmr_cnt <= tmr_cnt - 1'b1;	// Decrement.
 	end
 end
 

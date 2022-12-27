@@ -427,11 +427,11 @@ sim_diag_port_get(void)
 
 
 volatile uint32_t vdl_ctl  = 0x00000000;
-volatile uint32_t vdl_curr = 0x00000000;
-volatile uint32_t vdl_prev = 0x00000000;
-volatile uint32_t vdl_next = 0x00000000;
+volatile uint32_t vdl_curr = 0x000C0000;
+volatile uint32_t vdl_prev = 0x000C0000;
+volatile uint32_t vdl_next = 0x000C0000;
 
-volatile uint32_t clut[32];
+volatile uint32_t clut[256];
 
 void sim_process_vdl() {
 	// Load default CLUT...
@@ -442,13 +442,13 @@ void sim_process_vdl() {
 
 	uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;	// Mask address to 1MB (VRAM).
 
-	vdl_ctl  = 0x00000000;
-	vdl_curr = 0x00000000;
-	vdl_prev = 0x00000000;
-	vdl_next = 0x00000000;
-
 	// Read the VDL / CLUT from vram_ptr...
 	if (header>0) {
+		vdl_ctl = 0x00000000;
+		vdl_curr = 0x00000000;
+		vdl_prev = 0x00000000;
+		vdl_next = 0x00000000;
+
 		for (int i = 0; i <= 35; i++) {
 			if (i == 0) {
 				vdl_ctl |= (vram_ptr[header + (i*4) + 0]) << 24;
@@ -495,13 +495,13 @@ void sim_process_vdl() {
 
 		if ((i % 320) == 0) my_line++;
 
-		pixel = vram_ptr[offset + (i*4)+0]<<8 | vram_ptr[offset + (i*4)+1];
+		pixel = vram_ptr[ (offset+(i*4)+0)&0xfffff ]<<8 | vram_ptr[ (offset+(i*4)+1)&0xfffff ];
 		rgb[0] = clut[(pixel & 0x7C00) >> 10] >> 16;
 		rgb[1] = clut[(pixel & 0x03E0) >> 5] >> 8;
 		rgb[2] = clut[(pixel & 0x001F) << 0] >> 0;
 		disp_ptr[i + (my_line * 320)] = 0xff<<24 | rgb[2]<<16 | rgb[1]<<8 | rgb[0];			// Our debugger framebuffer is in the 32-bit ABGR format.
 
-		pixel = vram_ptr[offset + (i*4)+2]<<8 | vram_ptr[offset + (i*4)+3];
+		pixel = vram_ptr[ (offset+(i*4)+2)&0xfffff ]<<8 | vram_ptr[ (offset+(i*4)+3)&0xfffff ];
 		rgb[0] = clut[(pixel & 0x7C00) >> 10] >> 16;
 		rgb[1] = clut[(pixel & 0x03E0) >> 5] >> 8;
 		rgb[2] = clut[(pixel & 0x001F) << 0] >> 0;
@@ -514,7 +514,7 @@ volatile uint32_t opera_vdl_curr = 0x00000000;
 volatile uint32_t opera_vdl_prev = 0x00000000;
 volatile uint32_t opera_vdl_next = 0x00000000;
 
-volatile uint32_t opera_clut[32];
+volatile uint32_t opera_clut[256];
 
 void opera_process_vdl() {
 	// Load default CLUT...
@@ -1102,24 +1102,219 @@ int verilate() {
 			// Every core access from here down, gets its data from the Verilog MADAM / CLIO...
 			// 
 			// MADAM...
-			else if (top->o_wb_adr == 0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); }
-			else if (top->o_wb_adr == 0x03300000 && top->o_wb_we) { fprintf(logfile, "MADAM Print     "); MyAddLog("%c", top->o_wb_dat & 0xff); printf("%c", top->o_wb_dat & 0xff); }
-			else if (top->o_wb_adr == 0x03300004) { fprintf(logfile, "MADAM msysbits  "); /*if (top->o_wb_we==0) trace=1;*/ }
-			else if (top->o_wb_adr == 0x03300008) { fprintf(logfile, "MADAM mctl      "); }
-			else if (top->o_wb_adr == 0x0330000C) { fprintf(logfile, "MADAM sltime    "); }
-			else if (top->o_wb_adr >= 0x03300010 && top->o_wb_adr <= 0x0330001f) { fprintf(logfile, "MADAM MultiChip "); }
-			else if (top->o_wb_adr == 0x03300020) { fprintf(logfile, "MADAM Abortbits "); }
-			else if (top->o_wb_adr == 0x03300218) { fprintf(logfile, "MADAM Fence ?   "); }
-			else if (top->o_wb_adr == 0x0330021c) { fprintf(logfile, "MADAM Fence ?   "); }
-			else if (top->o_wb_adr == 0x03300238) { fprintf(logfile, "MADAM Fence ?   "); }
-			else if (top->o_wb_adr == 0x0330023c) { fprintf(logfile, "MADAM Fence ?   "); }
-			else if (top->o_wb_adr == 0x03300540) { fprintf(logfile, "MADAM DMA Targ  "); }
-			else if (top->o_wb_adr == 0x03300544) { fprintf(logfile, "MADAM DMA Len   "); }
-			else if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PBUS str  "); }
-			else if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PBUS len  "); }
-			else if (top->o_wb_adr == 0x03300578) { fprintf(logfile, "MADAM PBUS end  "); }
-			else if (top->o_wb_adr == 0x03300580) { fprintf(logfile, "MADAM vdl_addr! "); }
-			else if (top->o_wb_adr >= 0x03300000 && top->o_wb_adr <= 0x033FFFFF) { fprintf(logfile, "MADAM ?         "); }
+			if (top->o_wb_adr == 0x03300000 && !top->o_wb_we) { fprintf(logfile, "MADAM Revision  "); }
+			if (top->o_wb_adr == 0x03300000 && top->o_wb_we) { fprintf(logfile, "MADAM Print     "); MyAddLog("%c", top->o_wb_dat & 0xff); printf("%c", top->o_wb_dat & 0xff); }
+			
+			if (top->o_wb_adr == 0x03300004) { fprintf(logfile, "MADAM msysbits  "); }
+			if (top->o_wb_adr == 0x03300008) { fprintf(logfile, "MADAM mctl      "); }
+			if (top->o_wb_adr == 0x0330000C) { fprintf(logfile, "MADAM sltime    "); }
+			if (top->o_wb_adr >= 0x03300010 && top->o_wb_adr <= 0x0330001f) { fprintf(logfile, "MADAM MultiChip "); }
+
+			if (top->o_wb_adr == 0x03300020) { fprintf(logfile, "MADAM Abortbits "); }
+			if (top->o_wb_adr == 0x03300024) { fprintf(logfile, "MADAM Privbits  "); }
+			if (top->o_wb_adr == 0x03300028) { fprintf(logfile, "MADAM StatBits  "); }
+			if (top->o_wb_adr == 0x0330002c) { fprintf(logfile, "MADAM Rsrvd 2c  "); }
+
+			if (top->o_wb_adr == 0x03300030) { fprintf(logfile, "MADAM Rsrvd 30  "); }
+			if (top->o_wb_adr == 0x03300040) { fprintf(logfile, "MADAM Diag/hcnt "); }
+			if (top->o_wb_adr == 0x03300044) { fprintf(logfile, "MADAM Spare 44  "); }
+			if (top->o_wb_adr == 0x03300048) { fprintf(logfile, "MADAM Rsrvd 48  "); }
+			if (top->o_wb_adr == 0x03300080) { fprintf(logfile, "MADAM Rsrvd 80  "); }
+
+			if (top->o_wb_adr == 0x03300100) { fprintf(logfile, "MADAM CELStart  "); }
+			if (top->o_wb_adr == 0x03300104) { fprintf(logfile, "MADAM CELStop   "); }
+			if (top->o_wb_adr == 0x03300108) { fprintf(logfile, "MADAM CELCont   "); }
+			if (top->o_wb_adr == 0x0330010c) { fprintf(logfile, "MADAM CELPause  "); }
+			if (top->o_wb_adr == 0x03300110) { fprintf(logfile, "MADAM CCBCtl0   "); }
+			if (top->o_wb_adr == 0x03300114) { fprintf(logfile, "MADAM Rsrvd 114 "); }
+			if (top->o_wb_adr == 0x03300120) { fprintf(logfile, "MADAM CCB_PIXC  "); }
+
+			if (top->o_wb_adr == 0x03300130) { fprintf(logfile, "MADAM RegisCtl0 "); }
+			if (top->o_wb_adr == 0x03300134) { fprintf(logfile, "MADAM RegisCtl1 "); }
+			if (top->o_wb_adr == 0x03300138) { fprintf(logfile, "MADAM RegisCtl2 "); }
+			if (top->o_wb_adr == 0x0330013c) { fprintf(logfile, "MADAM RegisCtl3 "); }
+
+			if (top->o_wb_adr == 0x03300140) { fprintf(logfile, "MADAM XYPosH    "); }
+			if (top->o_wb_adr == 0x03300144) { fprintf(logfile, "MADAM XYPosL    "); }
+			if (top->o_wb_adr == 0x03300148) { fprintf(logfile, "MADAM Line_dXYH "); }
+			if (top->o_wb_adr == 0x0330014c) { fprintf(logfile, "MADAM Line_dXYL "); }
+			if (top->o_wb_adr == 0x03300150) { fprintf(logfile, "MADAM dXYH      "); }
+			if (top->o_wb_adr == 0x03300154) { fprintf(logfile, "MADAM dXYL      "); }
+			if (top->o_wb_adr == 0x03300158) { fprintf(logfile, "MADAM ddXYH     "); }
+			if (top->o_wb_adr == 0x0330015c) { fprintf(logfile, "MADAM ddXYL     "); }
+			if (top->o_wb_adr == 0x03300160) { fprintf(logfile, "MADAM Rsrvd 160 "); }
+
+			if (top->o_wb_adr >= 0x03300180 && top->o_wb_adr <= 0x033001ff) { fprintf(logfile, "MADAM PLUT      "); }
+
+			if (top->o_wb_adr == 0x03300218) { fprintf(logfile, "MADAM Fence0    "); }
+			if (top->o_wb_adr == 0x0330021c) { fprintf(logfile, "MADAM Fence1    "); }
+			if (top->o_wb_adr == 0x03300238) { fprintf(logfile, "MADAM Fence2    "); }
+			if (top->o_wb_adr == 0x0330023c) { fprintf(logfile, "MADAM Fence3    "); }
+
+			if (top->o_wb_adr == 0x03300400) { fprintf(logfile, "MADAM DMA00 Adr "); } // RamToDSPP0
+			if (top->o_wb_adr == 0x03300404) { fprintf(logfile, "MADAM DMA00 Len "); }
+			if (top->o_wb_adr == 0x03300408) { fprintf(logfile, "MADAM DMA00 NAd "); }
+			if (top->o_wb_adr == 0x0330040c) { fprintf(logfile, "MADAM DMA00 NLn "); }
+
+			if (top->o_wb_adr == 0x03300410) { fprintf(logfile, "MADAM DMA01 Adr "); } // RamToDSPP1
+			if (top->o_wb_adr == 0x03300414) { fprintf(logfile, "MADAM DMA01 Len "); }
+			if (top->o_wb_adr == 0x03300418) { fprintf(logfile, "MADAM DMA01 NAd "); }
+			if (top->o_wb_adr == 0x0330041c) { fprintf(logfile, "MADAM DMA01 NLn "); }
+
+			if (top->o_wb_adr == 0x03300420) { fprintf(logfile, "MADAM DMA02 Adr "); } // RamToDSPP2
+			if (top->o_wb_adr == 0x03300424) { fprintf(logfile, "MADAM DMA02 Len "); }
+			if (top->o_wb_adr == 0x03300428) { fprintf(logfile, "MADAM DMA02 NAd "); }
+			if (top->o_wb_adr == 0x0330042c) { fprintf(logfile, "MADAM DMA02 NLn "); }
+
+			if (top->o_wb_adr == 0x03300430) { fprintf(logfile, "MADAM DMA03 Adr "); } // RamToDSPP3
+			if (top->o_wb_adr == 0x03300434) { fprintf(logfile, "MADAM DMA03 Len "); }
+			if (top->o_wb_adr == 0x03300438) { fprintf(logfile, "MADAM DMA03 NAd "); }
+			if (top->o_wb_adr == 0x0330043c) { fprintf(logfile, "MADAM DMA03 NLn "); }
+
+			if (top->o_wb_adr == 0x03300440) { fprintf(logfile, "MADAM DMA04 Adr "); } // RamToDSPP4
+			if (top->o_wb_adr == 0x03300444) { fprintf(logfile, "MADAM DMA04 Len "); }
+			if (top->o_wb_adr == 0x03300448) { fprintf(logfile, "MADAM DMA04 NAd "); }
+			if (top->o_wb_adr == 0x0330044c) { fprintf(logfile, "MADAM DMA04 NLn "); }
+
+			if (top->o_wb_adr == 0x03300450) { fprintf(logfile, "MADAM DMA05 Adr "); } // RamToDSPP5
+			if (top->o_wb_adr == 0x03300454) { fprintf(logfile, "MADAM DMA05 Len "); }
+			if (top->o_wb_adr == 0x03300458) { fprintf(logfile, "MADAM DMA05 NAd "); }
+			if (top->o_wb_adr == 0x0330045c) { fprintf(logfile, "MADAM DMA05 NLn "); }
+
+			if (top->o_wb_adr == 0x03300460) { fprintf(logfile, "MADAM DMA06 Adr "); } // RamToDSPP6
+			if (top->o_wb_adr == 0x03300464) { fprintf(logfile, "MADAM DMA06 Len "); }
+			if (top->o_wb_adr == 0x03300468) { fprintf(logfile, "MADAM DMA06 NAd "); }
+			if (top->o_wb_adr == 0x0330046c) { fprintf(logfile, "MADAM DMA06 NLn "); }
+
+			if (top->o_wb_adr == 0x03300470) { fprintf(logfile, "MADAM DMA07 Adr "); } // RamToDSPP7
+			if (top->o_wb_adr == 0x03300474) { fprintf(logfile, "MADAM DMA07 Len "); }
+			if (top->o_wb_adr == 0x03300478) { fprintf(logfile, "MADAM DMA07 NAd "); }
+			if (top->o_wb_adr == 0x0330047c) { fprintf(logfile, "MADAM DMA07 NLn "); }
+
+			if (top->o_wb_adr == 0x03300480) { fprintf(logfile, "MADAM DMA08 Adr "); } // RamToDSPP8
+			if (top->o_wb_adr == 0x03300484) { fprintf(logfile, "MADAM DMA08 Len "); }
+			if (top->o_wb_adr == 0x03300488) { fprintf(logfile, "MADAM DMA08 NAd "); }
+			if (top->o_wb_adr == 0x0330048c) { fprintf(logfile, "MADAM DMA08 NLn "); }
+
+			if (top->o_wb_adr == 0x03300490) { fprintf(logfile, "MADAM DMA09 Adr "); } // RamToDSPP9
+			if (top->o_wb_adr == 0x03300494) { fprintf(logfile, "MADAM DMA09 Len "); }
+			if (top->o_wb_adr == 0x03300498) { fprintf(logfile, "MADAM DMA09 NAd "); }
+			if (top->o_wb_adr == 0x0330049c) { fprintf(logfile, "MADAM DMA09 NLn "); }
+
+			if (top->o_wb_adr == 0x033004a0) { fprintf(logfile, "MADAM DMA10 Adr "); } // RamToDSPP10
+			if (top->o_wb_adr == 0x033004a4) { fprintf(logfile, "MADAM DMA10 Len "); }
+			if (top->o_wb_adr == 0x033004a8) { fprintf(logfile, "MADAM DMA10 NAd "); }
+			if (top->o_wb_adr == 0x033004ac) { fprintf(logfile, "MADAM DMA10 NLn "); }
+
+			if (top->o_wb_adr == 0x033004b0) { fprintf(logfile, "MADAM DMA11 Adr "); } // RamToDSPP11
+			if (top->o_wb_adr == 0x033004b4) { fprintf(logfile, "MADAM DMA11 Len "); }
+			if (top->o_wb_adr == 0x033004b8) { fprintf(logfile, "MADAM DMA11 NAd "); }
+			if (top->o_wb_adr == 0x033004bc) { fprintf(logfile, "MADAM DMA11 NLn "); }
+
+			if (top->o_wb_adr == 0x033004c0) { fprintf(logfile, "MADAM DMA12 Adr "); } // RamToDSPP12
+			if (top->o_wb_adr == 0x033004c4) { fprintf(logfile, "MADAM DMA12 Len "); }
+			if (top->o_wb_adr == 0x033004c8) { fprintf(logfile, "MADAM DMA12 NAd "); }
+			if (top->o_wb_adr == 0x033004cc) { fprintf(logfile, "MADAM DMA12 NLn "); }
+
+			if (top->o_wb_adr == 0x033004d0) { fprintf(logfile, "MADAM DMA13 Adr "); } // RamToUncle
+			if (top->o_wb_adr == 0x033004d4) { fprintf(logfile, "MADAM DMA13 Len "); }
+			if (top->o_wb_adr == 0x033004d8) { fprintf(logfile, "MADAM DMA13 NAd "); }
+			if (top->o_wb_adr == 0x033004dc) { fprintf(logfile, "MADAM DMA13 NLn "); }
+
+			if (top->o_wb_adr == 0x033004e0) { fprintf(logfile, "MADAM DMA14 Adr "); } // RamToExternal
+			if (top->o_wb_adr == 0x033004e4) { fprintf(logfile, "MADAM DMA14 Len "); }
+			if (top->o_wb_adr == 0x033004e8) { fprintf(logfile, "MADAM DMA14 NAd "); }
+			if (top->o_wb_adr == 0x033004ec) { fprintf(logfile, "MADAM DMA14 NLn "); }
+
+			if (top->o_wb_adr == 0x033004f0) { fprintf(logfile, "MADAM DMA15 Adr "); } // RamToDSPPNStack
+			if (top->o_wb_adr == 0x033004f4) { fprintf(logfile, "MADAM DMA15 Len "); }
+			if (top->o_wb_adr == 0x033004f8) { fprintf(logfile, "MADAM DMA15 NAd "); }
+			if (top->o_wb_adr == 0x033004fc) { fprintf(logfile, "MADAM DMA15 NLn "); }
+
+			if (top->o_wb_adr == 0x03300500) { fprintf(logfile, "MADAM DMA16 Adr "); } // DSPPToRam0
+			if (top->o_wb_adr == 0x03300504) { fprintf(logfile, "MADAM DMA16 Len "); }
+			if (top->o_wb_adr == 0x03300508) { fprintf(logfile, "MADAM DMA16 NAd "); }
+			if (top->o_wb_adr == 0x0330050c) { fprintf(logfile, "MADAM DMA16 NLn "); }
+
+			if (top->o_wb_adr == 0x03300510) { fprintf(logfile, "MADAM DMA10 Adr "); } // DSPPToRam1
+			if (top->o_wb_adr == 0x03300514) { fprintf(logfile, "MADAM DMA10 Len "); }
+			if (top->o_wb_adr == 0x03300518) { fprintf(logfile, "MADAM DMA10 NAd "); }
+			if (top->o_wb_adr == 0x0330051c) { fprintf(logfile, "MADAM DMA10 NLn "); }
+
+			if (top->o_wb_adr == 0x03300520) { fprintf(logfile, "MADAM DMA11 Adr "); } // DSPPToRam2
+			if (top->o_wb_adr == 0x03300524) { fprintf(logfile, "MADAM DMA11 Len "); }
+			if (top->o_wb_adr == 0x03300528) { fprintf(logfile, "MADAM DMA11 NAd "); }
+			if (top->o_wb_adr == 0x0330052c) { fprintf(logfile, "MADAM DMA11 NLn "); }
+
+			if (top->o_wb_adr == 0x03300530) { fprintf(logfile, "MADAM DMA12 Adr "); } // DSPPToRam3
+			if (top->o_wb_adr == 0x03300534) { fprintf(logfile, "MADAM DMA12 Len "); }
+			if (top->o_wb_adr == 0x03300538) { fprintf(logfile, "MADAM DMA12 NAd "); }
+			if (top->o_wb_adr == 0x0330053c) { fprintf(logfile, "MADAM DMA12 NLn "); }
+
+			if (top->o_wb_adr == 0x03300540) { fprintf(logfile, "MADAM XBus Adr  "); } // DMAExpo
+			if (top->o_wb_adr == 0x03300544) { fprintf(logfile, "MADAM XBus Len  "); }
+			if (top->o_wb_adr == 0x03300548) { fprintf(logfile, "MADAM XBus NAd  "); }
+			if (top->o_wb_adr == 0x0330054c) { fprintf(logfile, "MADAM XBus NLn  "); }
+
+			if (top->o_wb_adr == 0x03300550) { fprintf(logfile, "MADAM DMA14 Adr "); } // UncleToRam
+			if (top->o_wb_adr == 0x03300554) { fprintf(logfile, "MADAM DMA14 Len "); }
+			if (top->o_wb_adr == 0x03300558) { fprintf(logfile, "MADAM DMA14 NAd "); }
+			if (top->o_wb_adr == 0x0330055c) { fprintf(logfile, "MADAM DMA14 NLn "); }
+
+			if (top->o_wb_adr == 0x03300560) { fprintf(logfile, "MADAM DMA15 Adr "); } // ExternalToRam
+			if (top->o_wb_adr == 0x03300564) { fprintf(logfile, "MADAM DMA15 Len "); }
+			if (top->o_wb_adr == 0x03300568) { fprintf(logfile, "MADAM DMA15 NAd "); }
+			if (top->o_wb_adr == 0x0330056c) { fprintf(logfile, "MADAM DMA15 NLn "); }
+
+			if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PB ToRam  "); } // ControlPort (PlayerBus)
+			if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PB Length "); }
+			if (top->o_wb_adr == 0x03300578) { fprintf(logfile, "MADAM PB FromRam"); }
+			if (top->o_wb_adr == 0x0330057c) { fprintf(logfile, "MADAM PB Refresh"); }
+
+			if (top->o_wb_adr == 0x03300580) { fprintf(logfile, "MADAM CLUT Ctrl "); } // CLUT_MID
+			if (top->o_wb_adr == 0x03300584) { fprintf(logfile, "MADAM CLUT Vid  "); }
+			if (top->o_wb_adr == 0x03300588) { fprintf(logfile, "MADAM CLUT Mid  "); }
+			if (top->o_wb_adr == 0x0330058c) { fprintf(logfile, "MADAM CMID Rsvd "); }
+
+			if (top->o_wb_adr == 0x03300590) { fprintf(logfile, "MADAM VID Prev  "); } // Video_MID
+			if (top->o_wb_adr == 0x03300594) { fprintf(logfile, "MADAM VID Curr  "); }
+			if (top->o_wb_adr == 0x03300598) { fprintf(logfile, "MADAM VID PrevM "); }
+			if (top->o_wb_adr == 0x0330059c) { fprintf(logfile, "MADAM VID CurrM "); }
+
+			if (top->o_wb_adr == 0x033005a0) { fprintf(logfile, "MADAM CL Ctrl   "); } // CELControl
+			if (top->o_wb_adr == 0x033005a4) { fprintf(logfile, "MADAM FirstCCB  "); }
+			if (top->o_wb_adr == 0x033005a8) { fprintf(logfile, "MADAM CL PLUT   "); }
+			if (top->o_wb_adr == 0x033005ac) { fprintf(logfile, "MADAM CL DStart "); }
+
+			if (top->o_wb_adr == 0x033005b0) { fprintf(logfile, "MADAM CLD AdrA  "); } // CELData
+			if (top->o_wb_adr == 0x033005b4) { fprintf(logfile, "MADAM CLD LenA  "); }
+			if (top->o_wb_adr == 0x033005b8) { fprintf(logfile, "MADAM CLD AdrB  "); }
+			if (top->o_wb_adr == 0x033005bc) { fprintf(logfile, "MADAM CLD LenB  "); }
+
+			if (top->o_wb_adr == 0x033005c0) { fprintf(logfile, "MADAM DMA21 Adr "); } // Commandgrabber
+			if (top->o_wb_adr == 0x033005c4) { fprintf(logfile, "MADAM DMA21 Len "); }
+			if (top->o_wb_adr == 0x033005c8) { fprintf(logfile, "MADAM DMA21 NAd "); }
+			if (top->o_wb_adr == 0x033005cc) { fprintf(logfile, "MADAM DMA21 NLn "); }
+
+			if (top->o_wb_adr == 0x033005d0) { fprintf(logfile, "MADAM DMA22 Adr "); } // Framegrabber
+			if (top->o_wb_adr == 0x033005d4) { fprintf(logfile, "MADAM DMA22 Len "); }
+			if (top->o_wb_adr == 0x033005d8) { fprintf(logfile, "MADAM DMA22 NAd "); }
+			if (top->o_wb_adr == 0x033005dc) { fprintf(logfile, "MADAM DMA22 NLn "); }
+
+			if (top->o_wb_adr == 0x03300580) { fprintf(logfile, "MADAM vdl_addr! "); }
+			//if (top->o_wb_adr >= 0x03300000 && top->o_wb_adr <= 0x033FFFFF) { fprintf(logfile, "MADAM ?         "); }
+
+			if (top->o_wb_adr >= 0x03300600 && top->o_wb_adr <= 0x0330063f) { fprintf(logfile, "MADAM Matrix    "); }
+			if (top->o_wb_adr >= 0x03300640 && top->o_wb_adr <= 0x0330069c) { fprintf(logfile, "MADAM B0_B1     "); }
+
+			if (top->o_wb_adr == 0x033006a0) { fprintf(logfile, "MADAM Rsrvd 6a0 "); }
+			if (top->o_wb_adr == 0x03300700) { fprintf(logfile, "MADAM Rsrvd 700 "); }
+
+			if (top->o_wb_adr == 0x033007f0) { fprintf(logfile, "MADAM Math Set  "); }
+			if (top->o_wb_adr == 0x033007f4) { fprintf(logfile, "MADAM Math Clr  "); }
+			if (top->o_wb_adr == 0x033007f8) { fprintf(logfile, "MADAM Math Stat "); }
+			if (top->o_wb_adr == 0x033007fc) { fprintf(logfile, "MADAM Math Start"); }
+
 
 			// CLIO...
 			if (top->o_wb_adr == 0x03400000) { fprintf(logfile, "CLIO Revision   "); }
@@ -1129,23 +1324,27 @@ int verilate() {
 			if (top->o_wb_adr == 0x03400024) { fprintf(logfile, "CLIO audout     "); }
 			if (top->o_wb_adr == 0x03400028) { fprintf(logfile, "CLIO cstatbits  "); }
 			if (top->o_wb_adr == 0x0340002C) { fprintf(logfile, "CLIO WatchDog   "); }
-			if (top->o_wb_adr == 0x03400034) { /*fprintf(logfile, "CLIO vcnt       ");*/ }
+			//if (top->o_wb_adr == 0x03400034) { fprintf(logfile, "CLIO vcnt       "); }
+			if (top->o_wb_adr == 0x03400038) { fprintf(logfile, "CLIO RandSeed   "); }
 
 			if (top->o_wb_adr == 0x03400040 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 set   "); }
 			if (top->o_wb_adr == 0x03400044 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 clear "); }
 			if (top->o_wb_adr == 0x03400048 && top->o_wb_we) { fprintf(logfile, "CLIO mask0 set  "); }
 			if (top->o_wb_adr == 0x0340004c && top->o_wb_we) { fprintf(logfile, "CLIO mask0 clear"); }
-
-			if (top->o_wb_adr == 0x03400060 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 set   "); }
-			if (top->o_wb_adr == 0x03400064 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 clear "); }
-			if (top->o_wb_adr == 0x03400068 && top->o_wb_we) { fprintf(logfile, "CLIO mask1 set  "); }
-			if (top->o_wb_adr == 0x0340006c && top->o_wb_we) { fprintf(logfile, "CLIO mask1 clear"); }
-
 			if (top->o_wb_adr == 0x03400040 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 pend  "); }
 			if (top->o_wb_adr == 0x03400044 && !top->o_wb_we) { fprintf(logfile, "CLIO irq0 pend  "); }
 			if (top->o_wb_adr == 0x03400048 && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read "); }
 			if (top->o_wb_adr == 0x0340004c && !top->o_wb_we) { fprintf(logfile, "CLIO mask0 read "); }
 
+			if (top->o_wb_adr == 0x03400050 && top->o_wb_we) { fprintf(logfile, "CLIO SetMode    "); }
+			if (top->o_wb_adr == 0x03400054 && top->o_wb_we) { fprintf(logfile, "CLIO ClrMode    "); }
+			if (top->o_wb_adr == 0x03400058 && top->o_wb_we) { fprintf(logfile, "CLIO BadBits    "); }
+			if (top->o_wb_adr == 0x0340005c && top->o_wb_we) { fprintf(logfile, "CLIO Spare      "); }
+
+			if (top->o_wb_adr == 0x03400060 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 set   "); }
+			if (top->o_wb_adr == 0x03400064 && top->o_wb_we) { fprintf(logfile, "CLIO irq1 clear "); }
+			if (top->o_wb_adr == 0x03400068 && top->o_wb_we) { fprintf(logfile, "CLIO mask1 set  "); }
+			if (top->o_wb_adr == 0x0340006c && top->o_wb_we) { fprintf(logfile, "CLIO mask1 clear"); }
 			if (top->o_wb_adr == 0x03400060 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 pend  "); }
 			if (top->o_wb_adr == 0x03400064 && !top->o_wb_we) { fprintf(logfile, "CLIO irq1 pend  "); }
 			if (top->o_wb_adr == 0x03400068 && !top->o_wb_we) { fprintf(logfile, "CLIO mask1 read "); }
@@ -1458,7 +1657,8 @@ int main(int argc, char** argv, char** env) {
 
 	soundfile = fopen("soundfile.bin", "wb");
 
-	isofile = fopen("aitd_us.iso", "rb");
+	//isofile = fopen("aitd_us.iso", "rb");
+	isofile = fopen("PhotoCD_Gallery.iso", "rb");
 	fseek(isofile, 0L, SEEK_END);
 	iso_size = ftell(isofile);
 	fseek(isofile, 0L, SEEK_SET);
@@ -1466,8 +1666,8 @@ int main(int argc, char** argv, char** env) {
 
 	FILE* romfile;
 	//romfile = fopen("panafz1.bin", "rb");
-	//romfile = fopen("panafz10.bin", "rb");                  // This is the version MAME v226b uses by default, with "mame64 3do".
-	romfile = fopen("panafz10-norsa.bin", "rb");
+	romfile = fopen("panafz10.bin", "rb");                  // This is the version MAME v226b uses by default, with "mame64 3do".
+	//romfile = fopen("panafz10-norsa.bin", "rb");
 	//romfile = fopen("sanyotry.bin", "rb");
 	//romfile = fopen("goldstar.bin", "rb");
 	//if (romfile != NULL) { sprintf(my_string, "\nBIOS file loaded OK.\n");  MyAddLog(my_string); }
