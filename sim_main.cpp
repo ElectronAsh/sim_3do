@@ -426,12 +426,12 @@ sim_diag_port_get(void)
 }
 
 
-uint32_t vdl_ctl = 0x000C0000;
-uint32_t vdl_curr = 0x000C0000;
-uint32_t vdl_prev = 0x000C0000;
-uint32_t vdl_next = 0x000C0000;
+volatile uint32_t vdl_ctl  = 0x00000000;
+volatile uint32_t vdl_curr = 0x00000000;
+volatile uint32_t vdl_prev = 0x00000000;
+volatile uint32_t vdl_next = 0x00000000;
 
-uint32_t clut[32];
+volatile uint32_t clut[32];
 
 void sim_process_vdl() {
 	// Load default CLUT...
@@ -442,13 +442,40 @@ void sim_process_vdl() {
 
 	uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;	// Mask address to 1MB (VRAM).
 
+	vdl_ctl  = 0x00000000;
+	vdl_curr = 0x00000000;
+	vdl_prev = 0x00000000;
+	vdl_next = 0x00000000;
+
 	// Read the VDL / CLUT from vram_ptr...
-	for (int i = 0; i <= 35; i++) {
-		if (i == 0) vdl_ctl = vram_ptr[header + i];
-		else if (i == 1) vdl_curr = vram_ptr[header + i];
-		else if (i == 2) vdl_prev = vram_ptr[header + i];
-		else if (i == 3) vdl_next = vram_ptr[header + i];
-		//else if (i>=4) clut[i-4] = vram_ptr[header+i];         // TESTING !!!
+	if (header>0) {
+		for (int i = 0; i <= 35; i++) {
+			if (i == 0) {
+				vdl_ctl |= (vram_ptr[header + (i*4) + 0]) << 24;
+				vdl_ctl |= (vram_ptr[header + (i*4) + 1]) << 16;
+				vdl_ctl |= (vram_ptr[header + (i*4) + 2]) << 8;
+				vdl_ctl |= (vram_ptr[header + (i*4) + 3]) << 0;
+			}
+			if (i == 1) {
+				vdl_curr |= (vram_ptr[header + (i*4) + 0]) << 24;
+				vdl_curr |= (vram_ptr[header + (i*4) + 1]) << 16;
+				vdl_curr |= (vram_ptr[header + (i*4) + 2]) << 8;
+				vdl_curr |= (vram_ptr[header + (i*4) + 3]) << 0;
+			}
+			if (i == 2) {
+				vdl_prev |= (vram_ptr[header + (i*4) + 0]) << 24;
+				vdl_prev |= (vram_ptr[header + (i*4) + 1]) << 16;
+				vdl_prev |= (vram_ptr[header + (i*4) + 2]) << 8;
+				vdl_prev |= (vram_ptr[header + (i*4) + 3]) << 0;
+			}
+			if (i == 3) {
+				vdl_next |= (vram_ptr[header + (i*4) + 0]) << 24;
+				vdl_next |= (vram_ptr[header + (i*4) + 1]) << 16;
+				vdl_next |= (vram_ptr[header + (i*4) + 2]) << 8;
+				vdl_next |= (vram_ptr[header + (i*4) + 3]) << 0;
+			}
+			//else if (i>=4) clut[i-4] = vram_ptr[header+i];         // TESTING !!!
+		}
 	}
 
 	// Copy the VRAM pixels into disp_ptr...
@@ -482,6 +509,13 @@ void sim_process_vdl() {
 	}
 }
 
+volatile uint32_t opera_vdl_ctl = 0x00000000;
+volatile uint32_t opera_vdl_curr = 0x00000000;
+volatile uint32_t opera_vdl_prev = 0x00000000;
+volatile uint32_t opera_vdl_next = 0x00000000;
+
+volatile uint32_t opera_clut[32];
+
 void opera_process_vdl() {
 	// Load default CLUT...
 	clut[0x00] = 0x000000; clut[0x01] = 0x080808; clut[0x02] = 0x101010; clut[0x03] = 0x191919; clut[0x04] = 0x212121; clut[0x05] = 0x292929; clut[0x06] = 0x313131; clut[0x07] = 0x3A3A3A;
@@ -492,12 +526,34 @@ void opera_process_vdl() {
 	volatile uint32_t header = g_VDLP.curr_vdl & 0xfffff;
 
 	// Read the VDL / CLUT from vram_ptr...
-	for (int i = 0; i <= 35; i++) {
-		if (i == 0) vdl_ctl = vram[header +i];
-		else if (i == 1) vdl_curr = vram[header +i];
-		else if (i == 2) vdl_prev = vram[header +i];
-		else if (i == 3) vdl_next = vram[header +i];
-		//else if (i>=4) clut[i-4] = vram_ptr[header+i];         // TESTING !!!
+	if (header>0) {
+		for (int i = 0; i <= 35; i++) {
+			if (i == 0) {
+				opera_vdl_ctl |= (vram[header + (i*4) + 0]) << 24;
+				opera_vdl_ctl |= (vram[header + (i*4) + 1]) << 16;
+				opera_vdl_ctl |= (vram[header + (i*4) + 2]) << 8;
+				opera_vdl_ctl |= (vram[header + (i*4) + 3]) << 0;
+			}
+			if (i == 1) {
+				opera_vdl_curr |= (vram[header + (i*4) + 0]) << 24;
+				opera_vdl_curr |= (vram[header + (i*4) + 1]) << 16;
+				opera_vdl_curr |= (vram[header + (i*4) + 2]) << 8;
+				opera_vdl_curr |= (vram[header + (i*4) + 3]) << 0;
+			}
+			if (i == 2) {
+				opera_vdl_prev |= (vram[header + (i*4) + 0]) << 24;
+				opera_vdl_prev |= (vram[header + (i*4) + 1]) << 16;
+				opera_vdl_prev |= (vram[header + (i*4) + 2]) << 8;
+				opera_vdl_prev |= (vram[header + (i*4) + 3]) << 0;
+			}
+			if (i == 3) {
+				opera_vdl_next |= (vram[header + (i*4) + 0]) << 24;
+				opera_vdl_next |= (vram[header + (i*4) + 1]) << 16;
+				opera_vdl_next |= (vram[header + (i*4) + 2]) << 8;
+				opera_vdl_next |= (vram[header + (i*4) + 3]) << 0;
+			}
+			//else if (i>=4) clut[i-4] = vram_ptr[header+i];         // TESTING !!!
+		}
 	}
 
 	// Copy the VRAM pixels into disp_ptr...
@@ -507,10 +563,8 @@ void opera_process_vdl() {
 	// vram_size = 1MB, so needs to be divided by 4 if used as an index.
 	//
 
-
-	//uint32_t offset = g_VDLP.head_vdl & 0xfffff;
-	//uint32_t offset = vdl_curr & 0xfffff;
-	//uint32_t offset = vdl_next & 0xfffff;
+	//uint32_t offset = opera_vdl_curr & 0xfffff;
+	//uint32_t offset = opera_vdl_next & 0xfffff;
 
 	uint32_t offset = g_VDLP.curr_bmp & 0xfffff;
 	//uint32_t offset = opera_vdlp_bmp_origin & 0xfffff;
