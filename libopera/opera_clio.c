@@ -516,8 +516,8 @@ opera_clio_poke(uint32_t addr_,
     }
   else if(addr_ == 0x220)
     {
-      CLIO.regs[addr_] = (val_ & 0x3FF);
-      opera_clock_timer_set_delay(CLIO.regs[addr_]);
+      CLIO.regs[addr_] = (val_ & 0x3FF);				// Mask max value to 10-bits. (1023).
+      opera_clock_timer_set_delay(CLIO.regs[addr_]);	// tmr_slack reg.
       return 0;
     }
   else if(addr_ == 0x120)
@@ -624,7 +624,7 @@ opera_clio_timer_execute(void)
   uint32_t  carry;
 
   carry = 1;
-  for(timer = 0; timer < 0x10; timer++)
+  for(timer = 0; timer < 16; timer++)
     {
       flags = timer_flags(timer);
       if(!(flags & DECREMENT))

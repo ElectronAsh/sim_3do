@@ -440,15 +440,15 @@ void sim_process_vdl() {
 	clut[0x10] = 0x848484; clut[0x11] = 0x8C8C8C; clut[0x12] = 0x949494; clut[0x13] = 0x9C9C9C; clut[0x14] = 0xA5A5A5; clut[0x15] = 0xADADAD; clut[0x16] = 0xB5B5B5; clut[0x17] = 0xBDBDBD;
 	clut[0x18] = 0xC5C5C5; clut[0x19] = 0xCECECE; clut[0x1A] = 0xD6D6D6; clut[0x1B] = 0xDEDEDE; clut[0x1C] = 0xE6E6E6; clut[0x1D] = 0xEFEFEF; clut[0x1E] = 0xF8F8F8; clut[0x1F] = 0xFFFFFF;
 
-	uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;
+	uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;	// Mask address to 1MB (VRAM).
 
 	// Read the VDL / CLUT from vram_ptr...
 	for (int i = 0; i <= 35; i++) {
-		if (i == 0) vdl_ctl = vram_ptr[(header >> 2) + i];
-		else if (i == 1) vdl_curr = vram_ptr[(header >> 2) + i];
-		else if (i == 2) vdl_prev = vram_ptr[(header >> 2) + i];
-		else if (i == 3) vdl_next = vram_ptr[(header >> 2) + i];
-		//else if (i>=4) clut[i-4] = vram_ptr[ (header>>2)+i ];         // TESTING !!!
+		if (i == 0) vdl_ctl = vram_ptr[header + i];
+		else if (i == 1) vdl_curr = vram_ptr[header + i];
+		else if (i == 2) vdl_prev = vram_ptr[header + i];
+		else if (i == 3) vdl_next = vram_ptr[header + i];
+		//else if (i>=4) clut[i-4] = vram_ptr[header+i];         // TESTING !!!
 	}
 
 	// Copy the VRAM pixels into disp_ptr...
@@ -459,8 +459,8 @@ void sim_process_vdl() {
 	//
 	uint32_t my_line = 0;
 
-	uint32_t offset = 0xC0000;
-	//uint32_t offset = vdl_curr & 0xfffff;
+	//uint32_t offset = 0xC0000;
+	uint32_t offset = vdl_curr & 0xfffff;
 	//uint32_t offset = vdl_next & 0xfffff;
 
 	for (int i = 0; i < (vram_size / 16); i++) {
@@ -748,63 +748,56 @@ void opera_tick() {
 	}
 }
 
-static
-void
-clio_handle_dma(uint32_t val_)
+static void sim_clio_handle_dma(uint32_t val_)
 {
-	//CLIO.regs[0x304] |= val_;
-	//top->rootp->core_3do__DOT__clio_inst__DOT__dmactrl |= val_;	// This is handled directly in clio.v now.
-
 	if (val_ & 0x00100000)	// Check if the Xbus DMA Enable bit in the write to 0x03400304 (CLIO dmactrl) is set.
 	{
-		int len;
-		unsigned trg;
+		int len;		// Needs to be a signed int, so the while (len >= 0) below works.
+		uint32_t trg;
 		uint8_t b0, b1, b2, b3;
 
-		//trg = opera_madam_peek(0x540);
-		//len = opera_madam_peek(0x544);
 		trg = top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_targ;	// 0x03300540. DMA Target (Source/Dest address). Likely always the dest, for a CDROM DMA?
 		len = top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_len;		// 0x03300544. DMA Length (in BYTES).
 
-		//CLIO.regs[0x304] &= ~0x00100000;
-		//CLIO.regs[0x400] &= ~0x80;
-		top->rootp->core_3do__DOT__clio_inst__DOT__dmactrl &= ~0x00100000;	// Clear the bit in the CLIO dmactrl reg.
+		fprintf(logfile, "Xbus DMA  trg: 0x%08X  len: 0x%08X\n", trg, len);
+
+		top->rootp->core_3do__DOT__clio_inst__DOT__dmactrl &= ~0x00100000;	// Clear bit [20] in the CLIO dmactrl reg.
 		top->rootp->core_3do__DOT__clio_inst__DOT__expctl &= ~0x80;			// Clear bit [7] in the CLIO expctl reg "DMA has control of Xbus".
 
-		//if (CLIO.regs[0x404] & 0x200)
-		//if (top->rootp->core_3do__DOT__clio_inst__DOT__expctl & 0x200)	// ??
-		//{
-			while (len >= 0)
+		//if (top->rootp->core_3do__DOT__clio_inst__DOT__expctl & 0x200)	// XB_DmadirectION bit.There was an "else" after this "if" in
+		//{																	// the Opera source, but the code was identical.
+			while (len >= 0)												// Very likely because the CDROM drive is always Xbus -> RAM. ElectronAsh.
 			{
 				b3 = sim_xbus_fifo_get_data();
 				b2 = sim_xbus_fifo_get_data();
 				b1 = sim_xbus_fifo_get_data();
 				b0 = sim_xbus_fifo_get_data();
 
-				//opera_mem_write8(trg + 0, b0);
-				//opera_mem_write8(trg + 1, b1);
-				//opera_mem_write8(trg + 2, b2);
-				//opera_mem_write8(trg + 3, b3);
+				//fprintf(logfile, "Addr: 0x%08X  0x%02X%02X%02X%02X\n", trg, b0, b1, b2, b3);
 
-				// Mask address, so DMA can only target 2MB main DRAM or 1MB VRAM (not registers). ElectronAsh.
-				dram[ (trg&0x2fffff)+0 ] = b0;
-				dram[ (trg&0x2fffff)+1 ] = b1;
-				dram[ (trg&0x2fffff)+2 ] = b2;
-				dram[ (trg&0x2fffff)+3 ] = b3;
+				// Mask address, so DMA can only target 2MB main DRAM ,or 1MB VRAM (but not registers?). ElectronAsh.
+				if (trg < 0x200000) {
+					ram_ptr[ (trg & 0x1fffff) + 0 ] = b0;
+					ram_ptr[ (trg & 0x1fffff) + 1 ] = b1;
+					ram_ptr[ (trg & 0x1fffff) + 2 ] = b2;
+					ram_ptr[ (trg & 0x1fffff) + 3 ] = b3;
+				}
+				else {
+					vram_ptr[ (trg & 0xfffff) + 0 ] = b0;
+					vram_ptr[ (trg & 0xfffff) + 1 ] = b1;
+					vram_ptr[ (trg & 0xfffff) + 2 ] = b2;
+					vram_ptr[ (trg & 0xfffff) + 3 ] = b3;
+				}
 
 				trg += 4;
 				len -= 4;
 			}
 
-			//CLIO.regs[0x400] |= 0x80;
 			top->rootp->core_3do__DOT__clio_inst__DOT__expctl |= 0x80;	// Set bit [7] in the CLIO expctl reg "ARM has control of Xbus".
 		//}
 
-		//opera_madam_poke(0x544, 0xFFFFFFFC);
 		top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_len = 0xFFFFFFFC;	// Length reg should end up with this value once it wraps 0?
-
-		//opera_clio_fiq_generate(1 << 29, 0);
-		top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= (1<<29);	// Set the IRQ0 Pending bit, for "XBus DMA Done"!
+		top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= (1<<29);		// Set the IRQ0 Pending bit, for "XBus DMA Done"!
 	}
 }
 
@@ -1150,7 +1143,7 @@ int verilate() {
 
 			if (top->o_wb_adr == 0x03400220) { fprintf(logfile, "CLIO TmrSlack   "); }
 			if (top->o_wb_adr == 0x03400304 && !top->o_wb_we) { fprintf(logfile, "CLIO dmactrl    "); }
-			if (top->o_wb_adr == 0x03400304 && top->o_wb_we) { fprintf(logfile, "CLIO dmactrl    "); clio_handle_dma(top->o_wb_dat); }
+			if (top->o_wb_adr == 0x03400304 && top->o_wb_we) { fprintf(logfile, "CLIO dmactrl    "); sim_clio_handle_dma(top->o_wb_dat); }
 			if (top->o_wb_adr == 0x03400308) { fprintf(logfile, "CLIO ClrDMAEna  "); }
 
 			if (top->o_wb_adr == 0x03400380) { fprintf(logfile, "CLIO DMA DSPP0  "); }
@@ -2101,6 +2094,9 @@ int main(int argc, char** argv, char** env) {
 		ImGui::SameLine(); ImGui::Text("poll_14: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_14);             // 0x578
 		ImGui::Text("sel_15: 0x%02X ", top->rootp->core_3do__DOT__clio_inst__DOT__sel_15);               // 0x53c
 		ImGui::SameLine(); ImGui::Text("poll_15: 0x%02X", top->rootp->core_3do__DOT__clio_inst__DOT__poll_15);             // 0x57c
+		ImGui::Separator();
+		ImGui::Text(" CD LBA: 0x%08X  ", CDIMAGE_SECTOR);
+		ImGui::Text(" CD Off: 0x%08X  ", CDIMAGE_SECTOR*CDIMAGE_SECTOR_SIZE);
 		ImGui::End();
 
 		ImGui::Begin("CLIO DSP regs");

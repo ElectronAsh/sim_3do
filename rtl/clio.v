@@ -271,8 +271,8 @@ always @(*) begin
 // IRQs...
 	16'h0040: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
 	16'h0044: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
-	16'h0048: cpu_dout = irq0_enable;		// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
-	16'h004c: cpu_dout = irq0_enable;		// Read = Return zeros? 
+	16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
+	16'h004c: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = Return zeros? 
 
 	16'h0050,16'h0054: cpu_dout = mode;		// 0x50/0x54 - Writing to 0x50 SETs mode bits. Writing to 0x54 CLEARs mode bits. Reading = ?
 	16'h0058: cpu_dout = badbits;			// 0x58 - for reading things like DMA fail reasons?
@@ -291,38 +291,38 @@ always @(*) begin
 
 
 // Timers... (16-bit wide?)
-	16'h0100: cpu_dout = {16'h0000, tmr_read_mux};	// 0x100
-	16'h0104: cpu_dout = {16'h0000, tmr_read_mux};	// 0x104
-	16'h0108: cpu_dout = {16'h0000, tmr_read_mux};	// 0x108
-	16'h010c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x10c
-	16'h0110: cpu_dout = {16'h0000, tmr_read_mux};	// 0x110
-	16'h0114: cpu_dout = {16'h0000, tmr_read_mux};	// 0x114
-	16'h0118: cpu_dout = {16'h0000, tmr_read_mux};	// 0x118
-	16'h011c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x11c
-	16'h0120: cpu_dout = {16'h0000, tmr_read_mux};	// 0x120
-	16'h0124: cpu_dout = {16'h0000, tmr_read_mux};	// 0x124
-	16'h0128: cpu_dout = {16'h0000, tmr_read_mux};	// 0x128
-	16'h012c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x12c
-	16'h0130: cpu_dout = {16'h0000, tmr_read_mux};	// 0x130
-	16'h0134: cpu_dout = {16'h0000, tmr_read_mux};	// 0x134
-	16'h0138: cpu_dout = {16'h0000, tmr_read_mux};	// 0x138
-	16'h013c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x13c
-	16'h0140: cpu_dout = {16'h0000, tmr_read_mux};	// 0x140
-	16'h0144: cpu_dout = {16'h0000, tmr_read_mux};	// 0x144
-	16'h0148: cpu_dout = {16'h0000, tmr_read_mux};	// 0x148
-	16'h014c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x14c
-	16'h0150: cpu_dout = {16'h0000, tmr_read_mux};	// 0x150
-	16'h0154: cpu_dout = {16'h0000, tmr_read_mux};	// 0x154
-	16'h0158: cpu_dout = {16'h0000, tmr_read_mux};	// 0x158
-	16'h015c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x15c
-	16'h0160: cpu_dout = {16'h0000, tmr_read_mux};	// 0x160
-	16'h0164: cpu_dout = {16'h0000, tmr_read_mux};	// 0x164
-	16'h0168: cpu_dout = {16'h0000, tmr_read_mux};	// 0x168
-	16'h016c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x16c
-	16'h0170: cpu_dout = {16'h0000, tmr_read_mux};	// 0x170
-	16'h0174: cpu_dout = {16'h0000, tmr_read_mux};	// 0x174
-	16'h0178: cpu_dout = {16'h0000, tmr_read_mux};	// 0x178
-	16'h017c: cpu_dout = {16'h0000, tmr_read_mux};	// 0x17c
+	16'h0100: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x100
+	16'h0104: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x104
+	16'h0108: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x108
+	16'h010c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x10c
+	16'h0110: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x110
+	16'h0114: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x114
+	16'h0118: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x118
+	16'h011c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x11c
+	16'h0120: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x120
+	16'h0124: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x124
+	16'h0128: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x128
+	16'h012c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x12c
+	16'h0130: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x130
+	16'h0134: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x134
+	16'h0138: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x138
+	16'h013c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x13c
+	16'h0140: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x140
+	16'h0144: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x144
+	16'h0148: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x148
+	16'h014c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x14c
+	16'h0150: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x150
+	16'h0154: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x154
+	16'h0158: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x158
+	16'h015c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x15c
+	16'h0160: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x160
+	16'h0164: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x164
+	16'h0168: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x168
+	16'h016c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x16c
+	16'h0170: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x170
+	16'h0174: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x174
+	16'h0178: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x178
+	16'h017c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x17c
 
 // Writing to 0x200 SETs the LOWER 32-bits of timer_ctrl.
 // Writing to 0x204 CLEARs the LOWER 32-bits of timer_ctrl.
@@ -443,8 +443,8 @@ wire [7:0] fifo_spoof = (fifo_idx==4'd0)  ? 8'h83 : // CDROM_CMD_READ_ID
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera returns 0x02020000.
-	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
-	//cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
+	//cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
+	cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
 	expctl <= 32'h00000080;			// Opera starts with this -> 0x80; // ARM has the expansion bus.
 	field <= 1'b0;
 	hcnt <= 32'd0;
@@ -528,7 +528,11 @@ else begin
 	if ( hcnt==32'd12 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
 	if ( hcnt==32'd12 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
 
-	irq0_pend[31] <= |irq1_pend;	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
+	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
+	irq0_pend[31] <= |irq1_pend;
+	
+	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend. Masked with irq0_enable[31].
+	//irq0_pend[31] <= (|irq1_pend) && irq0_enable[31];
 
 	hcnt <= hcnt + 1'd1;
 	if (hcnt==hcnt_max) begin
@@ -561,11 +565,11 @@ else begin
 
 		// IRQs. (FIQ on ARM will be triggered if PENDING and corresponding MASK bits are both SET.)
 															
-		16'h0040: begin irq0_pend <= irq0_pend |  cpu_din; $display("Write to irq0_pend SET."); end			// 0x40. Writing to 0x40 SETs irq0_pend bits. 
-		16'h0044: begin irq0_pend <= irq0_pend & ~cpu_din; $display("Write to irq0_pend CLR."); end			// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
+		16'h0040: begin irq0_pend <= irq0_pend |  cpu_din; /*$display("Write to irq0_pend SET.");*/ end			// 0x40. Writing to 0x40 SETs irq0_pend bits. 
+		16'h0044: begin irq0_pend <= irq0_pend & ~cpu_din; /*$display("Write to irq0_pend CLR.");*/ end			// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
 		
-		16'h0048: begin irq0_enable <= irq0_enable |  cpu_din; $display("Write to irq0_enable SET."); end	// 0x48. Writing to 0x48 SETs irq0_enable bits.
-		16'h004c: begin irq0_enable <= irq0_enable & ~cpu_din; $display("Write to irq0_enable CLR."); end	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
+		16'h0048: begin irq0_enable <= irq0_enable |  cpu_din; /*$display("Write to irq0_enable SET.");*/ end	// 0x48. Writing to 0x48 SETs irq0_enable bits.
+		16'h004c: begin irq0_enable <= irq0_enable & ~cpu_din; /*$display("Write to irq0_enable CLR.");*/ end	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
 
 		16'h0050: mode <= mode |  cpu_din;		// 0x50. Writing to 0x50 SETs mode bits.
 		16'h0054: mode <= mode & ~cpu_din;		// 0x54. Writing to 0x54 CLEARs mode bits.
@@ -575,11 +579,11 @@ else begin
 		16'h005c: spare <= cpu_din;				// 0x5c. ?
 
 															// FIQ will be triggered if PENDING and corresponding ENABLE bits are both SET.
-		16'h0060: begin irq1_pend <= irq1_pend |  cpu_din; $display("Write to irq1_pend SET."); end		// 0x60. Writing to 0x60 SETs irq1_pend bits.
-		16'h0064: begin irq1_pend <= irq1_pend & ~cpu_din; $display("Write to irq1_pend CLR."); end		// 0x64. Writing to 0x64 CLEARs irq1_pend bits.
+		16'h0060: begin irq1_pend <= irq1_pend |  cpu_din; /*$display("Write to irq1_pend SET.");*/ end		// 0x60. Writing to 0x60 SETs irq1_pend bits.
+		16'h0064: begin irq1_pend <= irq1_pend & ~cpu_din; /*$display("Write to irq1_pend CLR.");*/ end		// 0x64. Writing to 0x64 CLEARs irq1_pend bits.
 		
-		16'h0068: begin irq1_enable <= irq1_enable |  cpu_din; $display("Write to irq1_enable SET."); end	// 0x68. Writing to 0x68 SETs irq1_enable bits.
-		16'h006c: begin irq1_enable <= irq1_enable & ~cpu_din; $display("Write to irq1_enable CLR."); end	// 0x6c. Writing to 0x6c CLEARSs irq1_enable bits.
+		16'h0068: begin irq1_enable <= irq1_enable |  cpu_din; /*$display("Write to irq1_enable SET.");*/ end	// 0x68. Writing to 0x68 SETs irq1_enable bits.
+		16'h006c: begin irq1_enable <= irq1_enable & ~cpu_din; /*$display("Write to irq1_enable CLR.");*/ end	// 0x6c. Writing to 0x6c CLEARSs irq1_enable bits.
 
 		// hdelay / adbio stuff...
 		16'h0080: hdelay <= cpu_din;		// 0x80
@@ -721,8 +725,8 @@ else begin
 	if (tmr15_wrap) irq0_pend[03] <= 1'b1;
 end
 
-// reg [31:0] tmr_ctrl_l;        // 0x200,0x204. Controls the lower timers 7  (uppermost nibble) through 0 (lowermost nibble).
-// reg [31:0] tmr_ctrl_u;        // 0x208,0x20c. Controls the lower timers 15 (uppermost nibble) through 8 (lowermost nibble).
+// reg [31:0] tmr_ctrl_l;        
+// reg [31:0] tmr_ctrl_u;        
 
 // Bits of each nibble...
 //bit 0: decrement / enable
@@ -730,6 +734,7 @@ end
 //bit 2: cascade - decremented when the previous timer underflows
 //bit 3: flabcode - ?? unknown
 
+// 0x200,0x204. Controls the lower timers 7  (uppermost nibble) through 0 (lowermost nibble).
 wire [3:0] tmr0_ctrl  = tmr_ctrl_l[3:0];
 wire [3:0] tmr1_ctrl  = tmr_ctrl_l[7:4];
 wire [3:0] tmr2_ctrl  = tmr_ctrl_l[11:8];
@@ -739,6 +744,7 @@ wire [3:0] tmr5_ctrl  = tmr_ctrl_l[23:20];
 wire [3:0] tmr6_ctrl  = tmr_ctrl_l[27:24];
 wire [3:0] tmr7_ctrl  = tmr_ctrl_l[31:28];
 
+// 0x208,0x20c. Controls the lower timers 15 (uppermost nibble) through 8 (lowermost nibble).
 wire [3:0] tmr8_ctrl  = tmr_ctrl_u[3:0];
 wire [3:0] tmr9_ctrl  = tmr_ctrl_u[7:4];
 wire [3:0] tmr10_ctrl = tmr_ctrl_u[11:8];
@@ -852,7 +858,7 @@ clio_timer  tmr0_inst (
 	.tmr_cas_bit( tmr0_ctrl[2] ),	// input  tmr_cas_bit
 	.tmr_wrap( tmr0_wrap ),			// output tmr_wrap (pulse)
 	.tmr_ena_clr( tmr0_ena_clr ),	// output tmr_ena_clr (pulse)
-	.tmr_cas_clk( tmr0_cas ),		// input  tmr_cas_clk
+	.tmr_cas_clk( 1'b1 ),		// input  tmr_cas_clk
 	.tmr_slack( tmr_slack )
 );
 clio_timer  tmr1_inst (
@@ -1124,31 +1130,35 @@ if (!reset_n) begin
 	slack_cnt <= 10'd0;
 	tmr_wrap <= 1'b0;
 	tmr_ena_clr <= 1'b0;
-	tmr_cnt <= 16'h0001;
 	tmr_cnt_prev <= 16'h0000;
-	tmr_bkp <= 16'h0001;
+	tmr_cnt <= 16'h0200;
+	tmr_bkp <= 16'h0200;
 end
 else begin
 	tmr_wrap <= 1'b0;
 	tmr_ena_clr <= 1'b0;
-
-	if (slack_cnt==10'd0) slack_cnt <= tmr_slack>>1;	// Kludge for sim. Our CPU is "clocked" the same time as MADAM and CLIO in the sim atm.
-	else slack_cnt <= slack_cnt - 10'd1;				// So from the CPU's perspective, the timers are running twice as slow as they should. ElectronAsh.
 
 	// Handle reg writes.
 	if (tmr_we) begin
 		if (!tmr_a2) tmr_cnt <= tmr_din;
 		else tmr_bkp <= tmr_din;
 	end
+	
+	if (slack_cnt==10'd0) slack_cnt <= tmr_slack>>1;	// Kludge for sim. Our CPU is "clocked" the same time as MADAM and CLIO in the sim atm.
+	else slack_cnt <= slack_cnt - 10'd1;				// So from the CPU's perspective, the timers are running twice as slow as they should. ElectronAsh.
 
 	if (tmr_ena) begin
+		if (tmr_dec) tmr_cnt <= tmr_cnt - 1'b1;	// Decrement.
 		tmr_cnt_prev <= tmr_cnt;
-		if (tmr_cnt==16'hFFFF && tmr_cnt_prev==16'h0000) begin		// Timer has wrapped...
+	
+		if (tmr_cnt==16'hffff && tmr_cnt_prev==16'h0000) begin	// Timer has wrapped...
 			tmr_wrap <= 1'b1;					// PULSE the tmr_wrap bit. (to optionally clock the next timer, via its cascade input).
 			if (tmr_reload) tmr_cnt <= tmr_bkp;	// If Reload bit is HIGH, reload the "backup" count value.
-			else tmr_ena_clr <= 1'b1;			// If Reload bit is LOW, PULSE tmr_ena_clr, to clear the Enable bit.
+			else begin
+				tmr_ena_clr <= 1'b1;			// If Reload bit is LOW, PULSE tmr_ena_clr, to clear the Enable bit.
+				//tmr_cnt_prev <= 16'hffff;		// Kludge.
+			end
 		end
-		else if (tmr_dec) tmr_cnt <= tmr_cnt - 1'b1;	// Decrement.
 	end
 end
 
