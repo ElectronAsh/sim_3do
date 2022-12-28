@@ -691,19 +691,19 @@ void svf_flash_write() {        // "Color fill", basically.
 uint8_t pbus_buf[PBUS_BUF_SIZE];
 uint32_t pbus_idx;
 
-bool jp_d = 0;
-bool jp_u = 0;
-bool jp_r = 0;
-bool jp_l = 0;
-bool jp_a = 0;
-bool jp_b = 0;
-bool jp_c = 0;
-bool jp_p = 0;
-bool jp_x = 0;
-bool jp_rt = 0;
-bool jp_lt = 0;
-
 void pbus_dma() {
+	bool jp_d = ImGui::GetIO().KeyShift;
+	bool jp_u = ImGui::GetIO().KeyShift;
+	bool jp_r = ImGui::GetIO().KeyShift;
+	bool jp_l = ImGui::GetIO().KeyShift;
+	bool jp_a = ImGui::GetIO().KeyShift;
+	bool jp_b = ImGui::GetIO().KeyShift;
+	bool jp_c = ImGui::GetIO().KeyShift;
+	bool jp_p = ImGui::GetIO().KeyShift;
+	bool jp_x = ImGui::GetIO().KeyShift;
+	bool jp_rt = ImGui::GetIO().KeyShift;
+	bool jp_lt = ImGui::GetIO().KeyShift;
+
 	uint32_t str = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_dst;    // 0x570.
 	uint32_t len = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_len;    // 0x574.
 	uint32_t end = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_src;    // 0x578.
@@ -1654,8 +1654,8 @@ int main(int argc, char** argv, char** env) {
 
 	soundfile = fopen("soundfile.bin", "wb");
 
-	//isofile = fopen("aitd_us.iso", "rb");
-	isofile = fopen("PhotoCD_Gallery.iso", "rb");
+	isofile = fopen("aitd_us.iso", "rb");
+	//isofile = fopen("PhotoCD_Gallery.iso", "rb");
 	fseek(isofile, 0L, SEEK_END);
 	iso_size = ftell(isofile);
 	fseek(isofile, 0L, SEEK_SET);
@@ -1663,7 +1663,7 @@ int main(int argc, char** argv, char** env) {
 
 	FILE* romfile;
 	//romfile = fopen("panafz1.bin", "rb");
-	romfile = fopen("panafz10.bin", "rb");                  // This is the version MAME v226b uses by default, with "mame64 3do".
+	romfile = fopen("panafz10.bin", "rb");			// This is the version MAME v226b uses by default, with "mame64 3do".
 	//romfile = fopen("panafz10-norsa.bin", "rb");
 	//romfile = fopen("sanyotry.bin", "rb");
 	//romfile = fopen("goldstar.bin", "rb");
@@ -1955,6 +1955,15 @@ int main(int argc, char** argv, char** env) {
 
 		ImGui::Begin("ARM Registers");
 
+		if ( run_enable==1 ) {
+			if (ImGui::IsKeyPressed(ImGuiKey_F10) || ImGui::IsKeyPressed(ImGuiKey_F11) ) run_enable = 0;
+		}
+		else {
+			if ( ImGui::IsKeyPressed(ImGuiKey_F5)  ) run_enable = 1;
+			if ( ImGui::IsKeyPressed(ImGuiKey_F10) ) multi_step = 1;
+			if ( ImGui::IsKeyPressed(ImGuiKey_F11) ) single_step = 1;
+		}
+
 		if (run_enable)
 		{
 			for (int step = 0; step < 2048; step++)
@@ -2013,7 +2022,7 @@ int main(int argc, char** argv, char** env) {
 				top->eval();
 				*/
 				verilate();
-				if (run_enable == 0) break;
+				//if (run_enable == 0) break;
 				main_time++;
 			}
 		}

@@ -120,9 +120,6 @@
     <ClCompile Include="..\..\sim_xbus.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\out\Vcore_3do.cpp">
-      <Filter>Source Files\Vcore</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__0.cpp">
       <Filter>Source Files\Vcore</Filter>
     </ClCompile>
@@ -156,6 +153,9 @@
     <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__8.cpp">
       <Filter>Source Files\Vcore</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__9.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_hf5bde208__0.cpp">
       <Filter>Source Files\Vcore</Filter>
     </ClCompile>
@@ -178,6 +178,9 @@
       <Filter>Source Files\Vcore</Filter>
     </ClCompile>
     <ClCompile Include="..\..\out\Vcore_3do__Trace__0__Slow.cpp">
+      <Filter>Source Files\Vcore</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\out\Vcore_3do.cpp">
       <Filter>Source Files\Vcore</Filter>
     </ClCompile>
   </ItemGroup>
