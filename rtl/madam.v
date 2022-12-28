@@ -1,7 +1,8 @@
 //
 // 3DO MADAM chip implementation / notes. ElectronAsh, Jan 2022.
 //
-// MADAM contains: ARM CPU interface, DRAM/VRAM Address control, VRAM SPORT control (probably), DMA Engine, CEL Engine, Matrix Engine, Main timings for pixel/VDL/CCB access, P-Bus (joyport), "PD" bus (Slow bus??) for BIOS / SRAM / DAC access.
+// MADAM contains: ARM CPU interface, DRAM/VRAM Address control, VRAM SPORT control (probably), DMA Engine, CEL Engine,
+// Matrix Engine, Main timings for pixel/VDL/CCB access, P-Bus (joyport), "PD" bus (Slow bus??) for BIOS / SRAM / DAC access.
 //
 //
 module madam (
@@ -9,29 +10,53 @@ module madam (
 	input reset_n,
 	
 	input [31:0] cpu_addr,
-	
 	input [31:0] cpu_din,
 	input cpu_rd,
 	input cpu_wr,
-	
 	output reg [31:0] cpu_dout,
 	
-	output [22:0] ram_addr,	
-	input [31:0] ram_din,
-	output ram_rd,
+	output reg cpu_clk,
 	
-	output [31:0] ram_dout,
-	output ram_wr,
+	output [21:0] mem_addr,	
+	input [31:0] mem_din,
+	output mem_rd,
+	output mem_wr,
+	output [31:0] mem_dout,
 	
-	output bios_cs,
 	output dram_cs,
 	output vram_cs,
+	output bios_cs,
 	
 	input pcsc,
 	
-	output reg lpsc_n, 	// Right-hand VRAM SAM strobe. (pixel or VDL data is on S-bus[31:16]).
-	output reg rpsc_n 	// Left-hand VRAM SAM strobe.  (pixel or VDL data is on S-bus[15:00]).
+	output reg lpsc_n, 		// Right-hand VRAM SAM strobe. (pixel or VDL data is on S-bus[31:16]).
+	output reg rpsc_n, 		// Left-hand VRAM SAM strobe.  (pixel or VDL data is on S-bus[15:00]).
+	
+	input [4:0] dma_req,	// Parallel version of dmareq on the original MADAM chip.
+	output reg dma_ack
 );
+
+assign mem_addr = (dma_req>5'd0 && dma_ack) ? dma_addr : cpu_addr[21:0];
+assign mem_dout = (dma_req>5'd0 && dma_ack) ? dma_dout : cpu_dout;
+assign mem_rd   = (dma_req>5'd0 && dma_ack) ? dma_rd : cpu_rd;
+assign mem_wr   = (dma_req>5'd0 && dma_ack) ? dma_wr : cpu_wr;
+
+reg [21:0] dma_addr;
+wire [31:0] dma_dout;
+reg dma_rd;
+reg dma_wr;
+
+
+assign dram_cs = (cpu_addr>=32'h00000000 && cpu_addr<=32'h001fffff);	// 2MB main DRAM.
+assign vram_cs = (cpu_addr>=32'h00200000 && cpu_addr<=32'h002fffff);	// 1MB VRAM.
+
+// BIOS is mapped to the (2MB) DRAM range at start-up / reset. Any write to that range will Clear map_bios.
+// BIOS is always mapped at 0x00300000-0x003fffff.
+// TODO: Is the 1MB BIOS only mapped to the lower 1MB of DRAM range, or is it mirrored to the upper 1MB of DRAM as well?
+reg map_bios;
+assign bios_cs = (dram_cs && map_bios) || (cpu_addr>=32'h00300000 && cpu_addr<=32'h003fffff);
+
+
 
 reg [2:0] pcsc_index;
 reg [7:0] pcsc_reg;
@@ -148,39 +173,7 @@ reg [31:0] fence_3r;
 // 0x0400 to 0x05FC = DMA. See US patent WO09410641A1 page 46 line 25 for details.
 // Most of the DMA addr regs are probably 22-bits wide, as suggested in the patent.
 // (ie. each can address a 4MB memory range.)
-reg [21:0] dma0_curaddr;	// 0x400. CPU RAM to DSP DMA Group 0x0: current address.
-reg [21:0] dma0_curlen;		// 0x404. CPU RAM to DSP DMA Group 0x0: current length.
-reg [21:0] dma0_nextaddr;	// 0x408. CPU RAM to DSP DMA Group 0x0: next address.
-reg [21:0] dma0_nextlen;	// 0x40C. CPU RAM to DSP DMA Group 0x0: next length.
 
-// TODO - There are actually around 128 DMA registers!
-// This should all be put into its own Verilog module.
-// Some specs say "36 Separate DMA Channels".
-
-reg [21:0] dmac_curaddr;	// 0x4C0. CPU RAM to DSP DMA Group 0xC: current address.
-reg [21:0] dmac_curlen;		// 0x4C4. CPU RAM to DSP DMA Group 0xC: current length.
-reg [21:0] dmac_nextaddr;	// 0x4C8. CPU RAM to DSP DMA Group 0xC: next address.
-reg [21:0] dmac_nextlen;	// 0x4CC. CPU RAM to DSP DMA Group 0xC: next length.
-
-// 0x04D0 = FMV DMA Group 1?
-// 0x04D3 = FMV DMA Group 1?
-// 0x04E0 = FMV DMA Group 1?
-// 0x04E4 = FMV DMA Group 1?
-
-// 0x0540 = XBUS DMA: Source / Dest Address.
-// 0x0544 = XBUX DMA: Length.
-
-reg [31:0] xbus_dma_targ;
-reg [31:0] xbus_dma_len;
-
-// 0x0550 = FMV DMA Group 2?
-// 0x0554 = FMV DMA Group 2?
-// 0x0560 = FMV DMA Group 2?
-// 0x0564 = FMV DMA Group 2?
-
-// 0x0570 = Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
-// 0x0574 = Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
-// 0x0578 = Player Bus DMA: Source Address.
 
 reg [31:0] vdl_addr;// 0x580
 
@@ -196,7 +189,7 @@ reg trig_pbus_dma;
 
 // MADAM register READ driver...
 always @(*) begin
-	case (cpu_addr[15:0])
+	casez (cpu_addr[15:0])
 		16'h0000: cpu_dout = 32'h01020000;	// 0x0000. Revision when read. BIOS Serial debug when written.
 		//16'h0004: cpu_dout = msysbits;	// 0x0004. Memory Configuration.
 		16'h0004: cpu_dout = 32'h00000029;	// 0x0004. Memory Configuration. 0x29 = 2MB DRAM, 1MB VRAM.
@@ -253,38 +246,8 @@ always @(*) begin
 		// 0x0400 to 0x05FC = DMA. See US patent WO09410641A1 page 46 line 25 for details.
 		// Most of the DMA addr regs are probably 22-bits wide, as suggested in the patent.
 		// (ie. each can address a 4MB memory range.)
-		16'h0400: cpu_dout = dma0_curaddr;	// 0x400. CPU RAM to DSP DMA Group 0x0: current address.
-		16'h0404: cpu_dout = dma0_curlen;	// 0x404. CPU RAM to DSP DMA Group 0x0: current length.
-		16'h0408: cpu_dout = dma0_nextaddr;	// 0x408. CPU RAM to DSP DMA Group 0x0: next address.
-		16'h040c: cpu_dout = dma0_nextlen;	// 0x40C. CPU RAM to DSP DMA Group 0x0: next length.
-
-		// TODO - There are actually around 128 DMA registers!
-		// This should all be put into its own Verilog module.
-		// Some specs say "36 Separate DMA Channels".
-
-		16'h04c0: cpu_dout = dmac_curaddr;	// 0x4C0. CPU RAM to DSP DMA Group 0xC: current address.
-		16'h04c4: cpu_dout = dmac_curlen;	// 0x4C4. CPU RAM to DSP DMA Group 0xC: current length.
-		16'h04c8: cpu_dout = dmac_nextaddr;	// 0x4C8. CPU RAM to DSP DMA Group 0xC: next address.
-		16'h04cc: cpu_dout = dmac_nextlen;	// 0x4CC. CPU RAM to DSP DMA Group 0xC: next length.
-
-		// 16'h04D0 = FMV DMA Group 1?
-		// 16'h04D3 = FMV DMA Group 1?
-		// 16'h04E0 = FMV DMA Group 1?
-		// 16'h04E4 = FMV DMA Group 1?
-
-		16'h0540: cpu_dout = xbus_dma_targ;	// XBUS DMA: Source / Dest Address.
-		16'h0544: cpu_dout = xbus_dma_len;	// XBUX DMA: Length.
-
-		// 16'h0550 = FMV DMA Group 2?
-		// 16'h0554 = FMV DMA Group 2?
-		// 16'h0560 = FMV DMA Group 2?
-		// 16'h0564 = FMV DMA Group 2?
-
-		16'h0570: cpu_dout = pbus_dst;	// Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
-		16'h0574: cpu_dout = pbus_len;	// Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
-		16'h0578: cpu_dout = pbus_src;	// Player Bus DMA: Source Address.
 		
-		16'h0580: cpu_dout = vdl_addr;	// 0x580
+		16'h04??, 16'h05??: cpu_dout = dma_regout;	// 0x0400 - 0x05ff.
 
 		// 0x0600 to 0x069C = Hardware Multiplier (Matrix Engine).
 		default: cpu_dout = 32'hBADACCE5;
@@ -297,12 +260,17 @@ if (!reset_n) begin
 	trig_pbus_dma <= 1'b0;
 	
 	pbus_len <= 32'hfffffffc;      // Set PBUS length reg to -4 ?
+
+	map_bios <= 1'b1;
 	
-	xbus_dma_targ <= 32'h00000000;
-	xbus_dma_len <= 32'h00000000;
+	cpu_clk <= 1'b0;
 end
 else begin
 	trig_pbus_dma <= 1'b0;
+	
+	cpu_clk <= ~cpu_clk;
+
+	if (cpu_addr>=32'h00000000 && cpu_addr<=32'h001fffff && cpu_wr) map_bios <= 1'b0;	// Any write to the 2MB DRAM range will unmap the BIOS.
 
 	// Handle MADAM register WRITES...
 	if (cpu_wr) begin
@@ -362,38 +330,9 @@ else begin
 			// 0x0400 to 0x05FC <= DMA. See US patent WO09410641A1 page 46 line 25 for details.
 			// Most of the DMA addr regs are probably 22-bits wide, as suggested in the patent.
 			// (ie. each can address a 4MB memory range.)
-			16'h0400: dma0_curaddr <= cpu_din;	// 0x400. CPU RAM to DSP DMA Group 0x0: current address.
-			16'h0404: dma0_curlen <= cpu_din;	// 0x404. CPU RAM to DSP DMA Group 0x0: current length.
-			16'h0408: dma0_nextaddr <= cpu_din;	// 0x408. CPU RAM to DSP DMA Group 0x0: next address.
-			16'h040c: dma0_nextlen <= cpu_din;	// 0x40C. CPU RAM to DSP DMA Group 0x0: next length.
 
-			// TODO - There are actually around 128 DMA registers!
-			// This should all be put into its own Verilog module.
-			// Some specs say "36 Separate DMA Channels".
-
-			16'h04c0: dmac_curaddr <= cpu_din;	// 0x4C0. CPU RAM to DSP DMA Group 0xC: current address.
-			16'h04c4: dmac_curlen <= cpu_din;	// 0x4C4. CPU RAM to DSP DMA Group 0xC: current length.
-			16'h04c8: dmac_nextaddr <= cpu_din;	// 0x4C8. CPU RAM to DSP DMA Group 0xC: next address.
-			16'h04cc: dmac_nextlen <= cpu_din;	// 0x4CC. CPU RAM to DSP DMA Group 0xC: next length.
-
-			// 0x04D0 = FMV DMA Group 1?
-			// 0x04D3 = FMV DMA Group 1?
-			// 0x04E0 = FMV DMA Group 1?
-			// 0x04E4 = FMV DMA Group 1?
-
-			16'h0540: xbus_dma_targ <= cpu_din;	// 0x0540 = XBUS DMA: Source / Dest Address.
-			16'h0544: xbus_dma_len <= cpu_din;	// 0x0544 = XBUX DMA: Length.
+			16'h0580: vdl_addr <= cpu_din;	// 0x580. Actually a DMA register!
 			
-			// 0x0550 = FMV DMA Group 2?
-			// 0x0554 = FMV DMA Group 2?
-			// 0x0560 = FMV DMA Group 2?
-			// 0x0564 = FMV DMA Group 2?
-
-			16'h0570: pbus_dst <= cpu_din;	// Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
-			16'h0574: pbus_len <= cpu_din;	// Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
-			16'h0578: pbus_src <= cpu_din;	// Player Bus DMA: Source Address.
-			
-			16'h0580: vdl_addr <= cpu_din;	// 0x580
 			default: ;
 		endcase
 	end
@@ -589,5 +528,557 @@ reg [63:0] rez3t;	// Result reg?
 	}
 }
 */
+
+wire dma_reg_cs = (cpu_addr>=32'h03300400 && cpu_addr<=32'h033005fc);
+wire [31:0] dma_regout;
+
+dma_stack dma_stack_inst (
+	.clk_25m( clk_25m ),	// input clk_25m,
+	.reset_n( reset_n ),	// input reset_n,
+
+	.cpu_addr( cpu_addr ),	// input [31:0] cpu_addr,
+	.cpu_din( cpu_din ),	// input [31:0] cpu_din,
+	.cpu_rd( cpu_rd ),		// input cpu_rd,
+	.cpu_wr( cpu_wr ),		// input cpu_wr,
+	
+	.dma_reg_cs( dma_reg_cs ),	// input dma_reg_cs,
+	.dma_regout( dma_regout ),	// output [31:0] dma_regout,
+	
+	.dma_req( dma_req ),	// input [4:0] dma_req,
+	.dma_ack( dma_ack ),	// output reg dma_ack,
+	.dma_addr( dma_addr ),	// output [21:0] dma_addr,
+	.dma_dir( dma_dir )		// output dma_dir
+);
+
+endmodule
+
+
+module dma_stack (
+	input clk_25m,
+	input reset_n,
+
+	input [31:0] cpu_addr,
+	input [31:0] cpu_din,
+	input cpu_rd,
+	input cpu_wr,
+	
+	input dma_reg_cs,
+	output reg [31:0] dma_regout,
+	
+	input [4:0] dma_req,
+	output reg dma_ack,
+	output [21:0] dma_addr,
+	output dma_dir
+);
+
+
+// 0x0400 to 0x05FC = DMA reg. See US patent WO09410641A1 page 46 line 25 for details.
+// Most of the DMA address regs are probably 22-bits wide, as suggested in the patent.
+// (ie. each can address a 4MB memory range.)
+
+reg [21:0] dma0_curaddr;	// 0x400. RamToDSPP0
+reg [23:0] dma0_curlen;		// 0x404
+reg [21:0] dma0_nextaddr;	// 0x408
+reg [23:0] dma0_nextlen;	// 0x40c
+
+reg [21:0] dma1_curaddr;	// 0x410. RamToDSPP1
+reg [23:0] dma1_curlen;		// 0x414
+reg [21:0] dma1_nextaddr;	// 0x418
+reg [23:0] dma1_nextlen;	// 0x41c
+
+reg [21:0] dma2_curaddr;	// 0x420. RamToDSPP2
+reg [23:0] dma2_curlen;		// 0x424
+reg [21:0] dma2_nextaddr;	// 0x428
+reg [23:0] dma2_nextlen;	// 0x42c
+
+reg [21:0] dma3_curaddr;	// 0x430. RamToDSPP3
+reg [23:0] dma3_curlen;		// 0x434
+reg [21:0] dma3_nextaddr;	// 0x438
+reg [23:0] dma3_nextlen;	// 0x43c
+
+reg [21:0] dma4_curaddr;	// 0x440. RamToDSPP4
+reg [23:0] dma4_curlen;		// 0x444
+reg [21:0] dma4_nextaddr;	// 0x448
+reg [23:0] dma4_nextlen;	// 0x44c
+
+reg [21:0] dma5_curaddr;	// 0x450. RamToDSPP5
+reg [23:0] dma5_curlen;		// 0x454
+reg [21:0] dma5_nextaddr;	// 0x458
+reg [23:0] dma5_nextlen;	// 0x45c
+
+reg [21:0] dma6_curaddr;	// 0x460. RamToDSPP6
+reg [23:0] dma6_curlen;		// 0x464
+reg [21:0] dma6_nextaddr;	// 0x468
+reg [23:0] dma6_nextlen;	// 0x46c
+
+reg [21:0] dma7_curaddr;	// 0x470. RamToDSPP7
+reg [23:0] dma7_curlen;		// 0x474
+reg [21:0] dma7_nextaddr;	// 0x478
+reg [23:0] dma7_nextlen;	// 0x47c
+
+reg [21:0] dma8_curaddr;	// 0x480. RamToDSPP8
+reg [23:0] dma8_curlen;		// 0x484
+reg [21:0] dma8_nextaddr;	// 0x488
+reg [23:0] dma8_nextlen;	// 0x48c
+
+reg [21:0] dma9_curaddr;	// 0x490. RamToDSPP9
+reg [23:0] dma9_curlen;		// 0x494
+reg [21:0] dma9_nextaddr;	// 0x498
+reg [23:0] dma9_nextlen;	// 0x49c
+
+reg [21:0] dma10_curaddr;	// 0x4a0. RamToDSPP10
+reg [23:0] dma10_curlen;	// 0x4a4
+reg [21:0] dma10_nextaddr;	// 0x4a8
+reg [23:0] dma10_nextlen;	// 0x4ac
+
+reg [21:0] dma11_curaddr;	// 0x4b0. RamToDSPP11
+reg [23:0] dma11_curlen;	// 0x4b4
+reg [21:0] dma11_nextaddr;	// 0x4b8
+reg [23:0] dma11_nextlen;	// 0x4bc
+
+reg [21:0] dma12_curaddr;	// 0x4c0. RamToDSPP12
+reg [23:0] dma12_curlen;	// 0x4c4
+reg [21:0] dma12_nextaddr;	// 0x4c8
+reg [23:0] dma12_nextlen;	// 0x4cc
+
+reg [21:0] dma13_curaddr;	// 0x4d0. RamToUncle
+reg [23:0] dma13_curlen;	// 0x4d4
+reg [21:0] dma13_nextaddr;	// 0x4d8
+reg [23:0] dma13_nextlen;	// 0x4dc
+
+reg [21:0] dma14_curaddr;	// 0x4e0. RamToExternal
+reg [23:0] dma14_curlen;	// 0x4e4
+reg [21:0] dma14_nextaddr;	// 0x4e8
+reg [23:0] dma14_nextlen;	// 0x4ec
+
+reg [21:0] dma15_curaddr;	// 0x4f0. RamToDSPPNStack
+reg [23:0] dma15_curlen;	// 0x4f4
+reg [21:0] dma15_nextaddr;	// 0x4f8
+reg [23:0] dma15_nextlen;	// 0x4fc
+
+reg [21:0] dma16_curaddr;	// 0x500. DSPPToRam0
+reg [23:0] dma16_curlen;	// 0x504
+reg [21:0] dma16_nextaddr;	// 0x508
+reg [23:0] dma16_nextlen;	// 0x50c
+
+reg [21:0] dma17_curaddr;	// 0x510. DSPPToRam1
+reg [23:0] dma17_curlen;	// 0x514
+reg [21:0] dma17_nextaddr;	// 0x518
+reg [23:0] dma17_nextlen;	// 0x51c
+
+reg [21:0] dma18_curaddr;	// 0x520. DSPPToRam2
+reg [23:0] dma18_curlen;	// 0x524
+reg [21:0] dma18_nextaddr;	// 0x528
+reg [23:0] dma18_nextlen;	// 0x52c
+
+reg [21:0] dma19_curaddr;	// 0x530. DSPPToRam3
+reg [23:0] dma19_curlen;	// 0x534
+reg [21:0] dma19_nextaddr;	// 0x538
+reg [23:0] dma19_nextlen;	// 0x53c
+
+reg [21:0] dma20_curaddr;	// 0x540. XBUS DMA (CDROM drive / Expansion Bus etc.)
+reg [23:0] dma20_curlen;	// 0x544
+reg [21:0] dma20_nextaddr;	// 0x548
+reg [23:0] dma20_nextlen;	// 0x54c
+
+reg [21:0] dma21_curaddr;	// 0x550. UncleToRam
+reg [23:0] dma21_curlen;	// 0x554
+reg [21:0] dma21_nextaddr;	// 0x558
+reg [23:0] dma21_nextlen;	// 0x55c
+
+reg [21:0] dma22_curaddr;	// 0x560. ExternalToRam
+reg [23:0] dma22_curlen;	// 0x564
+reg [21:0] dma22_nextaddr;	// 0x568
+reg [23:0] dma22_nextlen;	// 0x56c
+
+reg [21:0] dma23_curaddr;	// 0x570. PlayerBus (ControlPort).
+reg [23:0] dma23_curlen;	// 0x574
+reg [21:0] dma23_nextaddr;	// 0x578
+reg [23:0] dma23_nextlen;	// 0x57c
+
+reg [21:0] dma24_curaddr;	// 0x580. CLUT_MID (CLUT Ctrl) vdl_addr!
+reg [23:0] dma24_curlen;	// 0x584
+reg [21:0] dma24_nextaddr;	// 0x588
+reg [23:0] dma24_nextlen;	// 0x58c
+
+reg [21:0] dma25_curaddr;	// 0x590. Video_MID
+reg [23:0] dma25_curlen;	// 0x594
+reg [21:0] dma25_nextaddr;	// 0x598
+reg [23:0] dma25_nextlen;	// 0x59c
+
+reg [21:0] dma26_curaddr;	// 0x5a0. CELControl
+reg [23:0] dma26_curlen;	// 0x5a4
+reg [21:0] dma26_nextaddr;	// 0x5a8
+reg [23:0] dma26_nextlen;	// 0x5ac
+
+reg [21:0] dma27_curaddr;	// 0x5b0. CELData
+reg [23:0] dma27_curlen;	// 0x5b4
+reg [21:0] dma27_nextaddr;	// 0x5b8
+reg [23:0] dma27_nextlen;	// 0x5bc
+
+reg [21:0] dma28_curaddr;	// 0x5c0. Commandgrabber
+reg [23:0] dma28_curlen;	// 0x5c4
+reg [21:0] dma28_nextaddr;	// 0x5c8
+reg [23:0] dma28_nextlen;	// 0x5cc
+
+reg [21:0] dma29_curaddr;	// 0x5d0. Framegrabber
+reg [23:0] dma29_curlen;	// 0x5d4
+reg [21:0] dma29_nextaddr;	// 0x5d8
+reg [23:0] dma29_nextlen;	// 0x5dc
+
+reg [21:0] dma30_curaddr;	// 0x5e0. Not sure if these regs exist, but having 32 sets of DMA regs might make sense?
+reg [23:0] dma30_curlen;	// 0x5e4
+reg [21:0] dma30_nextaddr;	// 0x5e8
+reg [23:0] dma30_nextlen;	// 0x5ec
+
+reg [21:0] dma31_curaddr;	// 0x5f0. Not sure if these regs exist, but having 32 sets of DMA regs might make sense?
+reg [23:0] dma31_curlen;	// 0x5f4
+reg [21:0] dma31_nextaddr;	// 0x5f8
+reg [23:0] dma31_nextlen;	// 0x5fc
+
+
+// Handle DMA Register Reads...
+always @(*) begin
+case (cpu_addr[15:0])
+	16'h0400: dma_regout = dma0_curaddr;	// RamToDSPP0
+	16'h0404: dma_regout = dma0_curlen;
+	16'h0408: dma_regout = dma0_nextaddr;
+	16'h040c: dma_regout = dma0_nextlen;
+
+	16'h0410: dma_regout = dma1_curaddr;	// RamToDSPP1
+	16'h0414: dma_regout = dma1_curlen;
+	16'h0418: dma_regout = dma1_nextaddr;
+	16'h041c: dma_regout = dma1_nextlen;
+
+	16'h0420: dma_regout = dma2_curaddr;	// RamToDSPP2
+	16'h0424: dma_regout = dma2_curlen;
+	16'h0428: dma_regout = dma2_nextaddr;
+	16'h042c: dma_regout = dma2_nextlen;
+
+	16'h0430: dma_regout = dma3_curaddr;	// RamToDSPP3
+	16'h0434: dma_regout = dma3_curlen;
+	16'h0438: dma_regout = dma3_nextaddr;
+	16'h043c: dma_regout = dma3_nextlen;
+
+	16'h0440: dma_regout = dma4_curaddr;	// RamToDSPP4
+	16'h0444: dma_regout = dma4_curlen;
+	16'h0448: dma_regout = dma4_nextaddr;
+	16'h044c: dma_regout = dma4_nextlen;
+
+	16'h0450: dma_regout = dma5_curaddr;	// RamToDSPP5
+	16'h0454: dma_regout = dma5_curlen;
+	16'h0458: dma_regout = dma5_nextaddr;
+	16'h045c: dma_regout = dma5_nextlen;
+
+	16'h0460: dma_regout = dma6_curaddr;	// RamToDSPP6
+	16'h0464: dma_regout = dma6_curlen;
+	16'h0468: dma_regout = dma6_nextaddr;
+	16'h046c: dma_regout = dma6_nextlen;
+
+	16'h0470: dma_regout = dma7_curaddr;	// RamToDSPP7
+	16'h0474: dma_regout = dma7_curlen;
+	16'h0478: dma_regout = dma7_nextaddr;
+	16'h047c: dma_regout = dma7_nextlen;
+
+	16'h0480: dma_regout = dma8_curaddr;	// RamToDSPP8
+	16'h0484: dma_regout = dma8_curlen;
+	16'h0488: dma_regout = dma8_nextaddr;	
+	16'h048c: dma_regout = dma8_nextlen;	
+
+	16'h0490: dma_regout = dma9_curaddr;	// RamToDSPP9
+	16'h0494: dma_regout = dma9_curlen;
+	16'h0498: dma_regout = dma9_nextaddr;	
+	16'h049c: dma_regout = dma9_nextlen;	
+
+	16'h04a0: dma_regout = dma10_curaddr;	// RamToDSPP10
+	16'h04a4: dma_regout = dma10_curlen;
+	16'h04a8: dma_regout = dma10_nextaddr;
+	16'h04ac: dma_regout = dma10_nextlen;	
+
+	16'h04b0: dma_regout = dma11_curaddr;	// RamToDSPP11
+	16'h04b4: dma_regout = dma11_curlen;
+	16'h04b8: dma_regout = dma11_nextaddr;
+	16'h04bc: dma_regout = dma11_nextlen;	
+	
+	16'h04c0: dma_regout = dma12_curaddr;	// RamToDSPP12
+	16'h04c4: dma_regout = dma12_curlen;
+	16'h04c8: dma_regout = dma12_nextaddr;
+	16'h04cc: dma_regout = dma12_nextlen;	
+	
+	16'h04d0: dma_regout = dma13_curaddr;	// RamToUncle.
+	16'h04d4: dma_regout = dma13_curlen;
+	16'h04d8: dma_regout = dma13_nextaddr;
+	16'h04dc: dma_regout = dma13_nextlen;	
+
+	16'h04e0: dma_regout = dma14_curaddr;	// RamToExternal
+	16'h04e4: dma_regout = dma14_curlen;
+	16'h04e8: dma_regout = dma14_nextaddr;
+	16'h04ec: dma_regout = dma14_nextlen;	
+
+	16'h04f0: dma_regout = dma15_curaddr;	// RamToDSPPNStack
+	16'h04f4: dma_regout = dma15_curlen;
+	16'h04f8: dma_regout = dma15_nextaddr;
+	16'h04fc: dma_regout = dma15_nextlen;	
+
+	16'h0500: dma_regout = dma16_curaddr;	// DSPPToRam0
+	16'h0504: dma_regout = dma16_curlen;
+	16'h0508: dma_regout = dma16_nextaddr;
+	16'h050c: dma_regout = dma16_nextlen;	
+
+	16'h0510: dma_regout = dma17_curaddr;	// DSPPToRam1
+	16'h0514: dma_regout = dma17_curlen;
+	16'h0518: dma_regout = dma17_nextaddr;
+	16'h051c: dma_regout = dma17_nextlen;	
+
+	16'h0520: dma_regout = dma18_curaddr;	// DSPPToRam2
+	16'h0524: dma_regout = dma18_curlen;
+	16'h0528: dma_regout = dma18_nextaddr;
+	16'h052c: dma_regout = dma18_nextlen;	
+
+	16'h0530: dma_regout = dma19_curaddr;	// DSPPToRam3
+	16'h0534: dma_regout = dma19_curlen;
+	16'h0538: dma_regout = dma19_nextaddr;
+	16'h053c: dma_regout = dma19_nextlen;	
+
+	16'h0540: dma_regout = dma20_curaddr;	// XBUS DMA.
+	16'h0544: dma_regout = dma20_curlen;
+	16'h0548: dma_regout = dma20_nextaddr;
+	16'h054c: dma_regout = dma20_nextlen;	
+
+	16'h0550: dma_regout = dma21_curaddr;	// UncleToRam.
+	16'h0554: dma_regout = dma21_curlen;
+	16'h0558: dma_regout = dma21_nextaddr;
+	16'h055c: dma_regout = dma21_nextlen;	
+
+	16'h0560: dma_regout = dma22_curaddr;	// ExternalToRam
+	16'h0564: dma_regout = dma22_curlen;
+	16'h0568: dma_regout = dma22_nextaddr;
+	16'h056c: dma_regout = dma22_nextlen;			
+
+	16'h0570: dma_regout = dma23_curaddr;	// Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
+	16'h0574: dma_regout = dma23_curlen;	// Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
+	16'h0578: dma_regout = dma23_nextaddr;	// Player Bus DMA:
+	16'h057c: dma_regout = dma23_nextlen;	// Player Bus DMA: Next Address.
+	
+	16'h0580: dma_regout = dma24_curaddr;	// 0x580 vdl_addr
+	16'h0584: dma_regout = dma24_curlen;
+	16'h0588: dma_regout = dma24_nextaddr;
+	16'h058c: dma_regout = dma24_nextlen;		
+	
+	16'h0590: dma_regout = dma25_curaddr;	// Video_MID
+	16'h0594: dma_regout = dma25_curlen;
+	16'h0598: dma_regout = dma25_nextaddr;
+	16'h059c: dma_regout = dma25_nextlen;	
+
+	16'h05a0: dma_regout = dma26_curaddr;	// CELControl
+	16'h05a4: dma_regout = dma26_curlen;
+	16'h05a8: dma_regout = dma26_nextaddr;
+	16'h05ac: dma_regout = dma26_nextlen;	
+
+	16'h05b0: dma_regout = dma27_curaddr;	// CELData
+	16'h05b4: dma_regout = dma27_curlen;
+	16'h05b8: dma_regout = dma27_nextaddr;
+	16'h05bc: dma_regout = dma27_nextlen;	
+
+	16'h05c0: dma_regout = dma28_curaddr;	// Commandgrabber
+	16'h05c4: dma_regout = dma28_curlen;
+	16'h05c8: dma_regout = dma28_nextaddr;
+	16'h05cc: dma_regout = dma28_nextlen;	
+
+	16'h05d0: dma_regout = dma29_curaddr;	// Framegrabber
+	16'h05d4: dma_regout = dma29_curlen;
+	16'h05d8: dma_regout = dma29_nextaddr;
+	16'h05dc: dma_regout = dma29_nextlen;			
+	
+	16'h05e0: dma_regout = dma30_curaddr;	// Not sure if this exists, but having 32 sets of DMA regs would make sense?
+	16'h05e4: dma_regout = dma30_curlen;
+	16'h05e8: dma_regout = dma30_nextaddr;
+	16'h05ec: dma_regout = dma30_nextlen;	
+	
+	16'h05f0: dma_regout = dma31_curaddr;	// Not sure if this exists, but having 32 sets of DMA regs would make sense?
+	16'h05f4: dma_regout = dma31_curlen;
+	16'h05f8: dma_regout = dma31_nextaddr;
+	16'h05fc: dma_regout = dma31_nextlen;	
+	
+	default: dma_regout = 32'hBADACCE5;
+	endcase
+end
+
+
+always @(posedge clk_25m or negedge reset_n)
+if (!reset_n) begin
+
+end
+else begin
+
+	// Handle DMA Register Writes...
+	if (dma_reg_cs && cpu_wr) begin
+		case (cpu_addr[15:0])
+			16'h0400: dma0_curaddr <= cpu_din;		// RamToDSPP0
+			16'h0404: dma0_curlen <= cpu_din;
+			16'h0408: dma0_nextaddr <= cpu_din;
+			16'h040c: dma0_nextlen <= cpu_din;
+
+			16'h0410: dma1_curaddr <= cpu_din;		// RamToDSPP1
+			16'h0414: dma1_curlen <= cpu_din;
+			16'h0418: dma1_nextaddr <= cpu_din;
+			16'h041c: dma1_nextlen <= cpu_din;
+
+			16'h0420: dma2_curaddr <= cpu_din;		// RamToDSPP2
+			16'h0424: dma2_curlen <= cpu_din;
+			16'h0428: dma2_nextaddr <= cpu_din;
+			16'h042c: dma2_nextlen <= cpu_din;
+
+			16'h0430: dma3_curaddr <= cpu_din;		// RamToDSPP3
+			16'h0434: dma3_curlen <= cpu_din;
+			16'h0438: dma3_nextaddr <= cpu_din;
+			16'h043c: dma3_nextlen <= cpu_din;
+
+			16'h0440: dma4_curaddr <= cpu_din;		// RamToDSPP4
+			16'h0444: dma4_curlen <= cpu_din;
+			16'h0448: dma4_nextaddr <= cpu_din;
+			16'h044c: dma4_nextlen <= cpu_din;
+
+			16'h0450: dma5_curaddr <= cpu_din;		// RamToDSPP5
+			16'h0454: dma5_curlen <= cpu_din;
+			16'h0458: dma5_nextaddr <= cpu_din;
+			16'h045c: dma5_nextlen <= cpu_din;
+
+			16'h0460: dma6_curaddr <= cpu_din;		// RamToDSPP6
+			16'h0464: dma6_curlen <= cpu_din;
+			16'h0468: dma6_nextaddr <= cpu_din;
+			16'h046c: dma6_nextlen <= cpu_din;
+
+			16'h0470: dma7_curaddr <= cpu_din;		// RamToDSPP7
+			16'h0474: dma7_curlen <= cpu_din;
+			16'h0478: dma7_nextaddr <= cpu_din;
+			16'h047c: dma7_nextlen <= cpu_din;
+
+			16'h0480: dma8_curaddr <= cpu_din;		// RamToDSPP8
+			16'h0484: dma8_curlen <= cpu_din;
+			16'h0488: dma8_nextaddr <= cpu_din;	
+			16'h048c: dma8_nextlen <= cpu_din;	
+
+			16'h0490: dma9_curaddr <= cpu_din;		// RamToDSPP9
+			16'h0494: dma9_curlen <= cpu_din;
+			16'h0498: dma9_nextaddr <= cpu_din;	
+			16'h049c: dma9_nextlen <= cpu_din;	
+
+			16'h04a0: dma10_curaddr <= cpu_din;		// RamToDSPP10
+			16'h04a4: dma10_curlen <= cpu_din;
+			16'h04a8: dma10_nextaddr <= cpu_din;
+			16'h04ac: dma10_nextlen <= cpu_din;	
+
+			16'h04b0: dma11_curaddr <= cpu_din;		// RamToDSPP11
+			16'h04b4: dma11_curlen <= cpu_din;
+			16'h04b8: dma11_nextaddr <= cpu_din;
+			16'h04bc: dma11_nextlen <= cpu_din;	
+			
+			16'h04c0: dma12_curaddr <= cpu_din;		// RamToDSPP12
+			16'h04c4: dma12_curlen <= cpu_din;
+			16'h04c8: dma12_nextaddr <= cpu_din;
+			16'h04cc: dma12_nextlen <= cpu_din;	
+			
+			16'h04d0: dma13_curaddr <= cpu_din;		// RamToUncle.
+			16'h04d4: dma13_curlen <= cpu_din;
+			16'h04d8: dma13_nextaddr <= cpu_din;
+			16'h04dc: dma13_nextlen <= cpu_din;	
+
+			16'h04e0: dma14_curaddr <= cpu_din;		// RamToExternal
+			16'h04e4: dma14_curlen <= cpu_din;
+			16'h04e8: dma14_nextaddr <= cpu_din;
+			16'h04ec: dma14_nextlen <= cpu_din;	
+
+			16'h04f0: dma15_curaddr <= cpu_din;		// RamToDSPPNStack
+			16'h04f4: dma15_curlen <= cpu_din;
+			16'h04f8: dma15_nextaddr <= cpu_din;
+			16'h04fc: dma15_nextlen <= cpu_din;	
+
+			16'h0500: dma16_curaddr <= cpu_din;		// DSPPToRam0
+			16'h0504: dma16_curlen <= cpu_din;
+			16'h0508: dma16_nextaddr <= cpu_din;
+			16'h050c: dma16_nextlen <= cpu_din;	
+
+			16'h0510: dma17_curaddr <= cpu_din;		// DSPPToRam1
+			16'h0514: dma17_curlen <= cpu_din;
+			16'h0518: dma17_nextaddr <= cpu_din;
+			16'h051c: dma17_nextlen <= cpu_din;	
+
+			16'h0520: dma18_curaddr <= cpu_din;		// DSPPToRam2
+			16'h0524: dma18_curlen <= cpu_din;
+			16'h0528: dma18_nextaddr <= cpu_din;
+			16'h052c: dma18_nextlen <= cpu_din;	
+
+			16'h0530: dma19_curaddr <= cpu_din;		// DSPPToRam3
+			16'h0534: dma19_curlen <= cpu_din;
+			16'h0538: dma19_nextaddr <= cpu_din;
+			16'h053c: dma19_nextlen <= cpu_din;	
+
+			16'h0540: dma20_curaddr <= cpu_din;		// XBUS DMA.
+			16'h0544: dma20_curlen <= cpu_din;
+			16'h0548: dma20_nextaddr <= cpu_din;
+			16'h054c: dma20_nextlen <= cpu_din;	
+
+			16'h0550: dma21_curaddr <= cpu_din;		// UncleToRam.
+			16'h0554: dma21_curlen <= cpu_din;
+			16'h0558: dma21_nextaddr <= cpu_din;
+			16'h055c: dma21_nextlen <= cpu_din;	
+
+			16'h0560: dma22_curaddr <= cpu_din;		// ExternalToRam
+			16'h0564: dma22_curlen <= cpu_din;
+			16'h0568: dma22_nextaddr <= cpu_din;
+			16'h056c: dma22_nextlen <= cpu_din;			
+
+			16'h0570: dma23_curaddr <= cpu_din;		// Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
+			16'h0574: dma23_curlen <= cpu_din;		// Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
+			16'h0578: dma23_nextaddr <= cpu_din;	// Player Bus DMA:
+			16'h057c: dma23_nextlen <= cpu_din;		// Player Bus DMA: Next Address.
+			
+			16'h0580: dma24_curaddr <= cpu_din;		// 0x580 vdl_addr
+			16'h0584: dma24_curlen <= cpu_din;
+			16'h0588: dma24_nextaddr <= cpu_din;
+			16'h058c: dma24_nextlen <= cpu_din;		
+			
+			16'h0590: dma25_curaddr <= cpu_din;		// Video_MID
+			16'h0594: dma25_curlen <= cpu_din;
+			16'h0598: dma25_nextaddr <= cpu_din;
+			16'h059c: dma25_nextlen <= cpu_din;	
+
+			16'h05a0: dma26_curaddr <= cpu_din;		// CELControl
+			16'h05a4: dma26_curlen <= cpu_din;
+			16'h05a8: dma26_nextaddr <= cpu_din;
+			16'h05ac: dma26_nextlen <= cpu_din;	
+
+			16'h05b0: dma27_curaddr <= cpu_din;		// CELData
+			16'h05b4: dma27_curlen <= cpu_din;
+			16'h05b8: dma27_nextaddr <= cpu_din;
+			16'h05bc: dma27_nextlen <= cpu_din;	
+
+			16'h05c0: dma28_curaddr <= cpu_din;		// Commandgrabber
+			16'h05c4: dma28_curlen <= cpu_din;
+			16'h05c8: dma28_nextaddr <= cpu_din;
+			16'h05cc: dma28_nextlen <= cpu_din;	
+
+			16'h05d0: dma29_curaddr <= cpu_din;		// Framegrabber
+			16'h05d4: dma29_curlen <= cpu_din;
+			16'h05d8: dma29_nextaddr <= cpu_din;
+			16'h05dc: dma29_nextlen <= cpu_din;			
+			
+			16'h05e0: dma30_curaddr <= cpu_din;		// Not sure if this exists, but having 32 sets of DMA regs would make sense?
+			16'h05e4: dma30_curlen <= cpu_din;
+			16'h05e8: dma30_nextaddr <= cpu_din;
+			16'h05ec: dma30_nextlen <= cpu_din;	
+			
+			16'h05f0: dma31_curaddr <= cpu_din;		// Not sure if this exists, but having 32 sets of DMA regs would make sense?
+			16'h05f4: dma31_curlen <= cpu_din;
+			16'h05f8: dma31_nextaddr <= cpu_din;
+			16'h05fc: dma31_nextlen <= cpu_din;	
+			
+			default: ;
+		endcase
+	end
+	
+
+end
 
 endmodule

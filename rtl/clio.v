@@ -277,8 +277,8 @@ always @(*) begin
 	16'h0040: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
 	16'h0044: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
 	
-	//16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};	// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
-	16'h0048: cpu_dout = irq0_enable;		// Read = irq0_enable (MASK) bits. Seemes to be needed for normal BIOS boot with cstatbits[0] (POR), and no DIPIR set?
+	16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};	// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
+	//16'h0048: cpu_dout = irq0_enable;		// Read = irq0_enable (MASK) bits. Seemes to be needed for normal BIOS boot with cstatbits[0] (POR), and no DIPIR set?
 	16'h004c: cpu_dout = irq0_enable;		// Read = Return zeros? 
 
 	16'h0050: cpu_dout = mode;				// 0x50 - Writing to 0x50 SETs mode bits. Reading = ?
@@ -390,7 +390,7 @@ always @(*) begin
 	16'h0578: cpu_dout = {24'h000000, poll_14};	// 0x578
 	16'h057c: cpu_dout = {24'h000000, poll_15};	// 0x57c
 
-	16'h0580: cpu_dout = {24'h000000, fifo_spoof};	// 0x580. CmdStFIFO for Xbus access.
+	16'h0580: /*cpu_dout = {24'h000000, fifo_spoof}*/;	// 0x580. CmdStFIFO for Xbus access.
 
 // 0x580 - 0x5bf. In Opera, on a write, this calls "opera_xbus_fifo_set_cmd(val_)".
 // 0x5c0 - 0x5ff. In Opera, on a write, this calls "opera_xbus_fifo_set_data(val_)".
@@ -433,8 +433,8 @@ reg field;
 
 reg [31:0] irq1_pend_prev;
 
+/*
 reg [3:0] fifo_idx;
-
 wire [7:0] fifo_spoof = (fifo_idx==4'd0)  ? 8'h83 : // CDROM_CMD_READ_ID
 						(fifo_idx==4'd1)  ? 8'h00 : // manufacture id
 						(fifo_idx==4'd2)  ? 8'h10 : // 0x10
@@ -450,12 +450,13 @@ wire [7:0] fifo_spoof = (fifo_idx==4'd0)  ? 8'h83 : // CDROM_CMD_READ_ID
 						//(fifo_idx==4'd11) ? 8'h01 : // CDST_RDY (CD drive's actual status)
 						(fifo_idx==4'd12) ? 8'h01 :	// device driver size. ??
 											8'h00;	// default value.
+										*/
 
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera returns 0x02020000.
-	//cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
-	cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
+	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
+	//cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
 	expctl <= 32'h00000080;			// Opera starts with this -> 0x80; // ARM has the expansion bus.
 	field <= 1'b0;
 	hcnt <= 32'd0;
@@ -469,7 +470,7 @@ if (!reset_n) begin
 	
 	poll_0 <= 8'h00;
 	
-	fifo_idx <= 4'd0;
+	//fifo_idx <= 4'd0;
 	
 	irq0_pend <= 32'h00000000;
 	irq0_enable <= 32'h00000000;

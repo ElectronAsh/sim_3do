@@ -440,7 +440,8 @@ void sim_process_vdl() {
 	clut[0x10] = 0x848484; clut[0x11] = 0x8C8C8C; clut[0x12] = 0x949494; clut[0x13] = 0x9C9C9C; clut[0x14] = 0xA5A5A5; clut[0x15] = 0xADADAD; clut[0x16] = 0xB5B5B5; clut[0x17] = 0xBDBDBD;
 	clut[0x18] = 0xC5C5C5; clut[0x19] = 0xCECECE; clut[0x1A] = 0xD6D6D6; clut[0x1B] = 0xDEDEDE; clut[0x1C] = 0xE6E6E6; clut[0x1D] = 0xEFEFEF; clut[0x1E] = 0xF8F8F8; clut[0x1F] = 0xFFFFFF;
 
-	uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;	// Mask address to 1MB (VRAM).
+	//uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;	// Mask address to 1MB (VRAM).
+	uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma24_curaddr & 0xfffff;	// (vdl_addr). Mask address to 1MB (VRAM).
 
 	// Read the VDL / CLUT from vram_ptr...
 	if (header>0) {
@@ -810,8 +811,8 @@ static void sim_clio_handle_dma(uint32_t val_)
 		uint32_t trg;
 		uint8_t b0, b1, b2, b3;
 
-		trg = top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_targ;	// 0x03300540. DMA Target (Source/Dest address). Likely always the dest, for a CDROM DMA?
-		len = top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_len;		// 0x03300544. DMA Length (in BYTES).
+		trg = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curaddr;	// 0x03300540. XBus DMA Target (Source/Dest address). Likely always the dest, for a CDROM DMA?
+		len = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curlen;	// 0x03300544. XBus DMA Length (in BYTES).
 
 		fprintf(logfile, "Xbus DMA  trg: 0x%08X  len: 0x%08X\n", trg, len);
 
@@ -850,7 +851,7 @@ static void sim_clio_handle_dma(uint32_t val_)
 			top->rootp->core_3do__DOT__clio_inst__DOT__expctl |= 0x80;	// Set bit [7] in the CLIO expctl reg "ARM has control of Xbus".
 		//}
 
-		top->rootp->core_3do__DOT__madam_inst__DOT__xbus_dma_len = 0xFFFFFFFC;	// Length reg should end up with this value once it wraps 0?
+		top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curlen = 0xFFFFFFFC;	// XBus Length reg should end up with this value once it wraps 0?
 		top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= (1<<29);		// Set the IRQ0 Pending bit, for "XBus DMA Done"!
 	}
 }
@@ -1236,35 +1237,35 @@ int verilate() {
 			if (top->o_wb_adr == 0x03300508) { fprintf(logfile, "MADAM DMA16 NAd "); }
 			if (top->o_wb_adr == 0x0330050c) { fprintf(logfile, "MADAM DMA16 NLn "); }
 
-			if (top->o_wb_adr == 0x03300510) { fprintf(logfile, "MADAM DMA10 Adr "); } // DSPPToRam1
-			if (top->o_wb_adr == 0x03300514) { fprintf(logfile, "MADAM DMA10 Len "); }
-			if (top->o_wb_adr == 0x03300518) { fprintf(logfile, "MADAM DMA10 NAd "); }
-			if (top->o_wb_adr == 0x0330051c) { fprintf(logfile, "MADAM DMA10 NLn "); }
+			if (top->o_wb_adr == 0x03300510) { fprintf(logfile, "MADAM DMA17 Adr "); } // DSPPToRam1
+			if (top->o_wb_adr == 0x03300514) { fprintf(logfile, "MADAM DMA17 Len "); }
+			if (top->o_wb_adr == 0x03300518) { fprintf(logfile, "MADAM DMA17 NAd "); }
+			if (top->o_wb_adr == 0x0330051c) { fprintf(logfile, "MADAM DMA17 NLn "); }
 
-			if (top->o_wb_adr == 0x03300520) { fprintf(logfile, "MADAM DMA11 Adr "); } // DSPPToRam2
-			if (top->o_wb_adr == 0x03300524) { fprintf(logfile, "MADAM DMA11 Len "); }
-			if (top->o_wb_adr == 0x03300528) { fprintf(logfile, "MADAM DMA11 NAd "); }
-			if (top->o_wb_adr == 0x0330052c) { fprintf(logfile, "MADAM DMA11 NLn "); }
+			if (top->o_wb_adr == 0x03300520) { fprintf(logfile, "MADAM DMA18 Adr "); } // DSPPToRam2
+			if (top->o_wb_adr == 0x03300524) { fprintf(logfile, "MADAM DMA18 Len "); }
+			if (top->o_wb_adr == 0x03300528) { fprintf(logfile, "MADAM DMA18 NAd "); }
+			if (top->o_wb_adr == 0x0330052c) { fprintf(logfile, "MADAM DMA18 NLn "); }
 
-			if (top->o_wb_adr == 0x03300530) { fprintf(logfile, "MADAM DMA12 Adr "); } // DSPPToRam3
-			if (top->o_wb_adr == 0x03300534) { fprintf(logfile, "MADAM DMA12 Len "); }
-			if (top->o_wb_adr == 0x03300538) { fprintf(logfile, "MADAM DMA12 NAd "); }
-			if (top->o_wb_adr == 0x0330053c) { fprintf(logfile, "MADAM DMA12 NLn "); }
+			if (top->o_wb_adr == 0x03300530) { fprintf(logfile, "MADAM DMA19 Adr "); } // DSPPToRam3
+			if (top->o_wb_adr == 0x03300534) { fprintf(logfile, "MADAM DMA19 Len "); }
+			if (top->o_wb_adr == 0x03300538) { fprintf(logfile, "MADAM DMA19 NAd "); }
+			if (top->o_wb_adr == 0x0330053c) { fprintf(logfile, "MADAM DMA19 NLn "); }
 
-			if (top->o_wb_adr == 0x03300540) { fprintf(logfile, "MADAM XBus Adr  "); } // DMAExpo
+			if (top->o_wb_adr == 0x03300540) { fprintf(logfile, "MADAM XBus Adr  "); } // DMAExpo. Xbus?
 			if (top->o_wb_adr == 0x03300544) { fprintf(logfile, "MADAM XBus Len  "); }
 			if (top->o_wb_adr == 0x03300548) { fprintf(logfile, "MADAM XBus NAd  "); }
 			if (top->o_wb_adr == 0x0330054c) { fprintf(logfile, "MADAM XBus NLn  "); }
 
-			if (top->o_wb_adr == 0x03300550) { fprintf(logfile, "MADAM DMA14 Adr "); } // UncleToRam
-			if (top->o_wb_adr == 0x03300554) { fprintf(logfile, "MADAM DMA14 Len "); }
-			if (top->o_wb_adr == 0x03300558) { fprintf(logfile, "MADAM DMA14 NAd "); }
-			if (top->o_wb_adr == 0x0330055c) { fprintf(logfile, "MADAM DMA14 NLn "); }
+			if (top->o_wb_adr == 0x03300550) { fprintf(logfile, "MADAM DMA21 Adr "); } // UncleToRam
+			if (top->o_wb_adr == 0x03300554) { fprintf(logfile, "MADAM DMA21 Len "); }
+			if (top->o_wb_adr == 0x03300558) { fprintf(logfile, "MADAM DMA21 NAd "); }
+			if (top->o_wb_adr == 0x0330055c) { fprintf(logfile, "MADAM DMA21 NLn "); }
 
-			if (top->o_wb_adr == 0x03300560) { fprintf(logfile, "MADAM DMA15 Adr "); } // ExternalToRam
-			if (top->o_wb_adr == 0x03300564) { fprintf(logfile, "MADAM DMA15 Len "); }
-			if (top->o_wb_adr == 0x03300568) { fprintf(logfile, "MADAM DMA15 NAd "); }
-			if (top->o_wb_adr == 0x0330056c) { fprintf(logfile, "MADAM DMA15 NLn "); }
+			if (top->o_wb_adr == 0x03300560) { fprintf(logfile, "MADAM DMA22 Adr "); } // ExternalToRam
+			if (top->o_wb_adr == 0x03300564) { fprintf(logfile, "MADAM DMA22 Len "); }
+			if (top->o_wb_adr == 0x03300568) { fprintf(logfile, "MADAM DMA22 NAd "); }
+			if (top->o_wb_adr == 0x0330056c) { fprintf(logfile, "MADAM DMA22 NLn "); }
 
 			if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PbToRam   "); } // ControlPort (PlayerBus)
 			if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PbLength  "); }
@@ -1292,15 +1293,15 @@ int verilate() {
 			if (top->o_wb_adr == 0x033005b8) { fprintf(logfile, "MADAM CLD AdrB  "); }
 			if (top->o_wb_adr == 0x033005bc) { fprintf(logfile, "MADAM CLD LenB  "); }
 
-			if (top->o_wb_adr == 0x033005c0) { fprintf(logfile, "MADAM DMA21 Adr "); } // Commandgrabber
-			if (top->o_wb_adr == 0x033005c4) { fprintf(logfile, "MADAM DMA21 Len "); }
-			if (top->o_wb_adr == 0x033005c8) { fprintf(logfile, "MADAM DMA21 NAd "); }
-			if (top->o_wb_adr == 0x033005cc) { fprintf(logfile, "MADAM DMA21 NLn "); }
+			if (top->o_wb_adr == 0x033005c0) { fprintf(logfile, "MADAM DMA28 Adr "); } // Commandgrabber
+			if (top->o_wb_adr == 0x033005c4) { fprintf(logfile, "MADAM DMA28 Len "); }
+			if (top->o_wb_adr == 0x033005c8) { fprintf(logfile, "MADAM DMA28 NAd "); }
+			if (top->o_wb_adr == 0x033005cc) { fprintf(logfile, "MADAM DMA28 NLn "); }
 
-			if (top->o_wb_adr == 0x033005d0) { fprintf(logfile, "MADAM DMA22 Adr "); } // Framegrabber
-			if (top->o_wb_adr == 0x033005d4) { fprintf(logfile, "MADAM DMA22 Len "); }
-			if (top->o_wb_adr == 0x033005d8) { fprintf(logfile, "MADAM DMA22 NAd "); }
-			if (top->o_wb_adr == 0x033005dc) { fprintf(logfile, "MADAM DMA22 NLn "); }
+			if (top->o_wb_adr == 0x033005d0) { fprintf(logfile, "MADAM DMA29 Adr "); } // Framegrabber
+			if (top->o_wb_adr == 0x033005d4) { fprintf(logfile, "MADAM DMA29 Len "); }
+			if (top->o_wb_adr == 0x033005d8) { fprintf(logfile, "MADAM DMA29 NAd "); }
+			if (top->o_wb_adr == 0x033005dc) { fprintf(logfile, "MADAM DMA29 NLn "); }
 
 			if (top->o_wb_adr >= 0x03300600 && top->o_wb_adr <= 0x0330063f) { fprintf(logfile, "MADAM Matrix    "); }
 			if (top->o_wb_adr >= 0x03300640 && top->o_wb_adr <= 0x0330069c) { fprintf(logfile, "MADAM B0_B1     "); }
@@ -2377,7 +2378,7 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("     mctl: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__mctl);
 		ImGui::Text("   sltime: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__sltime);
 		ImGui::Separator();
-		ImGui::Text(" vdl_addr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr);	// 0x580
+		ImGui::Text(" vdl_addr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma24_curaddr);	// 0x580
 		ImGui::Separator();
 		ImGui::Text(" VDL still in C...");
 		ImGui::Text("  vdl_ctl: 0x%08X", vdl_ctl);
