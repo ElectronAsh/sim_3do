@@ -734,7 +734,7 @@ void pbus_dma() {
 	temp_word = (pbus_buf[0] << 24) | (pbus_buf[1] << 16) | (pbus_buf[2] << 8) | (pbus_buf[3] << 0);
 	//ram_ptr[ dst&0x1fffff ] = temp_word;  // ram_ptr is now BYTE addressed!
 
-	fprintf(logfile, "PBUS DMA  str: 0x%08X  len: 0x%08X  end: 0x%08X\n", str, len, end);
+	fprintf(logfile, "PBUS DMA  toRAM: 0x%08X  len: 0x%08X  fromRAM: 0x%08X\n", str, len, end);
 
 	/*
 	for (int i = 0; i < 8; i+=4) {
@@ -1312,7 +1312,6 @@ int verilate() {
 			if (top->o_wb_adr == 0x033007f4) { fprintf(logfile, "MADAM Math Clr  "); }
 			if (top->o_wb_adr == 0x033007f8) { fprintf(logfile, "MADAM Math Stat "); }
 			if (top->o_wb_adr == 0x033007fc) { fprintf(logfile, "MADAM Math Start"); }
-
 
 			// CLIO...
 			if (top->o_wb_adr == 0x03400000) { fprintf(logfile, "CLIO Revision   "); }
@@ -2378,6 +2377,7 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text(" vdl_next: 0x%08X", vdl_next);
 		ImGui::End();
 
+		/*
 		ImGui::Begin("Sim XBUS stuff");
 		ImGui::Text("  xdev[0]: 0x%02X", xdev[0]);
 		ImGui::Text("  xdev[1]: 0x%02X", xdev[1]);
@@ -2428,6 +2428,7 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("   XBUS.cmdptrf: 0x%02X", XBUS.cmdptrf);
 		ImGui::Separator();
 		ImGui::End();
+		*/
 
 		/*
 		ImGui::Begin("Matrix Engine");
