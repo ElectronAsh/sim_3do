@@ -1,7 +1,11 @@
 #ifndef LIBOPERA_PBUS_H_INCLUDED
 #define LIBOPERA_PBUS_H_INCLUDED
 
+#include "extern_c.h"
+
 #include <stdint.h>
+
+EXTERN_C_BEGIN
 
 struct opera_pbus_joypad_s
 {
@@ -100,5 +104,7 @@ void     opera_pbus_add_mouse(const opera_pbus_mouse_t *mouse_);
 void     opera_pbus_add_lightgun(const opera_pbus_lightgun_t *lightgun_);
 void     opera_pbus_add_arcade_lightgun(const opera_pbus_arcade_lightgun_t *lightgun_);
 void     opera_pbus_add_orbatak_trackball(const opera_pbus_orbatak_trackball_t *tb_);
+
+EXTERN_C_END
 
 #endif /* LIBOPERA_PBUS_H_INCLUDED */

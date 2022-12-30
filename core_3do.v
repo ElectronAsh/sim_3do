@@ -13,7 +13,8 @@ module core_3do (
 	output o_wb_tga,
 	
 	input [31:0] i_wb_dat,
-	input i_wb_ack,
+	//input i_wb_ack,			// <- Driven by the Verilator sim_main C code.
+	output i_wb_ack,		// <- Driven by MADAM now.	
 
 	// Zap...
 	output o_wb_stb_nxt,
@@ -22,7 +23,13 @@ module core_3do (
 	output [2:0] o_wb_cti,
 	output [1:0] o_wb_bte,
 	
-	output [23:0] rgb_out
+	output [23:0] rgb_out,
+	
+	output [31:0] mem_addr,
+	output [31:0] mem_dout,
+	//input [31:0] mem_din
+	output mem_rd,
+	output mem_wr
 );
 
 `define DEBUG_EN 1
@@ -137,17 +144,27 @@ madam madam_inst (
 	
 	.cpu_rd( madam_cs & o_wb_stb & !o_wb_we ),
 	.cpu_wr( madam_cs & o_wb_stb &  o_wb_we ),
+	
+	.cpu_stb( o_wb_stb ),
+	.cpu_ack( i_wb_ack ),
 
-	//.ram_addr( ram_addr ),	// output [22:0].
-	//.ram_din( ram_din ),	// input [31:0].
-	//.ram_dout( ram_dout ),	// output [31:0].
-	//.ram_wen( ram_wen ),	// output.
+	.mem_addr( mem_addr ),	// output [31:0].
+	.mem_din( mem_din ),	// input [31:0].
+	.mem_dout( mem_dout ),	// output [31:0].
+	.mem_rd( mem_rd ),	// output.
+	.mem_wr( mem_wr ),	// output.
 	
 	//.pcsc( pcsc ),		// input.
 	
 	.lpsc_n( lpsc_n ), 	// output. Right-hand VRAM SAM strobe. (pixel or VDL data is on S-bus[31:16]).
 	.rpsc_n( rpsc_n ) 	// output. Left-hand VRAM SAM strobe.  (pixel or VDL data is on S-bus[15:00]).
 );
+
+//wire [31:0] mem_addr;
+wire [31:0] mem_din = zap_din;
+//wire [31:0] mem_dout;
+//wire mem_rd;
+//wire mem_wr;
 
 wire [31:0] madam_dout;
 wire [31:0] clio_dout;

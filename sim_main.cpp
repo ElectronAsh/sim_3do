@@ -35,6 +35,8 @@
 #include "opera_cdrom.h"
 #include "opera_nvram.h"
 
+#include "opera_pbus.h"
+
 #include "inline.h"
 
 #include "sim_xbus.h"
@@ -346,9 +348,11 @@ void my_opera_init() {
 	// 0x40 for start from 3D0-CD
 	// 0x01/0x02 from PhotoCD ??
 	// (NO use 0x40/0x02 for BIOS test)
-	opera_clio_init(0x40);	// bit[6]=DIPIR.
-	//opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits. bit[0]=POR.
+	//opera_clio_init(0x40);	// bit[6]=DIPIR.
+	opera_clio_init(0x01);		// <- This value gets written to CLIO cstatbits. bit[0]=POR.
 	opera_dsp_init();
+
+	opera_pbus_reset();
 }
 
 
@@ -426,10 +430,10 @@ sim_diag_port_get(void)
 }
 
 
-volatile uint32_t vdl_ctl  = 0x00000000;
-volatile uint32_t vdl_curr = 0x000C0000;
-volatile uint32_t vdl_prev = 0x000C0000;
-volatile uint32_t vdl_next = 0x000C0000;
+volatile uint32_t vdl_ctl  = 0x00004410;
+volatile uint32_t vdl_curr = 0x002C0000;
+volatile uint32_t vdl_prev = 0x002C0000;
+volatile uint32_t vdl_next = 0x002C0000;
 
 volatile uint32_t clut[256];
 
@@ -440,8 +444,7 @@ void sim_process_vdl() {
 	clut[0x10] = 0x848484; clut[0x11] = 0x8C8C8C; clut[0x12] = 0x949494; clut[0x13] = 0x9C9C9C; clut[0x14] = 0xA5A5A5; clut[0x15] = 0xADADAD; clut[0x16] = 0xB5B5B5; clut[0x17] = 0xBDBDBD;
 	clut[0x18] = 0xC5C5C5; clut[0x19] = 0xCECECE; clut[0x1A] = 0xD6D6D6; clut[0x1B] = 0xDEDEDE; clut[0x1C] = 0xE6E6E6; clut[0x1D] = 0xEFEFEF; clut[0x1E] = 0xF8F8F8; clut[0x1F] = 0xFFFFFF;
 
-	//uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;	// Mask address to 1MB (VRAM).
-	uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma24_curaddr & 0xfffff;	// (vdl_addr). Mask address to 1MB (VRAM).
+	uint32_t header = top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr & 0xfffff;	// Mask address to 1MB (VRAM).
 
 	// Read the VDL / CLUT from vram_ptr...
 	if (header>0) {
@@ -693,17 +696,17 @@ uint8_t pbus_buf[PBUS_BUF_SIZE];
 uint32_t pbus_idx;
 
 void pbus_dma() {
-	bool jp_d = ImGui::GetIO().KeyShift;
-	bool jp_u = ImGui::GetIO().KeyShift;
-	bool jp_r = ImGui::GetIO().KeyShift;
-	bool jp_l = ImGui::GetIO().KeyShift;
-	bool jp_a = ImGui::GetIO().KeyShift;
-	bool jp_b = ImGui::GetIO().KeyShift;
-	bool jp_c = ImGui::GetIO().KeyShift;
-	bool jp_p = ImGui::GetIO().KeyShift;
-	bool jp_x = ImGui::GetIO().KeyShift;
-	bool jp_rt = ImGui::GetIO().KeyShift;
-	bool jp_lt = ImGui::GetIO().KeyShift;
+	bool jp_u  = ImGui::IsKeyPressed(ImGuiKey_UpArrow);
+	bool jp_d  = ImGui::IsKeyPressed(ImGuiKey_DownArrow);
+	bool jp_l  = ImGui::IsKeyPressed(ImGuiKey_LeftArrow);
+	bool jp_r  = ImGui::IsKeyPressed(ImGuiKey_RightArrow);
+	bool jp_lt = ImGui::IsKeyPressed(ImGuiKey_L);
+	bool jp_rt = ImGui::IsKeyPressed(ImGuiKey_R);
+	bool jp_x  = ImGui::IsKeyPressed(ImGuiKey_X);
+	bool jp_p  = ImGui::IsKeyPressed(ImGuiKey_P);
+	bool jp_a  = ImGui::IsKeyPressed(ImGuiKey_A);
+	bool jp_b  = ImGui::IsKeyPressed(ImGuiKey_B);
+	bool jp_c  = ImGui::IsKeyPressed(ImGuiKey_C);
 
 	uint32_t str = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_dst;    // 0x570.
 	uint32_t len = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_len;    // 0x574.
@@ -730,7 +733,6 @@ void pbus_dma() {
 		(jp_x << PBUS_JOYPAD_SHIFT_X) |
 		(jp_rt << PBUS_JOYPAD_SHIFT_RT) |
 		(jp_lt << PBUS_JOYPAD_SHIFT_LT));
-
 
 	temp_word = (pbus_buf[0] << 24) | (pbus_buf[1] << 16) | (pbus_buf[2] << 8) | (pbus_buf[3] << 0);
 	//ram_ptr[ dst&0x1fffff ] = temp_word;  // ram_ptr is now BYTE addressed!
@@ -779,8 +781,32 @@ void pbus_dma() {
 	*/
 }
 
+#pragma optimize("", off)
+static
+void
+operasim_poll_joypad()
+{
+	opera_pbus_joypad_t jp;
+
+	jp.u  = (ImGui::IsKeyPressed(ImGuiKey_UpArrow)>0);
+	jp.d  = (ImGui::IsKeyPressed(ImGuiKey_DownArrow) > 0);
+	jp.l  = (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) > 0);
+	jp.r  = (ImGui::IsKeyPressed(ImGuiKey_RightArrow) > 0);
+	jp.lt = (ImGui::IsKeyPressed(ImGuiKey_L) > 0);
+	jp.rt = (ImGui::IsKeyPressed(ImGuiKey_R) > 0);
+	jp.x  = (ImGui::IsKeyPressed(ImGuiKey_X) > 0);
+	jp.p  = (ImGui::IsKeyPressed(ImGuiKey_P) > 0);
+	jp.a  = (ImGui::IsKeyPressed(ImGuiKey_A) > 0);
+	jp.b  = (ImGui::IsKeyPressed(ImGuiKey_B) > 0);
+	jp.c  = (ImGui::IsKeyPressed(ImGuiKey_C) > 0);
+
+	opera_pbus_add_joypad(&jp);
+}
+#pragma optimize("", on)
 
 void opera_tick() {
+	operasim_poll_joypad();
+
 	opera_3do_process_frame(&opera_line, &opera_field);	// Tweaked, to render one LINE at a time. ElectronAsh.
 
 	//opera_arm_execute();		// <- This contains all of our Opera fprintfs.
@@ -803,6 +829,8 @@ void opera_tick() {
 	}
 }
 
+
+
 static void sim_clio_handle_dma(uint32_t val_)
 {
 	if (val_ & 0x00100000)	// Check if the Xbus DMA Enable bit in the write to 0x03400304 (CLIO dmactrl) is set.
@@ -811,8 +839,8 @@ static void sim_clio_handle_dma(uint32_t val_)
 		uint32_t trg;
 		uint8_t b0, b1, b2, b3;
 
-		trg = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curaddr;	// 0x03300540. XBus DMA Target (Source/Dest address). Likely always the dest, for a CDROM DMA?
-		len = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curlen;	// 0x03300544. XBus DMA Length (in BYTES).
+		trg = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curaddr;	// 0x03300540. DMA Target (Source/Dest address). Likely always the dest, for a CDROM DMA?
+		len = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curlen;	// 0x03300544. DMA Length (in BYTES).
 
 		fprintf(logfile, "Xbus DMA  trg: 0x%08X  len: 0x%08X\n", trg, len);
 
@@ -851,7 +879,7 @@ static void sim_clio_handle_dma(uint32_t val_)
 			top->rootp->core_3do__DOT__clio_inst__DOT__expctl |= 0x80;	// Set bit [7] in the CLIO expctl reg "ARM has control of Xbus".
 		//}
 
-		top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curlen = 0xFFFFFFFC;	// XBus Length reg should end up with this value once it wraps 0?
+		top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curlen = 0xFFFFFFFC;	// Length reg should end up with this value once it wraps 0?
 		top->rootp->core_3do__DOT__clio_inst__DOT__irq0_pend |= (1<<29);		// Set the IRQ0 Pending bit, for "XBus DMA Done"!
 	}
 }
@@ -999,59 +1027,59 @@ int verilate() {
 			}
 		}
 
-		top->i_wb_ack = top->o_wb_stb;
+		//top->i_wb_ack = top->o_wb_stb;	// Now driven by MADAM.
 
 		if (top->o_wb_stb && top->i_wb_ack) {
 			// Handle writes to Main RAM, with byte masking...
-			if (top->o_wb_adr >= 0x00000000 && top->o_wb_adr <= 0x001FFFFF && top->o_wb_we) {                // 2MB masked.
+			if (top->mem_addr >= 0x00000000 && top->mem_addr <= 0x001FFFFF && top->o_wb_we) {                // 2MB masked.
 				//printf("Main RAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
-				if (top->o_wb_sel & 8) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // ram_ptr is now BYTE addressed.
-				if (top->o_wb_sel & 4) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 2MB, ignore the lower two bits, add the offset.
-				if (top->o_wb_sel & 2) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
-				if (top->o_wb_sel & 1) ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
+				if (top->o_wb_sel & 8) ram_ptr[(top->mem_addr & 0x1ffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // ram_ptr is now BYTE addressed.
+				if (top->o_wb_sel & 4) ram_ptr[(top->mem_addr & 0x1ffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 2MB, ignore the lower two bits, add the offset.
+				if (top->o_wb_sel & 2) ram_ptr[(top->mem_addr & 0x1ffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
+				if (top->o_wb_sel & 1) ram_ptr[(top->mem_addr & 0x1ffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
 			}
 
 			// Handle writes to VRAM, with byte masking...
-			if (top->o_wb_adr >= 0x00200000 && top->o_wb_adr <= 0x002FFFFF && top->o_wb_we) {                // 1MB masked.
+			if (top->mem_addr >= 0x00200000 && top->mem_addr <= 0x002FFFFF && top->o_wb_we) {                // 1MB masked.
 				//printf("VRAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->o_wb_adr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
-				if (top->o_wb_sel & 8) vram_ptr[(top->o_wb_adr & 0xffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // vram_ptr is now BYTE addressed.
-				if (top->o_wb_sel & 4) vram_ptr[(top->o_wb_adr & 0xffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 1MB, ignore the lower two bits, add the offset.
-				if (top->o_wb_sel & 2) vram_ptr[(top->o_wb_adr & 0xffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
-				if (top->o_wb_sel & 1) vram_ptr[(top->o_wb_adr & 0xffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
+				if (top->o_wb_sel & 8) vram_ptr[(top->mem_addr & 0xffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // vram_ptr is now BYTE addressed.
+				if (top->o_wb_sel & 4) vram_ptr[(top->mem_addr & 0xffffc) + 1] = (top->o_wb_dat >> 16) & 0xff;  // Mask o_wb_adr to 1MB, ignore the lower two bits, add the offset.
+				if (top->o_wb_sel & 2) vram_ptr[(top->mem_addr & 0xffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
+				if (top->o_wb_sel & 1) vram_ptr[(top->mem_addr & 0xffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
 			}
 
 			// Handle writes to NVRAM...
 			if (top->o_wb_adr >= 0x03140000 && top->o_wb_adr <= 0x0315ffff && top->o_wb_we) {          // 128KB Masked.
-				nvram_ptr[ (top->o_wb_adr>>2) & 0x1ffff] = top->o_wb_dat & 0xff;       // Only writes the lower byte from the core to 8-bit NVRAM. o_wb_adr is the BYTE address, so shouldn't need shifting.
+				nvram_ptr[ (top->o_wb_adr >>2) & 0x1ffff] = top->o_wb_dat & 0xff;       // Only writes the lower byte from the core to 8-bit NVRAM. o_wb_adr is the BYTE address, so shouldn't need shifting.
 			}
 
 			/*if ((top->o_wb_adr == 0x03400400) && top->o_wb_we) {	// XBUS direction.
 				if (!(top->o_wb_dat & 0x800)) top->rootp->core_3do__DOT__clio_inst__DOT__expctl = top->o_wb_dat;
 			}*/
 			
-			uint8_t rom_byte0 = rom_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;      // rom_ptr is now BYTE addressed.
-			uint8_t rom_byte1 = rom_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;      // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
-			uint8_t rom_byte2 = rom_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
-			uint8_t rom_byte3 = rom_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
+			uint8_t rom_byte0 = rom_ptr[(top->mem_addr & 0xffffc) + 0] & 0xff;      // rom_ptr is now BYTE addressed.
+			uint8_t rom_byte1 = rom_ptr[(top->mem_addr & 0xffffc) + 1] & 0xff;      // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
+			uint8_t rom_byte2 = rom_ptr[(top->mem_addr & 0xffffc) + 2] & 0xff;
+			uint8_t rom_byte3 = rom_ptr[(top->mem_addr & 0xffffc) + 3] & 0xff;
 			uint32_t rom_word = rom_byte0 << 24 | rom_byte1 << 16 | rom_byte2 << 8 | rom_byte3;
 
-			uint8_t rom2_byte0 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;    // rom2_ptr is now BYTE addressed.
-			uint8_t rom2_byte1 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;    // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
-			uint8_t rom2_byte2 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
-			uint8_t rom2_byte3 = rom2_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
+			uint8_t rom2_byte0 = rom2_ptr[(top->mem_addr & 0xffffc) + 0] & 0xff;    // rom2_ptr is now BYTE addressed.
+			uint8_t rom2_byte1 = rom2_ptr[(top->mem_addr & 0xffffc) + 1] & 0xff;    // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
+			uint8_t rom2_byte2 = rom2_ptr[(top->mem_addr & 0xffffc) + 2] & 0xff;
+			uint8_t rom2_byte3 = rom2_ptr[(top->mem_addr & 0xffffc) + 3] & 0xff;
 			uint32_t rom2_word = rom2_byte0 << 24 | rom2_byte1 << 16 | rom2_byte2 << 8 | rom2_byte3;
 			//uint32_t rom2_word = 0x00000000;	// TESTING. Disable the Kanji ROM for now. Text on BIOS should then be in English.
 
-			uint8_t ram_byte0 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 0] & 0xff;     // ram_ptr is now BYTE addressed.
-			uint8_t ram_byte1 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 1] & 0xff;     // Mask o_wb_adr to 2MB, ignorring the lower two bits, add the offset.
-			uint8_t ram_byte2 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 2] & 0xff;
-			uint8_t ram_byte3 = ram_ptr[(top->o_wb_adr & 0x1ffffc) + 3] & 0xff;
+			uint8_t ram_byte0 = ram_ptr[(top->mem_addr & 0x1ffffc) + 0] & 0xff;     // ram_ptr is now BYTE addressed.
+			uint8_t ram_byte1 = ram_ptr[(top->mem_addr & 0x1ffffc) + 1] & 0xff;     // Mask o_wb_adr to 2MB, ignorring the lower two bits, add the offset.
+			uint8_t ram_byte2 = ram_ptr[(top->mem_addr & 0x1ffffc) + 2] & 0xff;
+			uint8_t ram_byte3 = ram_ptr[(top->mem_addr & 0x1ffffc) + 3] & 0xff;
 			uint32_t ram_word = ram_byte0 << 24 | ram_byte1 << 16 | ram_byte2 << 8 | ram_byte3;
 
-			uint8_t vram_byte0 = vram_ptr[(top->o_wb_adr & 0xffffc) + 0] & 0xff;     // vram_ptr is now BYTE addressed.
-			uint8_t vram_byte1 = vram_ptr[(top->o_wb_adr & 0xffffc) + 1] & 0xff;     // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
-			uint8_t vram_byte2 = vram_ptr[(top->o_wb_adr & 0xffffc) + 2] & 0xff;
-			uint8_t vram_byte3 = vram_ptr[(top->o_wb_adr & 0xffffc) + 3] & 0xff;
+			uint8_t vram_byte0 = vram_ptr[(top->mem_addr & 0xffffc) + 0] & 0xff;     // vram_ptr is now BYTE addressed.
+			uint8_t vram_byte1 = vram_ptr[(top->mem_addr & 0xffffc) + 1] & 0xff;     // Mask o_wb_adr to 1MB, ignorring the lower two bits, add the offset.
+			uint8_t vram_byte2 = vram_ptr[(top->mem_addr & 0xffffc) + 2] & 0xff;
+			uint8_t vram_byte3 = vram_ptr[(top->mem_addr & 0xffffc) + 3] & 0xff;
 			uint32_t vram_word = vram_byte0 << 24 | vram_byte1 << 16 | vram_byte2 << 8 | vram_byte3;
 
 			//if (top->o_wb_adr >= 0x03100000 && top->o_wb_adr <= 0x034FFFFF && top->o_wb_adr != 0x03400034) fprintf(logfile, "Addr: 0x%08X ", top->o_wb_adr);
@@ -1237,35 +1265,35 @@ int verilate() {
 			if (top->o_wb_adr == 0x03300508) { fprintf(logfile, "MADAM DMA16 NAd "); }
 			if (top->o_wb_adr == 0x0330050c) { fprintf(logfile, "MADAM DMA16 NLn "); }
 
-			if (top->o_wb_adr == 0x03300510) { fprintf(logfile, "MADAM DMA17 Adr "); } // DSPPToRam1
-			if (top->o_wb_adr == 0x03300514) { fprintf(logfile, "MADAM DMA17 Len "); }
-			if (top->o_wb_adr == 0x03300518) { fprintf(logfile, "MADAM DMA17 NAd "); }
-			if (top->o_wb_adr == 0x0330051c) { fprintf(logfile, "MADAM DMA17 NLn "); }
+			if (top->o_wb_adr == 0x03300510) { fprintf(logfile, "MADAM DMA10 Adr "); } // DSPPToRam1
+			if (top->o_wb_adr == 0x03300514) { fprintf(logfile, "MADAM DMA10 Len "); }
+			if (top->o_wb_adr == 0x03300518) { fprintf(logfile, "MADAM DMA10 NAd "); }
+			if (top->o_wb_adr == 0x0330051c) { fprintf(logfile, "MADAM DMA10 NLn "); }
 
-			if (top->o_wb_adr == 0x03300520) { fprintf(logfile, "MADAM DMA18 Adr "); } // DSPPToRam2
-			if (top->o_wb_adr == 0x03300524) { fprintf(logfile, "MADAM DMA18 Len "); }
-			if (top->o_wb_adr == 0x03300528) { fprintf(logfile, "MADAM DMA18 NAd "); }
-			if (top->o_wb_adr == 0x0330052c) { fprintf(logfile, "MADAM DMA18 NLn "); }
+			if (top->o_wb_adr == 0x03300520) { fprintf(logfile, "MADAM DMA11 Adr "); } // DSPPToRam2
+			if (top->o_wb_adr == 0x03300524) { fprintf(logfile, "MADAM DMA11 Len "); }
+			if (top->o_wb_adr == 0x03300528) { fprintf(logfile, "MADAM DMA11 NAd "); }
+			if (top->o_wb_adr == 0x0330052c) { fprintf(logfile, "MADAM DMA11 NLn "); }
 
-			if (top->o_wb_adr == 0x03300530) { fprintf(logfile, "MADAM DMA19 Adr "); } // DSPPToRam3
-			if (top->o_wb_adr == 0x03300534) { fprintf(logfile, "MADAM DMA19 Len "); }
-			if (top->o_wb_adr == 0x03300538) { fprintf(logfile, "MADAM DMA19 NAd "); }
-			if (top->o_wb_adr == 0x0330053c) { fprintf(logfile, "MADAM DMA19 NLn "); }
+			if (top->o_wb_adr == 0x03300530) { fprintf(logfile, "MADAM DMA12 Adr "); } // DSPPToRam3
+			if (top->o_wb_adr == 0x03300534) { fprintf(logfile, "MADAM DMA12 Len "); }
+			if (top->o_wb_adr == 0x03300538) { fprintf(logfile, "MADAM DMA12 NAd "); }
+			if (top->o_wb_adr == 0x0330053c) { fprintf(logfile, "MADAM DMA12 NLn "); }
 
-			if (top->o_wb_adr == 0x03300540) { fprintf(logfile, "MADAM XBus Adr  "); } // DMAExpo. Xbus?
+			if (top->o_wb_adr == 0x03300540) { fprintf(logfile, "MADAM XBus Adr  "); } // DMAExpo
 			if (top->o_wb_adr == 0x03300544) { fprintf(logfile, "MADAM XBus Len  "); }
 			if (top->o_wb_adr == 0x03300548) { fprintf(logfile, "MADAM XBus NAd  "); }
 			if (top->o_wb_adr == 0x0330054c) { fprintf(logfile, "MADAM XBus NLn  "); }
 
-			if (top->o_wb_adr == 0x03300550) { fprintf(logfile, "MADAM DMA21 Adr "); } // UncleToRam
-			if (top->o_wb_adr == 0x03300554) { fprintf(logfile, "MADAM DMA21 Len "); }
-			if (top->o_wb_adr == 0x03300558) { fprintf(logfile, "MADAM DMA21 NAd "); }
-			if (top->o_wb_adr == 0x0330055c) { fprintf(logfile, "MADAM DMA21 NLn "); }
+			if (top->o_wb_adr == 0x03300550) { fprintf(logfile, "MADAM DMA14 Adr "); } // UncleToRam
+			if (top->o_wb_adr == 0x03300554) { fprintf(logfile, "MADAM DMA14 Len "); }
+			if (top->o_wb_adr == 0x03300558) { fprintf(logfile, "MADAM DMA14 NAd "); }
+			if (top->o_wb_adr == 0x0330055c) { fprintf(logfile, "MADAM DMA14 NLn "); }
 
-			if (top->o_wb_adr == 0x03300560) { fprintf(logfile, "MADAM DMA22 Adr "); } // ExternalToRam
-			if (top->o_wb_adr == 0x03300564) { fprintf(logfile, "MADAM DMA22 Len "); }
-			if (top->o_wb_adr == 0x03300568) { fprintf(logfile, "MADAM DMA22 NAd "); }
-			if (top->o_wb_adr == 0x0330056c) { fprintf(logfile, "MADAM DMA22 NLn "); }
+			if (top->o_wb_adr == 0x03300560) { fprintf(logfile, "MADAM DMA15 Adr "); } // ExternalToRam
+			if (top->o_wb_adr == 0x03300564) { fprintf(logfile, "MADAM DMA15 Len "); }
+			if (top->o_wb_adr == 0x03300568) { fprintf(logfile, "MADAM DMA15 NAd "); }
+			if (top->o_wb_adr == 0x0330056c) { fprintf(logfile, "MADAM DMA15 NLn "); }
 
 			if (top->o_wb_adr == 0x03300570) { fprintf(logfile, "MADAM PbToRam   "); } // ControlPort (PlayerBus)
 			if (top->o_wb_adr == 0x03300574) { fprintf(logfile, "MADAM PbLength  "); }
@@ -1293,15 +1321,15 @@ int verilate() {
 			if (top->o_wb_adr == 0x033005b8) { fprintf(logfile, "MADAM CLD AdrB  "); }
 			if (top->o_wb_adr == 0x033005bc) { fprintf(logfile, "MADAM CLD LenB  "); }
 
-			if (top->o_wb_adr == 0x033005c0) { fprintf(logfile, "MADAM DMA28 Adr "); } // Commandgrabber
-			if (top->o_wb_adr == 0x033005c4) { fprintf(logfile, "MADAM DMA28 Len "); }
-			if (top->o_wb_adr == 0x033005c8) { fprintf(logfile, "MADAM DMA28 NAd "); }
-			if (top->o_wb_adr == 0x033005cc) { fprintf(logfile, "MADAM DMA28 NLn "); }
+			if (top->o_wb_adr == 0x033005c0) { fprintf(logfile, "MADAM DMA21 Adr "); } // Commandgrabber
+			if (top->o_wb_adr == 0x033005c4) { fprintf(logfile, "MADAM DMA21 Len "); }
+			if (top->o_wb_adr == 0x033005c8) { fprintf(logfile, "MADAM DMA21 NAd "); }
+			if (top->o_wb_adr == 0x033005cc) { fprintf(logfile, "MADAM DMA21 NLn "); }
 
-			if (top->o_wb_adr == 0x033005d0) { fprintf(logfile, "MADAM DMA29 Adr "); } // Framegrabber
-			if (top->o_wb_adr == 0x033005d4) { fprintf(logfile, "MADAM DMA29 Len "); }
-			if (top->o_wb_adr == 0x033005d8) { fprintf(logfile, "MADAM DMA29 NAd "); }
-			if (top->o_wb_adr == 0x033005dc) { fprintf(logfile, "MADAM DMA29 NLn "); }
+			if (top->o_wb_adr == 0x033005d0) { fprintf(logfile, "MADAM DMA22 Adr "); } // Framegrabber
+			if (top->o_wb_adr == 0x033005d4) { fprintf(logfile, "MADAM DMA22 Len "); }
+			if (top->o_wb_adr == 0x033005d8) { fprintf(logfile, "MADAM DMA22 NAd "); }
+			if (top->o_wb_adr == 0x033005dc) { fprintf(logfile, "MADAM DMA22 NLn "); }
 
 			if (top->o_wb_adr >= 0x03300600 && top->o_wb_adr <= 0x0330063f) { fprintf(logfile, "MADAM Matrix    "); }
 			if (top->o_wb_adr >= 0x03300640 && top->o_wb_adr <= 0x0330069c) { fprintf(logfile, "MADAM B0_B1     "); }
@@ -1490,7 +1518,9 @@ int verilate() {
 		//if (top->o_wb_adr==0x03400178 && top->o_wb_we) run_enable = 0;
 		//if (top->o_wb_adr== 0x03400580 && top->o_wb_we && top->o_wb_dat==0x00000010) run_enable = 0;
 		//if (cur_pc== 0x000014A8) run_enable = 0;
-		if (top->o_wb_adr == 0x0000DEDC && top->o_wb_we && ((top->o_wb_dat&0xff) == 0xB5) ) run_enable = 0;
+		//if (top->o_wb_adr == 0x0000DEDC && top->o_wb_we && ((top->o_wb_dat&0xff) == 0xB5) ) run_enable = 0;
+
+		if (top->o_wb_adr == 0x03300100 && top->o_wb_we) run_enable = 0;	// Madam SPRSTRT.
 
 		/*
 		if (old_fiq_n == 1 && top->rootp->core_3do__DOT__clio_inst__DOT__firq_n == 0) { // firq_n falling edge.
@@ -1655,7 +1685,11 @@ int main(int argc, char** argv, char** env) {
 
 	soundfile = fopen("soundfile.bin", "wb");
 
-	isofile = fopen("aitd_us.iso", "rb");
+	//isofile = fopen("aitd_us.iso", "rb");
+	//isofile = fopen("3DentrO.iso", "rb");
+	//isofile = fopen("3DO teaser trailer 25% ISO.iso", "rb");
+	//isofile = fopen("stniccc_3do_4bpp.iso", "rb");
+	isofile = fopen("optidoom_02c.iso", "rb");
 	//isofile = fopen("PhotoCD_Gallery.iso", "rb");
 	fseek(isofile, 0L, SEEK_END);
 	iso_size = ftell(isofile);
@@ -2053,6 +2087,7 @@ int main(int argc, char** argv, char** env) {
 
 		ImGui::Text("    reset_n: %d", top->rootp->core_3do__DOT__reset_n);
 		ImGui::Separator();
+		ImGui::Text("   mem_addr: 0x%08X", top->mem_addr);
 		ImGui::Text("   o_wb_adr: 0x%08X", top->o_wb_adr);
 		ImGui::SameLine();
 		if (top->rootp->o_wb_adr >= 0x00000000 && top->rootp->o_wb_adr <= 0x001FFFFF) {
@@ -2076,6 +2111,7 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("   o_wb_sel: 0x%01X", top->o_wb_sel);
 		//ImGui::Text("   o_wb_cyc: %d", top->o_wb_cyc);
 		ImGui::Text("   o_wb_stb: %d", top->o_wb_stb);
+		ImGui::Text("   i_wb_ack: %d", top->i_wb_ack);
 		//ImGui::Text("   o_wb_cti: 0x%01X", top->o_wb_cti);
 		//ImGui::Text("   o_wb_bte: 0x%01X", top->o_wb_bte);
 		ImGui::Separator();
@@ -2378,13 +2414,40 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("     mctl: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__mctl);
 		ImGui::Text("   sltime: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__sltime);
 		ImGui::Separator();
-		ImGui::Text(" vdl_addr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma24_curaddr);	// 0x580
+		ImGui::Text(" vdl_addr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__vdl_addr);	// 0x580
 		ImGui::Separator();
 		ImGui::Text(" VDL still in C...");
 		ImGui::Text("  vdl_ctl: 0x%08X", vdl_ctl);
 		ImGui::Text(" vdl_curr: 0x%08X", vdl_curr);
 		ImGui::Text(" vdl_prev: 0x%08X", vdl_prev);
 		ImGui::Text(" vdl_next: 0x%08X", vdl_next);
+		ImGui::End();
+
+		ImGui::Begin("CEL Registers");
+		ImGui::Text(" currentccb: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__currentccb);
+		ImGui::Text("    nextccb: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__nextccb);
+		ImGui::Text("   plutdata: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__plutdata);
+		ImGui::Text("      pdata: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pdata);
+		ImGui::Text("  engafetch: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__engafetch);
+		ImGui::Text("    engalen: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__engalen);
+		ImGui::Text("  engbfetch: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__engbfetch);
+		ImGui::Text("    engblen: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__engblen);
+		ImGui::Separator();
+		ImGui::Text("   vdl_addr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__flags);
+		ImGui::Text("    nextptr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__nextptr);
+		ImGui::Text("  sourceptr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__sourceptr);
+		ImGui::Text("    plutptr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__plutptr);
+		ImGui::Text("       xpos: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__xpos);
+		ImGui::Text("       ypos: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__ypos);
+		ImGui::Text("        hdx: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__hdx);
+		ImGui::Text("        hdy: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__hdy);
+		ImGui::Text("        vdx: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__vdx);
+		ImGui::Text("        vdy: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__vdy);
+		ImGui::Text("       hddx: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__hddx);
+		ImGui::Text("       hddy: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__hddy);
+		ImGui::Text("       pixc: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pixc);
+		ImGui::Text("       pre0: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pre0);
+		ImGui::Text("       pre1: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pre1);
 		ImGui::End();
 
 		/*

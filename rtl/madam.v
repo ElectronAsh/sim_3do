@@ -11,13 +11,16 @@ module madam (
 	
 	input [31:0] cpu_addr,
 	input [31:0] cpu_din,
+	output reg [31:0] cpu_dout,
 	input cpu_rd,
 	input cpu_wr,
-	output reg [31:0] cpu_dout,
+	
+	input cpu_stb,
+	output reg cpu_ack,
 	
 	output reg cpu_clk,
 	
-	output [21:0] mem_addr,	
+	output [31:0] mem_addr,	
 	input [31:0] mem_din,
 	output mem_rd,
 	output mem_wr,
@@ -36,15 +39,17 @@ module madam (
 	output reg dma_ack
 );
 
-assign mem_addr = (dma_req>5'd0 && dma_ack) ? dma_addr : cpu_addr[21:0];
-assign mem_dout = (dma_req>5'd0 && dma_ack) ? dma_dout : cpu_dout;
-assign mem_rd   = (dma_req>5'd0 && dma_ack) ? dma_rd : cpu_rd;
-assign mem_wr   = (dma_req>5'd0 && dma_ack) ? dma_wr : cpu_wr;
+assign mem_addr = (dma_req>5'd0 && (dma_ack || cel_dma_ack)) ? dma_addr : cpu_addr;
+assign mem_dout = (dma_req>5'd0 && (dma_ack || cel_dma_ack)) ? dma_dout : cpu_dout;
+assign mem_rd   = (dma_req>5'd0 && (dma_ack || cel_dma_ack)) ? dma_rd : cpu_rd;
+assign mem_wr   = (dma_req>5'd0 && (dma_ack || cel_dma_ack)) ? dma_wr : cpu_wr;
 
-reg [21:0] dma_addr;
+reg [31:0] dma_addr;
 wire [31:0] dma_dout;
 reg dma_rd;
 reg dma_wr;
+reg cel_dma_req;
+reg cel_dma_ack;
 
 
 assign dram_cs = (cpu_addr>=32'h00000000 && cpu_addr<=32'h001fffff);	// 2MB main DRAM.
@@ -55,6 +60,220 @@ assign vram_cs = (cpu_addr>=32'h00200000 && cpu_addr<=32'h002fffff);	// 1MB VRAM
 // TODO: Is the 1MB BIOS only mapped to the lower 1MB of DRAM range, or is it mirrored to the upper 1MB of DRAM as well?
 reg map_bios;
 assign bios_cs = (dram_cs && map_bios) || (cpu_addr>=32'h00300000 && cpu_addr<=32'h003fffff);
+
+
+/*
+	vuint32			CELStart;	// 0100: Start CEL Engine
+	vuint32			CELStop;	// 0104: Stop CEL Engine
+	vuint32			CELContinue;	// 0108: Continue CEL Engine
+	vuint32			CELPause;	// 010c: Pause CEL Engine
+	vuint32			CCBCtl0;	// 0110: CCB control word
+	vuint32			CCB_PIXC;	// 0120: CCB control word
+
+// 0130: Regis Control
+	vuint32			RegisCtl0;	// 0130: Regis Control Word
+	vuint32			RegisCtl1;	// 0134: X and Y clip values
+	vuint32			RegisCtl2;	// 0138: Read Base address
+	vuint32			RegisCtl3;	// 013c: Write Base address
+// 0140: Regis Shape
+	vuint32			XYPosH;		// 0140:
+	vuint32			XYPosL;		// 0144:
+	vuint32			Line_dXYH;	// 0148:
+	vuint32			Line_dXYL;	// 014c:
+	vuint32			dXYH;		// 0150:
+	vuint32			dXYL;		// 0154:
+	vuint32			ddXYH;		// 0158:
+	vuint32			ddXYL;		// 015c:
+*/
+
+parameter CCB_SKIP        = 31;
+parameter CCB_LAST        = 30;
+parameter CCB_NPABS       = 29;
+parameter CCB_SPABS       = 28;
+parameter CCB_PPABS       = 27;
+parameter CCB_LDSIZE      = 26;
+parameter CCB_LDPRS       = 25;
+parameter CCB_LDPPMP      = 24;
+parameter CCB_LDPLUT      = 23;
+parameter CCB_CCBPRE      = 22;
+parameter CCB_YOXY        = 21;
+parameter CCB_ACSC        = 20;
+parameter CCB_ALSC        = 19;
+parameter CCB_ACW         = 18;
+parameter CCB_ACCW        = 17;
+parameter CCB_TWD         = 16;
+parameter CCB_LCE         = 15;
+parameter CCB_ACE         = 14;
+parameter CCB_reserved13  = 13;
+parameter CCB_MARIA       = 12;
+parameter CCB_PXOR        = 11;
+parameter CCB_USEAV       = 10;
+parameter CCB_PACKED      = 9;
+
+parameter CCB_POVER_MASK  = 9'h180;
+parameter CCB_PLUTPOS     = 6;
+parameter CCB_BGND        = 5;
+parameter CCB_NOBLK       = 4;
+parameter CCB_PLUTA_MASK  = 4'hF;
+
+
+parameter STATBITS      = 16'h0028;
+parameter SPRON		    = 8'h10;
+parameter SPRPAU		= 8'h20;
+
+//CelEngine Registers
+parameter SPRSTRT		= 16'h0100;
+parameter SPRSTOP		= 16'h0104;
+parameter SPRCNTU		= 16'h0108;
+parameter SPRPAUS		= 16'h010c;
+
+parameter CCBCTL0		= 16'h0110;
+parameter REGCTL0		= 16'h0130;
+parameter REGCTL1		= 16'h0134;
+parameter REGCTL2		= 16'h0138;
+parameter REGCTL3		= 16'h013c;
+
+parameter CURRENTCCB	= 16'h05a0;
+
+//next ccb == 0 stop the engine
+parameter NEXTCCB		= 16'h05a4;
+parameter PLUTDATA	    = 16'h05a8;
+parameter PDATA		    = 16'h05ac;
+parameter ENGAFETCH	    = 16'h05b0;
+parameter ENGALEN		= 16'h05b4;
+parameter ENGBFETCH	    = 16'h05b8;
+parameter ENGBLEN		= 16'h05bc;
+
+
+reg [21:0] currentccb;
+reg [21:0] nextccb;
+reg [21:0] plutdata;
+reg [21:0] pdata;
+reg [21:0] engafetch;
+reg [21:0] engalen;
+reg [21:0] engbfetch;
+reg [21:0] engblen;
+
+parameter FLAGS = 0;
+parameter NEXTPTR = 1;
+parameter SOURCEPTR = 2;
+parameter PLUTPTR = 3;
+parameter XPOS = 4;
+parameter YPOS = 5;
+parameter HDX = 6;
+parameter HDY = 7;
+parameter VDX = 8;
+parameter VDY = 9;
+parameter HDDX = 10;
+parameter HDDY = 11;
+parameter PIXC = 12;
+parameter PRE0 = 13;
+parameter PRE1 = 14;
+parameter CELDONE = 15;
+
+reg [31:0] flags;
+reg [31:0] nextptr;
+reg [31:0] sourceptr;
+reg [31:0] plutptr;
+reg [31:0] xpos;
+reg [31:0] ypos;
+reg [31:0] hdx;
+reg [31:0] hdy;
+reg [31:0] vdx;
+reg [31:0] vdy;
+reg [31:0] hddx;
+reg [31:0] hddy;
+reg [31:0] pixc;
+reg [31:0] pre0;
+reg [31:0] pre1;
+
+reg cpu_stb_1;
+wire cpu_stb_rising = cpu_stb && !cpu_stb_1;
+
+reg [7:0] state;
+reg [5:0] fetch_idx;
+reg [23:0] fetch_addr;
+
+always @(posedge clk_25m or negedge reset_n)
+if (!reset_n) begin
+	state <= 8'd0;
+	fetch_idx <= 6'd0;
+	cel_dma_req <= 1'b0;
+	cel_dma_ack <= 1'b0;
+	
+	cpu_stb_1 <= 1'b0;
+	cpu_ack <= 1'b0;
+end
+else begin
+	//cpu_stb_1 <= cpu_stb;
+	//cpu_ack <= cpu_stb_rising;
+	cpu_ack <= cpu_stb;
+	
+	if (!cpu_stb && !cpu_ack && cel_dma_req) cel_dma_ack <= 1'b1;
+	else if (cel_dma_req==1'b0) cel_dma_ack <= 1'b0;
+	
+	if (cel_dma_req && cel_dma_ack) cpu_ack <= 1'b0;	// Override.
+	
+	
+	case (state)
+	0: begin
+		if (cpu_addr[15:0]==SPRSTRT && cpu_wr) begin	// CELStart write.
+			dma_addr <= currentccb;
+			fetch_idx <= 6'd1;
+			cel_dma_req <= 1'b1;
+			dma_rd <= 1'b1;
+			state <= state + 1;
+		end
+	end
+	
+	1: if (cel_dma_ack) begin
+		dma_addr <= dma_addr + 4;
+		fetch_idx <= fetch_idx + 1;
+		
+		case (fetch_idx)
+			FLAGS: if (mem_din[CCB_SKIP]) state <= CELDONE; else flags <= mem_din;
+		  NEXTPTR: nextptr <= mem_din;
+		SOURCEPTR: sourceptr <= mem_din;
+		  PLUTPTR: plutptr <= mem_din;
+		     XPOS: xpos <= mem_din;
+		     YPOS: ypos <= mem_din;
+		
+		      HDX: if (flags[CCB_LDSIZE]) hdx <= mem_din; else begin fetch_idx <= HDDX; dma_addr <= dma_addr; end
+		      HDY: hdy <= mem_din;
+		      VDX: vdx <= mem_din;
+		      VDY: vdy <= mem_din;
+		
+		     HDDX: if (flags[CCB_LDPRS]) hddx <= mem_din; else begin fetch_idx <= PIXC; dma_addr <= dma_addr; end
+		     HDDY: hddy <= mem_din;
+		
+		     PIXC: if (flags[CCB_LDPPMP]) pixc <= mem_din;
+		
+		     PRE0: pre0 <= mem_din;
+		     PRE1: pre1 <= mem_din;
+			 
+		  CELDONE: begin
+				cel_dma_req <= 1'b0;
+				dma_rd <= 1'b0;
+				state <= state + 1;
+			end
+		
+		default: ;
+		endcase
+	end
+	
+	2: begin
+		
+		state <= state + 1;
+	end
+	
+	15: begin
+		cel_dma_req <= 1'b0;
+		state <= 8'd0;
+	end
+	
+	default: ;
+	endcase
+end
 
 
 
@@ -247,12 +466,24 @@ always @(*) begin
 		// Most of the DMA addr regs are probably 22-bits wide, as suggested in the patent.
 		// (ie. each can address a 4MB memory range.)
 		
-		16'h04??, 16'h05??: cpu_dout = dma_regout;	// 0x0400 - 0x05ff.
+		//16'h04??, 16'h05??: cpu_dout = dma_regout;	// 0x0400 - 0x05ff.
+		16'h04??: cpu_dout = dma_regout;	// 0x0400 - 0x04ff.
+
+		16'h05a0: cpu_dout = currentccb;
+		16'h05a4: cpu_dout = nextccb;
+		16'h05a8: cpu_dout = plutdata;
+		16'h05ac: cpu_dout = pdata;
+		16'h05b0: cpu_dout = engafetch;
+		16'h05b4: cpu_dout = engalen;
+		16'h05b8: cpu_dout = engbfetch;
+		16'h05bc: cpu_dout = engblen;
 
 		// 0x0600 to 0x069C = Hardware Multiplier (Matrix Engine).
 		default: cpu_dout = 32'hBADACCE5;
 	endcase
 end
+
+
 
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
@@ -332,6 +563,15 @@ else begin
 			// (ie. each can address a 4MB memory range.)
 
 			16'h0580: vdl_addr <= cpu_din;	// 0x580. Actually a DMA register!
+			
+			16'h05a0: currentccb <= cpu_din;
+			16'h05a4: nextccb <= cpu_din;
+			16'h05a8: plutdata <= cpu_din;
+			16'h05ac: pdata <= cpu_din;
+			16'h05b0: engafetch <= cpu_din;
+			16'h05b4: engalen <= cpu_din;
+			16'h05b8: engbfetch <= cpu_din;
+			16'h05bc: engblen <= cpu_din;
 			
 			default: ;
 		endcase
@@ -577,164 +817,164 @@ module dma_stack (
 // (ie. each can address a 4MB memory range.)
 
 reg [21:0] dma0_curaddr;	// 0x400. RamToDSPP0
-reg [23:0] dma0_curlen;		// 0x404
+reg [21:0] dma0_curlen;		// 0x404
 reg [21:0] dma0_nextaddr;	// 0x408
-reg [23:0] dma0_nextlen;	// 0x40c
+reg [21:0] dma0_nextlen;	// 0x40c
 
 reg [21:0] dma1_curaddr;	// 0x410. RamToDSPP1
-reg [23:0] dma1_curlen;		// 0x414
+reg [21:0] dma1_curlen;		// 0x414
 reg [21:0] dma1_nextaddr;	// 0x418
-reg [23:0] dma1_nextlen;	// 0x41c
+reg [21:0] dma1_nextlen;	// 0x41c
 
 reg [21:0] dma2_curaddr;	// 0x420. RamToDSPP2
-reg [23:0] dma2_curlen;		// 0x424
+reg [21:0] dma2_curlen;		// 0x424
 reg [21:0] dma2_nextaddr;	// 0x428
-reg [23:0] dma2_nextlen;	// 0x42c
+reg [21:0] dma2_nextlen;	// 0x42c
 
 reg [21:0] dma3_curaddr;	// 0x430. RamToDSPP3
-reg [23:0] dma3_curlen;		// 0x434
+reg [21:0] dma3_curlen;		// 0x434
 reg [21:0] dma3_nextaddr;	// 0x438
-reg [23:0] dma3_nextlen;	// 0x43c
+reg [21:0] dma3_nextlen;	// 0x43c
 
 reg [21:0] dma4_curaddr;	// 0x440. RamToDSPP4
-reg [23:0] dma4_curlen;		// 0x444
+reg [21:0] dma4_curlen;		// 0x444
 reg [21:0] dma4_nextaddr;	// 0x448
-reg [23:0] dma4_nextlen;	// 0x44c
+reg [21:0] dma4_nextlen;	// 0x44c
 
 reg [21:0] dma5_curaddr;	// 0x450. RamToDSPP5
-reg [23:0] dma5_curlen;		// 0x454
+reg [21:0] dma5_curlen;		// 0x454
 reg [21:0] dma5_nextaddr;	// 0x458
-reg [23:0] dma5_nextlen;	// 0x45c
+reg [21:0] dma5_nextlen;	// 0x45c
 
 reg [21:0] dma6_curaddr;	// 0x460. RamToDSPP6
-reg [23:0] dma6_curlen;		// 0x464
+reg [21:0] dma6_curlen;		// 0x464
 reg [21:0] dma6_nextaddr;	// 0x468
-reg [23:0] dma6_nextlen;	// 0x46c
+reg [21:0] dma6_nextlen;	// 0x46c
 
 reg [21:0] dma7_curaddr;	// 0x470. RamToDSPP7
-reg [23:0] dma7_curlen;		// 0x474
+reg [21:0] dma7_curlen;		// 0x474
 reg [21:0] dma7_nextaddr;	// 0x478
-reg [23:0] dma7_nextlen;	// 0x47c
+reg [21:0] dma7_nextlen;	// 0x47c
 
 reg [21:0] dma8_curaddr;	// 0x480. RamToDSPP8
-reg [23:0] dma8_curlen;		// 0x484
+reg [21:0] dma8_curlen;		// 0x484
 reg [21:0] dma8_nextaddr;	// 0x488
-reg [23:0] dma8_nextlen;	// 0x48c
+reg [21:0] dma8_nextlen;	// 0x48c
 
 reg [21:0] dma9_curaddr;	// 0x490. RamToDSPP9
-reg [23:0] dma9_curlen;		// 0x494
+reg [21:0] dma9_curlen;		// 0x494
 reg [21:0] dma9_nextaddr;	// 0x498
-reg [23:0] dma9_nextlen;	// 0x49c
+reg [21:0] dma9_nextlen;	// 0x49c
 
 reg [21:0] dma10_curaddr;	// 0x4a0. RamToDSPP10
-reg [23:0] dma10_curlen;	// 0x4a4
+reg [21:0] dma10_curlen;	// 0x4a4
 reg [21:0] dma10_nextaddr;	// 0x4a8
-reg [23:0] dma10_nextlen;	// 0x4ac
+reg [21:0] dma10_nextlen;	// 0x4ac
 
 reg [21:0] dma11_curaddr;	// 0x4b0. RamToDSPP11
-reg [23:0] dma11_curlen;	// 0x4b4
+reg [21:0] dma11_curlen;	// 0x4b4
 reg [21:0] dma11_nextaddr;	// 0x4b8
-reg [23:0] dma11_nextlen;	// 0x4bc
+reg [21:0] dma11_nextlen;	// 0x4bc
 
 reg [21:0] dma12_curaddr;	// 0x4c0. RamToDSPP12
-reg [23:0] dma12_curlen;	// 0x4c4
+reg [21:0] dma12_curlen;	// 0x4c4
 reg [21:0] dma12_nextaddr;	// 0x4c8
-reg [23:0] dma12_nextlen;	// 0x4cc
+reg [21:0] dma12_nextlen;	// 0x4cc
 
 reg [21:0] dma13_curaddr;	// 0x4d0. RamToUncle
-reg [23:0] dma13_curlen;	// 0x4d4
+reg [21:0] dma13_curlen;	// 0x4d4
 reg [21:0] dma13_nextaddr;	// 0x4d8
-reg [23:0] dma13_nextlen;	// 0x4dc
+reg [21:0] dma13_nextlen;	// 0x4dc
 
 reg [21:0] dma14_curaddr;	// 0x4e0. RamToExternal
-reg [23:0] dma14_curlen;	// 0x4e4
+reg [21:0] dma14_curlen;	// 0x4e4
 reg [21:0] dma14_nextaddr;	// 0x4e8
-reg [23:0] dma14_nextlen;	// 0x4ec
+reg [21:0] dma14_nextlen;	// 0x4ec
 
 reg [21:0] dma15_curaddr;	// 0x4f0. RamToDSPPNStack
-reg [23:0] dma15_curlen;	// 0x4f4
+reg [21:0] dma15_curlen;	// 0x4f4
 reg [21:0] dma15_nextaddr;	// 0x4f8
-reg [23:0] dma15_nextlen;	// 0x4fc
+reg [21:0] dma15_nextlen;	// 0x4fc
 
 reg [21:0] dma16_curaddr;	// 0x500. DSPPToRam0
-reg [23:0] dma16_curlen;	// 0x504
+reg [21:0] dma16_curlen;	// 0x504
 reg [21:0] dma16_nextaddr;	// 0x508
-reg [23:0] dma16_nextlen;	// 0x50c
+reg [21:0] dma16_nextlen;	// 0x50c
 
 reg [21:0] dma17_curaddr;	// 0x510. DSPPToRam1
-reg [23:0] dma17_curlen;	// 0x514
+reg [21:0] dma17_curlen;	// 0x514
 reg [21:0] dma17_nextaddr;	// 0x518
-reg [23:0] dma17_nextlen;	// 0x51c
+reg [21:0] dma17_nextlen;	// 0x51c
 
 reg [21:0] dma18_curaddr;	// 0x520. DSPPToRam2
-reg [23:0] dma18_curlen;	// 0x524
+reg [21:0] dma18_curlen;	// 0x524
 reg [21:0] dma18_nextaddr;	// 0x528
-reg [23:0] dma18_nextlen;	// 0x52c
+reg [21:0] dma18_nextlen;	// 0x52c
 
 reg [21:0] dma19_curaddr;	// 0x530. DSPPToRam3
-reg [23:0] dma19_curlen;	// 0x534
+reg [21:0] dma19_curlen;	// 0x534
 reg [21:0] dma19_nextaddr;	// 0x538
-reg [23:0] dma19_nextlen;	// 0x53c
+reg [21:0] dma19_nextlen;	// 0x53c
 
 reg [21:0] dma20_curaddr;	// 0x540. XBUS DMA (CDROM drive / Expansion Bus etc.)
-reg [23:0] dma20_curlen;	// 0x544
+reg [21:0] dma20_curlen;	// 0x544
 reg [21:0] dma20_nextaddr;	// 0x548
-reg [23:0] dma20_nextlen;	// 0x54c
+reg [21:0] dma20_nextlen;	// 0x54c
 
 reg [21:0] dma21_curaddr;	// 0x550. UncleToRam
-reg [23:0] dma21_curlen;	// 0x554
+reg [21:0] dma21_curlen;	// 0x554
 reg [21:0] dma21_nextaddr;	// 0x558
-reg [23:0] dma21_nextlen;	// 0x55c
+reg [21:0] dma21_nextlen;	// 0x55c
 
 reg [21:0] dma22_curaddr;	// 0x560. ExternalToRam
-reg [23:0] dma22_curlen;	// 0x564
+reg [21:0] dma22_curlen;	// 0x564
 reg [21:0] dma22_nextaddr;	// 0x568
-reg [23:0] dma22_nextlen;	// 0x56c
+reg [21:0] dma22_nextlen;	// 0x56c
 
 reg [21:0] dma23_curaddr;	// 0x570. PlayerBus (ControlPort).
-reg [23:0] dma23_curlen;	// 0x574
+reg [21:0] dma23_curlen;	// 0x574
 reg [21:0] dma23_nextaddr;	// 0x578
-reg [23:0] dma23_nextlen;	// 0x57c
+reg [21:0] dma23_nextlen;	// 0x57c
 
 reg [21:0] dma24_curaddr;	// 0x580. CLUT_MID (CLUT Ctrl) vdl_addr!
-reg [23:0] dma24_curlen;	// 0x584
+reg [21:0] dma24_curlen;	// 0x584
 reg [21:0] dma24_nextaddr;	// 0x588
-reg [23:0] dma24_nextlen;	// 0x58c
+reg [21:0] dma24_nextlen;	// 0x58c
 
 reg [21:0] dma25_curaddr;	// 0x590. Video_MID
-reg [23:0] dma25_curlen;	// 0x594
+reg [21:0] dma25_curlen;	// 0x594
 reg [21:0] dma25_nextaddr;	// 0x598
-reg [23:0] dma25_nextlen;	// 0x59c
+reg [21:0] dma25_nextlen;	// 0x59c
 
 reg [21:0] dma26_curaddr;	// 0x5a0. CELControl
-reg [23:0] dma26_curlen;	// 0x5a4
+reg [21:0] dma26_curlen;	// 0x5a4
 reg [21:0] dma26_nextaddr;	// 0x5a8
-reg [23:0] dma26_nextlen;	// 0x5ac
+reg [21:0] dma26_nextlen;	// 0x5ac
 
 reg [21:0] dma27_curaddr;	// 0x5b0. CELData
-reg [23:0] dma27_curlen;	// 0x5b4
+reg [21:0] dma27_curlen;	// 0x5b4
 reg [21:0] dma27_nextaddr;	// 0x5b8
-reg [23:0] dma27_nextlen;	// 0x5bc
+reg [21:0] dma27_nextlen;	// 0x5bc
 
 reg [21:0] dma28_curaddr;	// 0x5c0. Commandgrabber
-reg [23:0] dma28_curlen;	// 0x5c4
+reg [21:0] dma28_curlen;	// 0x5c4
 reg [21:0] dma28_nextaddr;	// 0x5c8
-reg [23:0] dma28_nextlen;	// 0x5cc
+reg [21:0] dma28_nextlen;	// 0x5cc
 
 reg [21:0] dma29_curaddr;	// 0x5d0. Framegrabber
-reg [23:0] dma29_curlen;	// 0x5d4
+reg [21:0] dma29_curlen;	// 0x5d4
 reg [21:0] dma29_nextaddr;	// 0x5d8
-reg [23:0] dma29_nextlen;	// 0x5dc
+reg [21:0] dma29_nextlen;	// 0x5dc
 
 reg [21:0] dma30_curaddr;	// 0x5e0. Not sure if these regs exist, but having 32 sets of DMA regs might make sense?
-reg [23:0] dma30_curlen;	// 0x5e4
+reg [21:0] dma30_curlen;	// 0x5e4
 reg [21:0] dma30_nextaddr;	// 0x5e8
-reg [23:0] dma30_nextlen;	// 0x5ec
+reg [21:0] dma30_nextlen;	// 0x5ec
 
 reg [21:0] dma31_curaddr;	// 0x5f0. Not sure if these regs exist, but having 32 sets of DMA regs might make sense?
-reg [23:0] dma31_curlen;	// 0x5f4
+reg [21:0] dma31_curlen;	// 0x5f4
 reg [21:0] dma31_nextaddr;	// 0x5f8
-reg [23:0] dma31_nextlen;	// 0x5fc
+reg [21:0] dma31_nextlen;	// 0x5fc
 
 
 // Handle DMA Register Reads...
@@ -907,172 +1147,171 @@ end
 
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
-
+	dma_ack <= 1'b0;
 end
 else begin
-
 	// Handle DMA Register Writes...
 	if (dma_reg_cs && cpu_wr) begin
 		case (cpu_addr[15:0])
-			16'h0400: dma0_curaddr <= cpu_din;		// RamToDSPP0
-			16'h0404: dma0_curlen <= cpu_din;
-			16'h0408: dma0_nextaddr <= cpu_din;
-			16'h040c: dma0_nextlen <= cpu_din;
+			16'h0400: dma0_curaddr <= cpu_din[21:0];		// RamToDSPP0
+			16'h0404: dma0_curlen <= cpu_din[21:0];
+			16'h0408: dma0_nextaddr <= cpu_din[21:0];
+			16'h040c: dma0_nextlen <= cpu_din[21:0];
 
-			16'h0410: dma1_curaddr <= cpu_din;		// RamToDSPP1
-			16'h0414: dma1_curlen <= cpu_din;
-			16'h0418: dma1_nextaddr <= cpu_din;
-			16'h041c: dma1_nextlen <= cpu_din;
+			16'h0410: dma1_curaddr <= cpu_din[21:0];		// RamToDSPP1
+			16'h0414: dma1_curlen <= cpu_din[21:0];
+			16'h0418: dma1_nextaddr <= cpu_din[21:0];
+			16'h041c: dma1_nextlen <= cpu_din[21:0];
 
-			16'h0420: dma2_curaddr <= cpu_din;		// RamToDSPP2
-			16'h0424: dma2_curlen <= cpu_din;
-			16'h0428: dma2_nextaddr <= cpu_din;
-			16'h042c: dma2_nextlen <= cpu_din;
+			16'h0420: dma2_curaddr <= cpu_din[21:0];		// RamToDSPP2
+			16'h0424: dma2_curlen <= cpu_din[21:0];
+			16'h0428: dma2_nextaddr <= cpu_din[21:0];
+			16'h042c: dma2_nextlen <= cpu_din[21:0];
 
-			16'h0430: dma3_curaddr <= cpu_din;		// RamToDSPP3
-			16'h0434: dma3_curlen <= cpu_din;
-			16'h0438: dma3_nextaddr <= cpu_din;
-			16'h043c: dma3_nextlen <= cpu_din;
+			16'h0430: dma3_curaddr <= cpu_din[21:0];		// RamToDSPP3
+			16'h0434: dma3_curlen <= cpu_din[21:0];
+			16'h0438: dma3_nextaddr <= cpu_din[21:0];
+			16'h043c: dma3_nextlen <= cpu_din[21:0];
 
-			16'h0440: dma4_curaddr <= cpu_din;		// RamToDSPP4
-			16'h0444: dma4_curlen <= cpu_din;
-			16'h0448: dma4_nextaddr <= cpu_din;
-			16'h044c: dma4_nextlen <= cpu_din;
+			16'h0440: dma4_curaddr <= cpu_din[21:0];		// RamToDSPP4
+			16'h0444: dma4_curlen <= cpu_din[21:0];
+			16'h0448: dma4_nextaddr <= cpu_din[21:0];
+			16'h044c: dma4_nextlen <= cpu_din[21:0];
 
-			16'h0450: dma5_curaddr <= cpu_din;		// RamToDSPP5
-			16'h0454: dma5_curlen <= cpu_din;
-			16'h0458: dma5_nextaddr <= cpu_din;
-			16'h045c: dma5_nextlen <= cpu_din;
+			16'h0450: dma5_curaddr <= cpu_din[21:0];		// RamToDSPP5
+			16'h0454: dma5_curlen <= cpu_din[21:0];
+			16'h0458: dma5_nextaddr <= cpu_din[21:0];
+			16'h045c: dma5_nextlen <= cpu_din[21:0];
 
-			16'h0460: dma6_curaddr <= cpu_din;		// RamToDSPP6
-			16'h0464: dma6_curlen <= cpu_din;
-			16'h0468: dma6_nextaddr <= cpu_din;
-			16'h046c: dma6_nextlen <= cpu_din;
+			16'h0460: dma6_curaddr <= cpu_din[21:0];		// RamToDSPP6
+			16'h0464: dma6_curlen <= cpu_din[21:0];
+			16'h0468: dma6_nextaddr <= cpu_din[21:0];
+			16'h046c: dma6_nextlen <= cpu_din[21:0];
 
-			16'h0470: dma7_curaddr <= cpu_din;		// RamToDSPP7
-			16'h0474: dma7_curlen <= cpu_din;
-			16'h0478: dma7_nextaddr <= cpu_din;
-			16'h047c: dma7_nextlen <= cpu_din;
+			16'h0470: dma7_curaddr <= cpu_din[21:0];		// RamToDSPP7
+			16'h0474: dma7_curlen <= cpu_din[21:0];
+			16'h0478: dma7_nextaddr <= cpu_din[21:0];
+			16'h047c: dma7_nextlen <= cpu_din[21:0];
 
-			16'h0480: dma8_curaddr <= cpu_din;		// RamToDSPP8
-			16'h0484: dma8_curlen <= cpu_din;
-			16'h0488: dma8_nextaddr <= cpu_din;	
-			16'h048c: dma8_nextlen <= cpu_din;	
+			16'h0480: dma8_curaddr <= cpu_din[21:0];		// RamToDSPP8
+			16'h0484: dma8_curlen <= cpu_din[21:0];
+			16'h0488: dma8_nextaddr <= cpu_din[21:0];	
+			16'h048c: dma8_nextlen <= cpu_din[21:0];	
 
-			16'h0490: dma9_curaddr <= cpu_din;		// RamToDSPP9
-			16'h0494: dma9_curlen <= cpu_din;
-			16'h0498: dma9_nextaddr <= cpu_din;	
-			16'h049c: dma9_nextlen <= cpu_din;	
+			16'h0490: dma9_curaddr <= cpu_din[21:0];		// RamToDSPP9
+			16'h0494: dma9_curlen <= cpu_din[21:0];
+			16'h0498: dma9_nextaddr <= cpu_din[21:0];	
+			16'h049c: dma9_nextlen <= cpu_din[21:0];	
 
-			16'h04a0: dma10_curaddr <= cpu_din;		// RamToDSPP10
-			16'h04a4: dma10_curlen <= cpu_din;
-			16'h04a8: dma10_nextaddr <= cpu_din;
-			16'h04ac: dma10_nextlen <= cpu_din;	
+			16'h04a0: dma10_curaddr <= cpu_din[21:0];		// RamToDSPP10
+			16'h04a4: dma10_curlen <= cpu_din[21:0];
+			16'h04a8: dma10_nextaddr <= cpu_din[21:0];
+			16'h04ac: dma10_nextlen <= cpu_din[21:0];	
 
-			16'h04b0: dma11_curaddr <= cpu_din;		// RamToDSPP11
-			16'h04b4: dma11_curlen <= cpu_din;
-			16'h04b8: dma11_nextaddr <= cpu_din;
-			16'h04bc: dma11_nextlen <= cpu_din;	
+			16'h04b0: dma11_curaddr <= cpu_din[21:0];		// RamToDSPP11
+			16'h04b4: dma11_curlen <= cpu_din[21:0];
+			16'h04b8: dma11_nextaddr <= cpu_din[21:0];
+			16'h04bc: dma11_nextlen <= cpu_din[21:0];	
 			
-			16'h04c0: dma12_curaddr <= cpu_din;		// RamToDSPP12
-			16'h04c4: dma12_curlen <= cpu_din;
-			16'h04c8: dma12_nextaddr <= cpu_din;
-			16'h04cc: dma12_nextlen <= cpu_din;	
+			16'h04c0: dma12_curaddr <= cpu_din[21:0];		// RamToDSPP12
+			16'h04c4: dma12_curlen <= cpu_din[21:0];
+			16'h04c8: dma12_nextaddr <= cpu_din[21:0];
+			16'h04cc: dma12_nextlen <= cpu_din[21:0];	
 			
-			16'h04d0: dma13_curaddr <= cpu_din;		// RamToUncle.
-			16'h04d4: dma13_curlen <= cpu_din;
-			16'h04d8: dma13_nextaddr <= cpu_din;
-			16'h04dc: dma13_nextlen <= cpu_din;	
+			16'h04d0: dma13_curaddr <= cpu_din[21:0];		// RamToUncle.
+			16'h04d4: dma13_curlen <= cpu_din[21:0];
+			16'h04d8: dma13_nextaddr <= cpu_din[21:0];
+			16'h04dc: dma13_nextlen <= cpu_din[21:0];	
 
-			16'h04e0: dma14_curaddr <= cpu_din;		// RamToExternal
-			16'h04e4: dma14_curlen <= cpu_din;
-			16'h04e8: dma14_nextaddr <= cpu_din;
-			16'h04ec: dma14_nextlen <= cpu_din;	
+			16'h04e0: dma14_curaddr <= cpu_din[21:0];		// RamToExternal
+			16'h04e4: dma14_curlen <= cpu_din[21:0];
+			16'h04e8: dma14_nextaddr <= cpu_din[21:0];
+			16'h04ec: dma14_nextlen <= cpu_din[21:0];	
 
-			16'h04f0: dma15_curaddr <= cpu_din;		// RamToDSPPNStack
-			16'h04f4: dma15_curlen <= cpu_din;
-			16'h04f8: dma15_nextaddr <= cpu_din;
-			16'h04fc: dma15_nextlen <= cpu_din;	
+			16'h04f0: dma15_curaddr <= cpu_din[21:0];		// RamToDSPPNStack
+			16'h04f4: dma15_curlen <= cpu_din[21:0];
+			16'h04f8: dma15_nextaddr <= cpu_din[21:0];
+			16'h04fc: dma15_nextlen <= cpu_din[21:0];	
 
-			16'h0500: dma16_curaddr <= cpu_din;		// DSPPToRam0
-			16'h0504: dma16_curlen <= cpu_din;
-			16'h0508: dma16_nextaddr <= cpu_din;
-			16'h050c: dma16_nextlen <= cpu_din;	
+			16'h0500: dma16_curaddr <= cpu_din[21:0];		// DSPPToRam0
+			16'h0504: dma16_curlen <= cpu_din[21:0];
+			16'h0508: dma16_nextaddr <= cpu_din[21:0];
+			16'h050c: dma16_nextlen <= cpu_din[21:0];	
 
-			16'h0510: dma17_curaddr <= cpu_din;		// DSPPToRam1
-			16'h0514: dma17_curlen <= cpu_din;
-			16'h0518: dma17_nextaddr <= cpu_din;
-			16'h051c: dma17_nextlen <= cpu_din;	
+			16'h0510: dma17_curaddr <= cpu_din[21:0];		// DSPPToRam1
+			16'h0514: dma17_curlen <= cpu_din[21:0];
+			16'h0518: dma17_nextaddr <= cpu_din[21:0];
+			16'h051c: dma17_nextlen <= cpu_din[21:0];	
 
-			16'h0520: dma18_curaddr <= cpu_din;		// DSPPToRam2
-			16'h0524: dma18_curlen <= cpu_din;
-			16'h0528: dma18_nextaddr <= cpu_din;
-			16'h052c: dma18_nextlen <= cpu_din;	
+			16'h0520: dma18_curaddr <= cpu_din[21:0];		// DSPPToRam2
+			16'h0524: dma18_curlen <= cpu_din[21:0];
+			16'h0528: dma18_nextaddr <= cpu_din[21:0];
+			16'h052c: dma18_nextlen <= cpu_din[21:0];	
 
-			16'h0530: dma19_curaddr <= cpu_din;		// DSPPToRam3
-			16'h0534: dma19_curlen <= cpu_din;
-			16'h0538: dma19_nextaddr <= cpu_din;
-			16'h053c: dma19_nextlen <= cpu_din;	
+			16'h0530: dma19_curaddr <= cpu_din[21:0];		// DSPPToRam3
+			16'h0534: dma19_curlen <= cpu_din[21:0];
+			16'h0538: dma19_nextaddr <= cpu_din[21:0];
+			16'h053c: dma19_nextlen <= cpu_din[21:0];	
 
-			16'h0540: dma20_curaddr <= cpu_din;		// XBUS DMA.
-			16'h0544: dma20_curlen <= cpu_din;
-			16'h0548: dma20_nextaddr <= cpu_din;
-			16'h054c: dma20_nextlen <= cpu_din;	
+			16'h0540: dma20_curaddr <= cpu_din[21:0];		// XBUS DMA.
+			16'h0544: dma20_curlen <= cpu_din[21:0];
+			16'h0548: dma20_nextaddr <= cpu_din[21:0];
+			16'h054c: dma20_nextlen <= cpu_din[21:0];	
 
-			16'h0550: dma21_curaddr <= cpu_din;		// UncleToRam.
-			16'h0554: dma21_curlen <= cpu_din;
-			16'h0558: dma21_nextaddr <= cpu_din;
-			16'h055c: dma21_nextlen <= cpu_din;	
+			16'h0550: dma21_curaddr <= cpu_din[21:0];		// UncleToRam.
+			16'h0554: dma21_curlen <= cpu_din[21:0];
+			16'h0558: dma21_nextaddr <= cpu_din[21:0];
+			16'h055c: dma21_nextlen <= cpu_din[21:0];	
 
-			16'h0560: dma22_curaddr <= cpu_din;		// ExternalToRam
-			16'h0564: dma22_curlen <= cpu_din;
-			16'h0568: dma22_nextaddr <= cpu_din;
-			16'h056c: dma22_nextlen <= cpu_din;			
+			16'h0560: dma22_curaddr <= cpu_din[21:0];		// ExternalToRam
+			16'h0564: dma22_curlen <= cpu_din[21:0];
+			16'h0568: dma22_nextaddr <= cpu_din[21:0];
+			16'h056c: dma22_nextlen <= cpu_din[21:0];			
 
-			16'h0570: dma23_curaddr <= cpu_din;		// Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
-			16'h0574: dma23_curlen <= cpu_din;		// Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
-			16'h0578: dma23_nextaddr <= cpu_din;	// Player Bus DMA:
-			16'h057c: dma23_nextlen <= cpu_din;		// Player Bus DMA: Next Address.
+			16'h0570: dma23_curaddr <= cpu_din[21:0];		// Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
+			16'h0574: dma23_curlen <= cpu_din[21:0];		// Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
+			16'h0578: dma23_nextaddr <= cpu_din[21:0];	// Player Bus DMA:
+			16'h057c: dma23_nextlen <= cpu_din[21:0];		// Player Bus DMA: Next Address.
 			
-			16'h0580: dma24_curaddr <= cpu_din;		// 0x580 vdl_addr
-			16'h0584: dma24_curlen <= cpu_din;
-			16'h0588: dma24_nextaddr <= cpu_din;
-			16'h058c: dma24_nextlen <= cpu_din;		
+			16'h0580: dma24_curaddr <= cpu_din[21:0];		// 0x580 vdl_addr
+			16'h0584: dma24_curlen <= cpu_din[21:0];
+			16'h0588: dma24_nextaddr <= cpu_din[21:0];
+			16'h058c: dma24_nextlen <= cpu_din[21:0];		
 			
-			16'h0590: dma25_curaddr <= cpu_din;		// Video_MID
-			16'h0594: dma25_curlen <= cpu_din;
-			16'h0598: dma25_nextaddr <= cpu_din;
-			16'h059c: dma25_nextlen <= cpu_din;	
+			16'h0590: dma25_curaddr <= cpu_din[21:0];		// Video_MID
+			16'h0594: dma25_curlen <= cpu_din[21:0];
+			16'h0598: dma25_nextaddr <= cpu_din[21:0];
+			16'h059c: dma25_nextlen <= cpu_din[21:0];	
 
-			16'h05a0: dma26_curaddr <= cpu_din;		// CELControl
-			16'h05a4: dma26_curlen <= cpu_din;
-			16'h05a8: dma26_nextaddr <= cpu_din;
-			16'h05ac: dma26_nextlen <= cpu_din;	
+			16'h05a0: dma26_curaddr <= cpu_din[21:0];		// CELControl
+			16'h05a4: dma26_curlen <= cpu_din[21:0];
+			16'h05a8: dma26_nextaddr <= cpu_din[21:0];
+			16'h05ac: dma26_nextlen <= cpu_din[21:0];	
 
-			16'h05b0: dma27_curaddr <= cpu_din;		// CELData
-			16'h05b4: dma27_curlen <= cpu_din;
-			16'h05b8: dma27_nextaddr <= cpu_din;
-			16'h05bc: dma27_nextlen <= cpu_din;	
+			16'h05b0: dma27_curaddr <= cpu_din[21:0];		// CELData
+			16'h05b4: dma27_curlen <= cpu_din[21:0];
+			16'h05b8: dma27_nextaddr <= cpu_din[21:0];
+			16'h05bc: dma27_nextlen <= cpu_din[21:0];	
 
-			16'h05c0: dma28_curaddr <= cpu_din;		// Commandgrabber
-			16'h05c4: dma28_curlen <= cpu_din;
-			16'h05c8: dma28_nextaddr <= cpu_din;
-			16'h05cc: dma28_nextlen <= cpu_din;	
+			16'h05c0: dma28_curaddr <= cpu_din[21:0];		// Commandgrabber
+			16'h05c4: dma28_curlen <= cpu_din[21:0];
+			16'h05c8: dma28_nextaddr <= cpu_din[21:0];
+			16'h05cc: dma28_nextlen <= cpu_din[21:0];	
 
-			16'h05d0: dma29_curaddr <= cpu_din;		// Framegrabber
-			16'h05d4: dma29_curlen <= cpu_din;
-			16'h05d8: dma29_nextaddr <= cpu_din;
-			16'h05dc: dma29_nextlen <= cpu_din;			
+			16'h05d0: dma29_curaddr <= cpu_din[21:0];		// Framegrabber
+			16'h05d4: dma29_curlen <= cpu_din[21:0];
+			16'h05d8: dma29_nextaddr <= cpu_din[21:0];
+			16'h05dc: dma29_nextlen <= cpu_din[21:0];			
 			
-			16'h05e0: dma30_curaddr <= cpu_din;		// Not sure if this exists, but having 32 sets of DMA regs would make sense?
-			16'h05e4: dma30_curlen <= cpu_din;
-			16'h05e8: dma30_nextaddr <= cpu_din;
-			16'h05ec: dma30_nextlen <= cpu_din;	
+			16'h05e0: dma30_curaddr <= cpu_din[21:0];		// Not sure if this exists, but having 32 sets of DMA regs would make sense?
+			16'h05e4: dma30_curlen <= cpu_din[21:0];
+			16'h05e8: dma30_nextaddr <= cpu_din[21:0];
+			16'h05ec: dma30_nextlen <= cpu_din[21:0];	
 			
-			16'h05f0: dma31_curaddr <= cpu_din;		// Not sure if this exists, but having 32 sets of DMA regs would make sense?
-			16'h05f4: dma31_curlen <= cpu_din;
-			16'h05f8: dma31_nextaddr <= cpu_din;
-			16'h05fc: dma31_nextlen <= cpu_din;	
+			16'h05f0: dma31_curaddr <= cpu_din[21:0];		// Not sure if this exists, but having 32 sets of DMA regs would make sense?
+			16'h05f4: dma31_curlen <= cpu_din[21:0];
+			16'h05f8: dma31_nextaddr <= cpu_din[21:0];
+			16'h05fc: dma31_nextlen <= cpu_din[21:0];	
 			
 			default: ;
 		endcase
