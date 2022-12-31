@@ -23,6 +23,12 @@ module core_3do (
 	output [2:0] o_wb_cti,
 	output [1:0] o_wb_bte,
 	
+	output [31:0] mem_addr,
+	//input [31:0] mem_din,
+	output [31:0] mem_dout,
+	output mem_rd,
+	output mem_wr,
+	
 	output [23:0] rgb_out
 );
 
@@ -136,11 +142,13 @@ madam madam_inst (
 	.cpu_din( o_wb_dat ),			// input [31:00] FROM the ARM CPU.
 	.cpu_dout( madam_dout ),		// output [31:00] TO the ARM CPU.
 	
-	.cpu_rd( madam_cs & o_wb_stb & !o_wb_we ),
-	.cpu_wr( madam_cs & o_wb_stb &  o_wb_we ),
+	.cpu_rd( /*madam_cs &*/ o_wb_stb & !o_wb_we ),
+	.cpu_wr( /*madam_cs &*/ o_wb_stb &  o_wb_we ),
 	
 	.cpu_stb( o_wb_stb ),
 	.cpu_ack( i_wb_ack ),
+	
+	.madam_cs( madam_cs ),
 
 	.mem_addr( mem_addr ),	// output [31:0].
 	.mem_din( mem_din ),	// input [31:0].

@@ -19,6 +19,8 @@ module madam (
 	
 	output reg cpu_clk,
 	
+	input madam_cs,
+	
 	output [31:0] mem_addr,	
 	input [31:0] mem_din,
 	output mem_rd,
@@ -34,22 +36,20 @@ module madam (
 	output reg lpsc_n, 		// Right-hand VRAM SAM strobe. (pixel or VDL data is on S-bus[31:16]).
 	output reg rpsc_n, 		// Left-hand VRAM SAM strobe.  (pixel or VDL data is on S-bus[15:00]).
 	
-	input [4:0] dma_req,	// Parallel version of dmareq on the original MADAM chip.
+	input [4:0] clio_dma_req,	// Parallel version of dmareq on the original MADAM chip.
 	output reg dma_ack
 );
 
-
-assign mem_addr = (dma_req>5'd0 && (dma_ack || cel_dma_ack)) ? dma_addr : cpu_addr;
-assign mem_dout = (dma_req>5'd0 && (dma_ack || cel_dma_ack)) ? dma_dout : cpu_dout;
-assign mem_rd   = (dma_req>5'd0 && (dma_ack || cel_dma_ack)) ? dma_rd : cpu_rd;
-assign mem_wr   = (dma_req>5'd0 && (dma_ack || cel_dma_ack)) ? dma_wr : cpu_wr;
+assign mem_addr = (dma_ack) ? dma_addr : cpu_addr;
+assign mem_dout = (dma_ack) ? dma_dout : cpu_dout;
+assign mem_rd   = (dma_ack) ? dma_rd : cpu_rd;
+assign mem_wr   = (dma_ack) ? dma_wr : cpu_wr;
 
 reg [31:0] dma_addr;
 wire [31:0] dma_dout;
 reg dma_rd;
 reg dma_wr;
 reg cel_dma_req;
-reg cel_dma_ack;
 
 
 assign dram_cs = (cpu_addr>=32'h00000000 && cpu_addr<=32'h001fffff);	// 2MB main DRAM.
@@ -134,7 +134,6 @@ parameter REGCTL2		= 16'h0138;
 parameter REGCTL3		= 16'h013c;
 
 parameter CURRENTCCB	= 16'h05a0;
-
 //next ccb == 0 stop the engine
 parameter NEXTCCB		= 16'h05a4;
 parameter PLUTDATA	    = 16'h05a8;
@@ -144,15 +143,14 @@ parameter ENGALEN		= 16'h05b4;
 parameter ENGBFETCH	    = 16'h05b8;
 parameter ENGBLEN		= 16'h05bc;
 
-
-reg [21:0] currentccb;
-reg [21:0] nextccb;
-reg [21:0] plutdata;
-reg [21:0] pdata;
-reg [21:0] engafetch;
-reg [21:0] engalen;
-reg [21:0] engbfetch;
-reg [21:0] engblen;
+reg [31:0] currentccb;
+reg [31:0] nextccb;
+reg [31:0] plutdata;
+reg [31:0] pdata;
+reg [31:0] engafetch;
+reg [31:0] engalen;
+reg [31:0] engbfetch;
+reg [31:0] engblen;
 
 parameter FLAGS = 0;
 parameter NEXTPTR = 1;
@@ -197,30 +195,30 @@ if (!reset_n) begin
 	state <= 8'd0;
 	fetch_idx <= 6'd0;
 	cel_dma_req <= 1'b0;
-	cel_dma_ack <= 1'b0;
 	cpu_ack <= 1'b0;
+	dma_ack <= 1'b0;
 end
 else begin
 	cpu_ack <= cpu_stb;
 	
-	if (!cpu_stb && !cpu_ack && cel_dma_req) cel_dma_ack <= 1'b1;
-	else if (cel_dma_req==1'b0) cel_dma_ack <= 1'b0;
+	if (!cpu_stb && !cpu_ack && cel_dma_req) dma_ack <= 1'b1;
+	else if (cel_dma_req==1'b0) dma_ack <= 1'b0;
 	
-	if (cel_dma_req && cel_dma_ack) cpu_ack <= 1'b0;	// Override.
+	if (cel_dma_req && dma_ack) cpu_ack <= 1'b0;	// Override.
 	
 	
 	case (state)
 	0: begin
-		if (cpu_addr[15:0]==SPRSTRT && cpu_wr) begin	// CELStart write.
-			dma_addr <= currentccb;
-			fetch_idx <= 6'd1;
+		if (madam_cs && cpu_addr[15:0]==SPRSTRT && cpu_wr) begin	// CELStart write.
+			dma_addr <= nextccb;
+			fetch_idx <= 6'd0;
 			cel_dma_req <= 1'b1;
 			dma_rd <= 1'b1;
 			state <= state + 1;
 		end
 	end
 	
-	1: if (cel_dma_ack) begin
+	1: if (dma_ack) begin
 		dma_addr <= dma_addr + 4;
 		fetch_idx <= fetch_idx + 1;
 		
@@ -248,16 +246,11 @@ else begin
 		  CELDONE: begin
 				cel_dma_req <= 1'b0;
 				dma_rd <= 1'b0;
-				state <= state + 1;
+				state <= 15;
 			end
 		
 		default: ;
 		endcase
-	end
-	
-	2: begin
-		
-		state <= state + 1;
 	end
 	
 	15: begin
@@ -466,7 +459,7 @@ always @(*) begin
 		16'h0580: cpu_dout = vdl_addr;	// 0x580
 
 		16'h05a0: cpu_dout = dma26_curaddr;		// CELControl. currentccb
-		16'h05a4: cpu_dout = dma26_curlen;		// nextccb
+		16'h05a4: cpu_dout = dma26_curlen;		// nextccb.  firstccb ??
 		16'h05a8: cpu_dout = dma26_nextaddr;	// plutdata
 		16'h05ac: cpu_dout = dma26_nextlen;		// pdata
 
@@ -495,10 +488,10 @@ else begin
 	
 	cpu_clk <= ~cpu_clk;
 
-	if (cpu_addr>=32'h00000000 && cpu_addr<=32'h001fffff && cpu_wr) map_bios <= 1'b0;	// Any write to the 2MB DRAM range will unmap the BIOS.
+	if (dram_cs && cpu_wr) map_bios <= 1'b0;	// Any write to the 2MB DRAM range will unmap the BIOS.
 
 	// Handle MADAM register WRITES...
-	if (cpu_wr) begin
+	if (madam_cs && cpu_wr) begin
 		case (cpu_addr[15:0])
 			//16'h0000: m_print <= 32'h01020000;	// 0x0000. Revision when read. BIOS Serial debug when written.
 			//16'h0004: msysbits <= cpu_din;	// 0x0004. Memory Configuration. When read, 0x29 = 2MB DRAM, 1MB VRAM.
@@ -557,6 +550,7 @@ else begin
 			// (ie. each can address a 4MB memory range.)
 			
 			16'h5a0: currentccb <= cpu_din;
+			16'h5a4: nextccb <= cpu_din;
 			
 			/*
 			16'h0580: vdl_addr <= cpu_din;	// 0x580. Actually a DMA register!
@@ -576,7 +570,7 @@ else begin
 		endcase
 	end
 	
-	if (cpu_wr && cpu_addr[15:0]==16'h0008 && cpu_din[15]) begin	// Bit 15 of a mctl triggers a PBUS DMA.
+	if (madam_cs && cpu_wr && cpu_addr[15:0]==16'h0008 && cpu_din[15]) begin	// Bit 15 of a mctl triggers a PBUS DMA.
 		trig_pbus_dma <= 1'b1;
 	end
 end
@@ -768,7 +762,7 @@ reg [63:0] rez3t;	// Result reg?
 }
 */
 
-wire dma_reg_cs = (cpu_addr>=32'h03300400 && cpu_addr<=32'h033005fc);
+wire dma_reg_cs = (madam_cs && cpu_addr[15:0]>=32'h0400 && cpu_addr[15:0]<=32'h05fc);
 wire [31:0] dma_regout;
 
 dma_stack dma_stack_inst (
@@ -783,10 +777,10 @@ dma_stack dma_stack_inst (
 	.dma_reg_cs( dma_reg_cs ),	// input dma_reg_cs,
 	.dma_regout( dma_regout ),	// output [31:0] dma_regout,
 	
-	.dma_req( dma_req ),	// input [4:0] dma_req,
-	.dma_ack( dma_ack ),	// output reg dma_ack,
+	.dma_req( clio_dma_req ),	// input [4:0] dma_req,
+	//.dma_ack( dma_ack ),		// output reg dma_ack,
 	//.dma_addr( dma_addr ),	// output [21:0] dma_addr,
-	.dma_dir( dma_dir )		// output dma_dir
+	.dma_dir( dma_dir )			// output dma_dir
 );
 
 endmodule
