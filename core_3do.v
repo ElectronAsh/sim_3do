@@ -13,8 +13,8 @@ module core_3do (
 	output o_wb_tga,
 	
 	input [31:0] i_wb_dat,
-	//input i_wb_ack,			// <- Driven by the Verilator sim_main C code.
-	output i_wb_ack,		// <- Driven by MADAM now.	
+	//input i_wb_ack,				// Driven from sim_main C code.
+	output i_wb_ack,				// Driven from madam.v.
 
 	// Zap...
 	output o_wb_stb_nxt,
@@ -23,13 +23,7 @@ module core_3do (
 	output [2:0] o_wb_cti,
 	output [1:0] o_wb_bte,
 	
-	output [23:0] rgb_out,
-	
-	output [31:0] mem_addr,
-	output [31:0] mem_dout,
-	//input [31:0] mem_din
-	output mem_rd,
-	output mem_wr
+	output [23:0] rgb_out
 );
 
 `define DEBUG_EN 1

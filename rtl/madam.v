@@ -4,7 +4,6 @@
 // MADAM contains: ARM CPU interface, DRAM/VRAM Address control, VRAM SPORT control (probably), DMA Engine, CEL Engine,
 // Matrix Engine, Main timings for pixel/VDL/CCB access, P-Bus (joyport), "PD" bus (Slow bus??) for BIOS / SRAM / DAC access.
 //
-//
 module madam (
 	input clk_25m,
 	input reset_n,
@@ -15,7 +14,7 @@ module madam (
 	input cpu_rd,
 	input cpu_wr,
 	
-	input cpu_stb,
+	input wire cpu_stb,
 	output reg cpu_ack,
 	
 	output reg cpu_clk,
@@ -38,6 +37,7 @@ module madam (
 	input [4:0] dma_req,	// Parallel version of dmareq on the original MADAM chip.
 	output reg dma_ack
 );
+
 
 assign mem_addr = (dma_req>5'd0 && (dma_ack || cel_dma_ack)) ? dma_addr : cpu_addr;
 assign mem_dout = (dma_req>5'd0 && (dma_ack || cel_dma_ack)) ? dma_dout : cpu_dout;
@@ -187,8 +187,6 @@ reg [31:0] pixc;
 reg [31:0] pre0;
 reg [31:0] pre1;
 
-reg cpu_stb_1;
-wire cpu_stb_rising = cpu_stb && !cpu_stb_1;
 
 reg [7:0] state;
 reg [5:0] fetch_idx;
@@ -200,13 +198,9 @@ if (!reset_n) begin
 	fetch_idx <= 6'd0;
 	cel_dma_req <= 1'b0;
 	cel_dma_ack <= 1'b0;
-	
-	cpu_stb_1 <= 1'b0;
 	cpu_ack <= 1'b0;
 end
 else begin
-	//cpu_stb_1 <= cpu_stb;
-	//cpu_ack <= cpu_stb_rising;
 	cpu_ack <= cpu_stb;
 	
 	if (!cpu_stb && !cpu_ack && cel_dma_req) cel_dma_ack <= 1'b1;
@@ -276,7 +270,6 @@ else begin
 end
 
 
-
 reg [2:0] pcsc_index;
 reg [7:0] pcsc_reg;
 // pcsc_reg should end up with the bits shifted in like this...
@@ -316,6 +309,7 @@ else begin
 		pcsc_index <= pcsc_index + 3'd1;	// Increment the bit index.
 	end
 end
+
 
 // MADAM registers...
 // 0x0330xxxx
@@ -394,16 +388,12 @@ reg [31:0] fence_3r;
 // (ie. each can address a 4MB memory range.)
 
 
-reg [31:0] vdl_addr;// 0x580
+//reg [31:0] vdl_addr;// 0x580
 
 // 0x0600 to 0x069C = Hardware Multiplier (Matrix Engine).
 //
 
-reg [31:0] vdl_addr_reg;
 
-reg [31:0] pbus_dst;
-reg [31:0] pbus_len;
-reg [31:0] pbus_src;
 reg trig_pbus_dma;
 
 // MADAM register READ driver...
@@ -466,32 +456,36 @@ always @(*) begin
 		// Most of the DMA addr regs are probably 22-bits wide, as suggested in the patent.
 		// (ie. each can address a 4MB memory range.)
 		
-		//16'h04??, 16'h05??: cpu_dout = dma_regout;	// 0x0400 - 0x05ff.
-		16'h04??: cpu_dout = dma_regout;	// 0x0400 - 0x04ff.
+		16'h04??, 16'h05??: cpu_dout = dma_regout;	// 0x0400 - 0x05ff.
+		
+		/*
+		16'h0570: cpu_dout = pbus_dst;	// Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
+		16'h0574: cpu_dout = pbus_len;	// Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
+		16'h0578: cpu_dout = pbus_src;	// Player Bus DMA: Source Address.
+		
+		16'h0580: cpu_dout = vdl_addr;	// 0x580
 
-		16'h05a0: cpu_dout = currentccb;
-		16'h05a4: cpu_dout = nextccb;
-		16'h05a8: cpu_dout = plutdata;
-		16'h05ac: cpu_dout = pdata;
-		16'h05b0: cpu_dout = engafetch;
-		16'h05b4: cpu_dout = engalen;
-		16'h05b8: cpu_dout = engbfetch;
-		16'h05bc: cpu_dout = engblen;
+		16'h05a0: cpu_dout = dma26_curaddr;		// CELControl. currentccb
+		16'h05a4: cpu_dout = dma26_curlen;		// nextccb
+		16'h05a8: cpu_dout = dma26_nextaddr;	// plutdata
+		16'h05ac: cpu_dout = dma26_nextlen;		// pdata
 
+		16'h05b0: cpu_dout = dma27_curaddr;		// CELData. engafetch
+		16'h05b4: cpu_dout = dma27_curlen;		// engalen
+		16'h05b8: cpu_dout = dma27_nextaddr;	// engbfetch
+		16'h05bc: cpu_dout = dma27_nextlen;		// engblen
+		*/
+		
 		// 0x0600 to 0x069C = Hardware Multiplier (Matrix Engine).
 		default: cpu_dout = 32'hBADACCE5;
 	endcase
 end
 
 
-
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	mctl <= 32'h00000000;
 	trig_pbus_dma <= 1'b0;
-	
-	pbus_len <= 32'hfffffffc;      // Set PBUS length reg to -4 ?
-
 	map_bios <= 1'b1;
 	
 	cpu_clk <= 1'b0;
@@ -561,17 +555,22 @@ else begin
 			// 0x0400 to 0x05FC <= DMA. See US patent WO09410641A1 page 46 line 25 for details.
 			// Most of the DMA addr regs are probably 22-bits wide, as suggested in the patent.
 			// (ie. each can address a 4MB memory range.)
-
-			16'h0580: vdl_addr <= cpu_din;	// 0x580. Actually a DMA register!
 			
-			16'h05a0: currentccb <= cpu_din;
-			16'h05a4: nextccb <= cpu_din;
-			16'h05a8: plutdata <= cpu_din;
-			16'h05ac: pdata <= cpu_din;
-			16'h05b0: engafetch <= cpu_din;
-			16'h05b4: engalen <= cpu_din;
-			16'h05b8: engbfetch <= cpu_din;
-			16'h05bc: engblen <= cpu_din;
+			16'h5a0: currentccb <= cpu_din;
+			
+			/*
+			16'h0580: vdl_addr <= cpu_din;	// 0x580. Actually a DMA register!
+
+			16'h05a0: dma26_curaddr <= cpu_din;	// CELControl. currentccb
+			16'h05a4: dma26_curlen <= cpu_din;		// nextccb
+			16'h05a8: dma26_nextaddr <= cpu_din;	// plutdata
+			16'h05ac: dma26_nextlen <= cpu_din;	// pdata
+
+			16'h05b0: dma27_curaddr <= cpu_din;	// CELData. engafetch
+			16'h05b4: dma27_curlen <= cpu_din;		// engalen
+			16'h05b8: dma27_nextaddr; <= cpu_din;	// engbfetch
+			16'h05bc: dma27_nextlen <= cpu_din;	// engblen
+			*/
 			
 			default: ;
 		endcase
@@ -786,7 +785,7 @@ dma_stack dma_stack_inst (
 	
 	.dma_req( dma_req ),	// input [4:0] dma_req,
 	.dma_ack( dma_ack ),	// output reg dma_ack,
-	.dma_addr( dma_addr ),	// output [21:0] dma_addr,
+	//.dma_addr( dma_addr ),	// output [21:0] dma_addr,
 	.dma_dir( dma_dir )		// output dma_dir
 );
 
@@ -1270,13 +1269,13 @@ else begin
 
 			16'h0570: dma23_curaddr <= cpu_din[21:0];		// Player Bus DMA: Destination Address. See US patent WO09410641A1 page 61 line 25 for details.
 			16'h0574: dma23_curlen <= cpu_din[21:0];		// Player Bus DMA: Length. Lower half word of 0xFFFC (-4) indicates end.
-			16'h0578: dma23_nextaddr <= cpu_din[21:0];	// Player Bus DMA:
+			16'h0578: dma23_nextaddr <= cpu_din[21:0];		// Player Bus DMA:
 			16'h057c: dma23_nextlen <= cpu_din[21:0];		// Player Bus DMA: Next Address.
 			
-			16'h0580: dma24_curaddr <= cpu_din[21:0];		// 0x580 vdl_addr
-			16'h0584: dma24_curlen <= cpu_din[21:0];
-			16'h0588: dma24_nextaddr <= cpu_din[21:0];
-			16'h058c: dma24_nextlen <= cpu_din[21:0];		
+			16'h0580: dma24_curaddr <= cpu_din[21:0];		// 0x580 vdl_addr!
+			16'h0584: dma24_curlen <= cpu_din[21:0];		// CLUT Vid
+			16'h0588: dma24_nextaddr <= cpu_din[21:0];		// CLUT Mid
+			16'h058c: dma24_nextlen <= cpu_din[21:0];		// CMID Rsvd
 			
 			16'h0590: dma25_curaddr <= cpu_din[21:0];		// Video_MID
 			16'h0594: dma25_curlen <= cpu_din[21:0];
@@ -1319,5 +1318,6 @@ else begin
 	
 
 end
+
 
 endmodule

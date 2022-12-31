@@ -254,7 +254,7 @@ reg [31:0] uncle_rom;		// 0xc00c
 
 always @(*) begin
 	// CLIO Register READ output driver...
-	casez ({cpu_addr,2'b00})
+	case ({cpu_addr,2'b00})
 	16'h0000: cpu_dout = revision;	// 0x00 - CLIO version if High byte. Feature flags in the rest. MAME returns 0x01020000. Opera return 0x02020000.
 	16'h0004: cpu_dout = csysbits;	// 0x04
 	16'h0008: cpu_dout = vint0;		// 0x08
@@ -279,7 +279,7 @@ always @(*) begin
 	
 	//16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};	// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
 	16'h0048: cpu_dout = irq0_enable;		// Read = irq0_enable (MASK) bits. Seemes to be needed for normal BIOS boot with cstatbits[0] (POR), and no DIPIR set?
-	16'h004c: cpu_dout = irq0_enable;		// Read = Return zeros?
+	16'h004c: cpu_dout = irq0_enable;		// Read = Return zeros? 
 
 	16'h0050: cpu_dout = mode;				// 0x50 - Writing to 0x50 SETs mode bits. Reading = ?
 	16'h0054: cpu_dout = mode;				// 0x54 - Writing to 0x54 CLEARs mode bits. Reading = ?
@@ -300,9 +300,6 @@ always @(*) begin
 
 
 // Timers... (16-bit wide?)
-	16'h01??: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x100 - 0x1ff.
-	
-	/*	
 	16'h0100: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x100
 	16'h0104: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x104
 	16'h0108: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x108
@@ -335,8 +332,7 @@ always @(*) begin
 	16'h0174: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x174
 	16'h0178: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x178
 	16'h017c: cpu_dout = (tmr_read_mux==16'hffff) ? 32'hffffffff : {16'h0000, tmr_read_mux};	// 0x17c
-	*/
-	
+
 // Writing to 0x200 SETs the LOWER 32-bits of timer_ctrl.
 // Writing to 0x204 CLEARs the LOWER 32-bits of timer_ctrl.
 // Writing to 0x208 SETs the UPPER 32-bits of timer_ctrl.
@@ -484,10 +480,10 @@ if (!reset_n) begin
 	
 	dmactrl <= 32'h00000000;
 	
-	vint0 <= 11'd240;
-	vint1 <= 11'd5;
-	//vint0 <= 11'd0;
-	//vint1 <= 11'd0;
+	//vint0 <= 11'd240;
+	//vint1 <= 11'd5;
+	vint0 <= 11'd0;
+	vint1 <= 11'd0;
 end
 else begin
 	// Setting an upper nibble bit of the adbio reg will set the corresponding lower bit.
@@ -546,11 +542,11 @@ else begin
 	if ( hcnt==32'd4 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
 
 	
-	irq0_pend[31] <= (|irq1_pend);	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
+	//irq0_pend[31] <= (|irq1_pend);	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
 	
-	//irq1_pend_prev <= irq1_pend;
+	irq1_pend_prev <= irq1_pend;
 	// If irq1_pend has changed, and if ANY irq1_pend bits (bitwise OR) are high, set bit [31] of irq0_pend.
-	//if ( (irq1_pend_prev!=irq1_pend) && (|irq1_pend) ) irq0_pend[31] <= 1'b1;
+	if ( (irq1_pend_prev!=irq1_pend) && (|irq1_pend) ) irq0_pend[31] <= 1'b1;
 	
 
 	hcnt <= hcnt + 1'd1;
@@ -584,11 +580,11 @@ else begin
 
 		// IRQs. (FIQ on ARM will be triggered if PENDING and corresponding MASK bits are both SET.)
 															
-		16'h0040: begin irq0_pend <= irq0_pend |  cpu_din; /*$display("Write to irq0_pend SET.");*/ end			// 0x40. Writing to 0x40 SETs irq0_pend bits. 
-		16'h0044: begin irq0_pend <= irq0_pend & ~cpu_din; /*$display("Write to irq0_pend CLR.");*/ end			// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
+		16'h0040: irq0_pend <= irq0_pend |  cpu_din;	// 0x40. Writing to 0x40 SETs irq0_pend bits.
+		16'h0044: irq0_pend <= irq0_pend & ~cpu_din;	// 0x44. Writing to 0x44 CLEARs irq0_pend bits.
 		
-		16'h0048: begin irq0_enable <= irq0_enable |  cpu_din; /*$display("Write to irq0_enable SET.");*/ end	// 0x48. Writing to 0x48 SETs irq0_enable bits.
-		16'h004c: begin irq0_enable <= irq0_enable & ~cpu_din; /*$display("Write to irq0_enable CLR.");*/ end	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
+		16'h0048: irq0_enable <= irq0_enable |  cpu_din;	// 0x48. Writing to 0x48 SETs irq0_enable bits.
+		16'h004c: irq0_enable <= irq0_enable & ~cpu_din;	// 0x4c. Writing to 0x4c CLEARSs irq0_enable bits.
 
 		16'h0050: mode <= mode |  cpu_din;		// 0x50. Writing to 0x50 SETs mode bits.
 		16'h0054: mode <= mode & ~cpu_din;		// 0x54. Writing to 0x54 CLEARs mode bits.
@@ -1150,10 +1146,10 @@ if (!reset_n) begin
 	tmr_wrap <= 1'b0;
 	tmr_ena_clr <= 1'b0;
 	tmr_cnt_prev <= 16'h0000;
-	tmr_cnt <= 16'hFFFE;
-	tmr_bkp <= 16'hFFFE;
-	//tmr_cnt <= 16'h0080;
-	//tmr_bkp <= 16'h0080;
+	//tmr_cnt <= 16'hFFFF;
+	//tmr_bkp <= 16'hFFFF;
+	tmr_cnt <= 16'h0001;
+	tmr_bkp <= 16'h0001;
 end
 else begin
 	tmr_wrap <= 1'b0;
@@ -1168,14 +1164,14 @@ else begin
 	if (slack_cnt==10'd0) slack_cnt <= tmr_slack>>1;	// Kludge for sim. Our CPU is "clocked" the same time as MADAM and CLIO in the sim atm.
 	else slack_cnt <= slack_cnt - 10'd1;				// So from the CPU's perspective, the timers are running twice as slow as they should. ElectronAsh.
 
-	if (tmr_ena) begin	// This part will run at the full clock speed (25 MHz).
+	if (tmr_ena) begin
 		tmr_cnt_prev <= tmr_cnt;
 		if (tmr_cnt==16'hffff && tmr_cnt_prev==16'h0000) begin	// Timer has wrapped...
 			tmr_wrap <= 1'b1;					// PULSE the tmr_wrap bit. (to optionally clock the next timer, via its cascade input).
 			if (tmr_reload) tmr_cnt <= tmr_bkp;	// If Reload bit is HIGH, reload the "backup" count value.
 			else tmr_ena_clr <= 1'b1;			// If Reload bit is LOW, PULSE tmr_ena_clr, to clear the Enable bit.
 		end
-		else if (tmr_dec) tmr_cnt <= tmr_cnt - 1'b1;	// Decrement. This will run from either a tmr_cas_clk pulse, or when slack_cnt==0.
+		else if (tmr_dec) tmr_cnt <= tmr_cnt - 1'b1;	// Decrement.
 	end
 end
 
