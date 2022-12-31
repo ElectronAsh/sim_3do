@@ -426,10 +426,10 @@ sim_diag_port_get(void)
 }
 
 
-volatile uint32_t vdl_ctl  = 0x00000000;
-volatile uint32_t vdl_curr = 0x000C0000;
-volatile uint32_t vdl_prev = 0x000C0000;
-volatile uint32_t vdl_next = 0x000C0000;
+volatile uint32_t vdl_ctl  = 0x00004410;
+volatile uint32_t vdl_curr = 0x002C0000;
+volatile uint32_t vdl_prev = 0x002C0000;
+volatile uint32_t vdl_next = 0x002C0000;
 
 volatile uint32_t clut[256];
 
@@ -1495,7 +1495,7 @@ int verilate() {
 		//if (top->mem_addr== 0x03400580 && top->o_wb_we && top->o_wb_dat==0x00000010) run_enable = 0;
 		//if (cur_pc== 0x000014A8) run_enable = 0;
 
-		if (top->mem_addr == 0x03300100 && top->o_wb_we) run_enable = 0;	// Stop on write to CEL SPRSTRT.
+		//if (top->mem_addr == 0x03300100 && top->o_wb_we) run_enable = 0;	// Stop on write to CEL SPRSTRT.
 
 		/*
 		if (old_fiq_n == 1 && top->rootp->core_3do__DOT__clio_inst__DOT__firq_n == 0) { // firq_n falling edge.
@@ -2413,14 +2413,49 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("    nextptr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__nextptr);
 		ImGui::Text("  sourceptr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__sourceptr);
 		ImGui::Text("    plutptr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__plutptr);
+
+		int32_t xpos = top->rootp->core_3do__DOT__madam_inst__DOT__xpos;
+		int32_t ypos = top->rootp->core_3do__DOT__madam_inst__DOT__ypos;
+		int32_t hdx = top->rootp->core_3do__DOT__madam_inst__DOT__hdx;
+		int32_t hdy = top->rootp->core_3do__DOT__madam_inst__DOT__hdy;
+		int32_t vdx = top->rootp->core_3do__DOT__madam_inst__DOT__vdx;
+		int32_t vdy = top->rootp->core_3do__DOT__madam_inst__DOT__vdy;
+		int32_t hddx = top->rootp->core_3do__DOT__madam_inst__DOT__hddx;
+		int32_t hddy = top->rootp->core_3do__DOT__madam_inst__DOT__hddy;
+
+		for (int xp = 0; xp < 64; xp+=2) {
+			uint32_t x = xpos>>16;
+			uint32_t y = ypos>>16;
+			for (int yp = 0; yp < 16; yp += 2) {
+				vram_ptr[ (vdl_curr + ((y+yp)*640)+x+xp+0) & 0xfffff ] = 0x55;
+				vram_ptr[ (vdl_curr + ((y+yp)*640)+x+xp+1) & 0xfffff ] = 0x55;
+			}
+		}
+
 		ImGui::Text("       xpos: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__xpos);
+		ImGui::SameLine(); ImGui::Text(" %f", (double)xpos / (double)(1<<16));
+
 		ImGui::Text("       ypos: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__ypos);
+		ImGui::SameLine(); ImGui::Text(" %f", (double)ypos / (double)(1<<16));
+
 		ImGui::Text("        hdx: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__hdx);
+		ImGui::SameLine(); ImGui::Text(" %lf", (double)hdx / (double)(1<<20));
+		
 		ImGui::Text("        hdy: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__hdy);
+		ImGui::SameLine(); ImGui::Text(" %lf", (double)hdy / (double)(1<<20));
+
 		ImGui::Text("        vdx: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__vdx);
+		ImGui::SameLine(); ImGui::Text(" %lf", (double)vdx / (double)(1<<16));
+
 		ImGui::Text("        vdy: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__vdy);
+		ImGui::SameLine(); ImGui::Text(" %lf", (double)vdy / (double)(1<<16));
+
 		ImGui::Text("       hddx: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__hddx);
+		ImGui::SameLine(); ImGui::Text(" %lf", (double)hddx / (double)(1<<20));
+
 		ImGui::Text("       hddy: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__hddy);
+		ImGui::SameLine(); ImGui::Text(" %lf", (double)hddy / (double)(1<<20));
+
 		ImGui::Text("       pixc: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pixc);
 		ImGui::Text("       pre0: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pre0);
 		ImGui::Text("       pre1: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pre1);
