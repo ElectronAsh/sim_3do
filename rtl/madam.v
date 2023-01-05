@@ -296,16 +296,10 @@ else begin
 	
 	3: begin
 		if (up_rd_req) dma_addr <= dma_addr + 4;	// If packer requests a new word from RAM, increment the address.
-		//if (up_eol) state <= state + 1'd1;			// EOL (End Of Line) found in CEL, stop for now.
-		state <= state + 1'd1;
+		if (up_eol) state <= state + 1'd1;			// EOL (End Of Line) found in CEL, stop for now.
 	end
 	
 	4: begin
-		up_next_pix <= 1'b1;
-		state <= 8'd3;
-	end
-	
-	5: begin
 		cel_dma_req <= 1'b0;
 		dma_rd <= 1'b0;
 		state <= 8'd0;
@@ -331,7 +325,7 @@ unpacker  unpacker_inst (
 	.din( mem_din ),		// input [31:0] din
 	
 	.rd_req( up_rd_req ),		// input rd_req
-	.next_pix( up_next_pix ),	// input next_pix
+	.next_pix( 1'b1 ),	// input next_pix
 	
 	.eol( up_eol ),				// output eol
 	.col_out( col_out ) 		// input [15:0] col_out

@@ -241,6 +241,8 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 static float values[90] = { 0 };
 static int values_offset = 0;
 
+int my_x = 0;
+int my_y = 0;
 
 vluint64_t main_time = 0;       // Current simulation time.
 
@@ -898,6 +900,17 @@ int verilate() {
 		}
 
 		pix_count++;
+
+		uint16_t spr_wi = top->rootp->core_3do__DOT__madam_inst__DOT__pre1&0x7ff;
+
+		if (top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pix_valid) {
+			disp_ptr[ ((my_y*320) + my_x) & 0xfffff] = 0xff<<24 | top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__col_out << 10;	// ABGR.
+			my_x++;
+			if (my_x==spr_wi) {
+				my_x = 0;
+				my_y++;
+			}
+		}
 
 		//jp_a = top->rootp->core_3do__DOT__clio_inst__DOT__field;	// Toggling "A" button, to test joypad. (works in BIOS joypad test)
 
@@ -1876,7 +1889,6 @@ int main(int argc, char** argv, char** env) {
 	0zF1      REVISION TEST
 	0zFF      TEST END (halt)
 	*/
-	
 
 	// imgui Main loop stuff...
 	MSG msg;
@@ -2437,15 +2449,17 @@ int main(int argc, char** argv, char** env) {
 		int32_t hddx = top->rootp->core_3do__DOT__madam_inst__DOT__hddx;	// 12.20
 		int32_t hddy = top->rootp->core_3do__DOT__madam_inst__DOT__hddy;	// 12.20
 
+		/*
 		if (top->rootp->core_3do__DOT__madam_inst__DOT__nextccb>0) {
 			for (int xp = 0; xp < 16; xp++) {
 				uint32_t x = xpos>>16;
 				uint32_t y = ypos>>16;
 				for (int yp = 0; yp < 16; yp++) {
-					disp_ptr[ (/*vdl_curr +*/ ((y+yp)*320)+x+xp) & 0xfffff ] = 0xff00ff00;	// ABGR.
+					disp_ptr[((y+yp)*320)+x+xp) & 0xfffff ] = 0xff00ff00;	// ABGR.
 				}
 			}
 		}
+		*/
 
 		ImGui::Text("       xpos: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__xpos);
 		ImGui::SameLine(); ImGui::Text(" %f", (double)xpos / (double)(1<<16));
@@ -2482,12 +2496,10 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("     offset: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__offset);
 		ImGui::Text("  pack_type: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pack_type);
 		ImGui::Text("      count: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__count);
-		ImGui::Text("   word_sel: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__word_sel);
-		ImGui::Text("     store0: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store0);
-		ImGui::Text("     store1: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store1);
-		ImGui::Text("    pix_sel: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pix_sel);
-		ImGui::Text("       pix6: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pix6);
+		ImGui::Text("      shift: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__shift);
 		ImGui::Text("     rd_req: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__rd_req);
+		ImGui::Text("      store: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store);
+		ImGui::Text("        dat: 0x%06X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__dat);
 		ImGui::Text("    col_out: 0x%04X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__col_out);
 		ImGui::Text("        eol: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__eol);
 		ImGui::End();
