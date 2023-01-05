@@ -536,40 +536,27 @@ opera_clio_poke(uint32_t addr_,
 uint32_t
 opera_clio_peek(uint32_t addr_)
 {
-  /* 0x40..0x4C, 0x60..0x6C case */
-  if((addr_ & ~0x2C) == 0x40)
-    {
-      /* By read 40 and 44, 48 and 4c, 60 and 64, 68 and 6c same */
-      addr_ &= ~4;
-      if(addr_ == 0x40)
-        return CLIO.regs[0x40];
-      else if(addr_ == 0x48)
-        return (CLIO.regs[0x48] | 0x80000000);
-      else if(addr_ == 0x60)
-        return CLIO.regs[0x60];
-      else if(addr_ == 0x68)
-        return CLIO.regs[0x68];
-      return 0;
-    }
-  else if(addr_ == 0x204)
-    return CLIO.regs[0x200];
-  else if(addr_ == 0x20C)
-    return CLIO.regs[0x208];
-  else if(addr_ == 0x308)
-    return CLIO.regs[0x304];
-  else if (addr_ == 0x414)
-    return 0x4000; /* TO CHECK!!! requested by CDROMDIPIR */
-  else if((addr_ >= 0x500) && (addr_ < 0x540))
-    return opera_xbus_get_res();
-  else if((addr_ >= 0x540) && (addr_ < 0x580))
-    return opera_xbus_get_poll();
-  else if((addr_ >= 0x580) && (addr_ < 0x5C0))
-    return opera_xbus_fifo_get_status();
-  else if((addr_ >= 0x5C0) && (addr_ < 0x600))
-    return opera_xbus_fifo_get_data();
-  else if(addr_ == 0x0)
-    return 0x02020000;
-  else if((addr_ >= 0x3800) && (addr_ <= 0x3BFF))
+	/* 0x40..0x4C, 0x60..0x6C case */
+	if((addr_ & ~0x2C) == 0x40)
+	{
+		/* By read 40 and 44, 48 and 4c, 60 and 64, 68 and 6c same */
+		addr_ &= ~4;
+		if(addr_ == 0x40) return CLIO.regs[0x40];
+		else if(addr_ == 0x48) return (CLIO.regs[0x48] | 0x80000000);
+		else if(addr_ == 0x60) return CLIO.regs[0x60];
+		else if(addr_ == 0x68) return CLIO.regs[0x68];
+		return 0;
+	}
+	else if(addr_ == 0x204) return CLIO.regs[0x200];
+	else if(addr_ == 0x20C) return CLIO.regs[0x208];
+	else if(addr_ == 0x308) return CLIO.regs[0x304];
+	else if (addr_ == 0x414) return 0x4000; /* TO CHECK!!! requested by CDROMDIPIR */
+	else if((addr_ >= 0x500) && (addr_ < 0x540)) return opera_xbus_get_res();
+	else if((addr_ >= 0x540) && (addr_ < 0x580)) return opera_xbus_get_poll();
+	else if((addr_ >= 0x580) && (addr_ < 0x5C0)) return opera_xbus_fifo_get_status();
+	else if((addr_ >= 0x5C0) && (addr_ < 0x600)) return opera_xbus_fifo_get_data();
+	else if(addr_ == 0x0) return 0x02020000;
+	else if((addr_ >= 0x3800) && (addr_ <= 0x3BFF))
     {
       /* 2DSPW per 1ARMW */
       CLIO.dsp_address  = ((addr_ - 0x3800) >> 1);
@@ -586,10 +573,8 @@ opera_clio_peek(uint32_t addr_)
       CLIO.dsp_address += 0x300;
       return opera_dsp_imem_read(CLIO.dsp_address);
     }
-  else if(addr_ == 0x17F0)
-    return fastrand();
-  else if(addr_ == 0x17D0) /* read DSP/ARM semaphore */
-    return opera_dsp_arm_semaphore_read();
+  else if(addr_ == 0x17F0) return fastrand();
+  else if(addr_ == 0x17D0) return opera_dsp_arm_semaphore_read(); /* read DSP/ARM semaphore */
 
   return CLIO.regs[addr_];
 }

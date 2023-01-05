@@ -62,6 +62,7 @@ FILE* logfile;
 FILE* inst_file;
 FILE* soundfile;
 FILE* isofile;
+FILE* ramdump;
 
 
 uint32_t sound_out;
@@ -134,10 +135,6 @@ int pix_count = 0;
 
 uint32_t cur_pc;
 uint32_t old_pc;
-
-bool madam_cs;
-bool clio_cs;
-bool svf_cs;
 
 bool dump_ram = 0;
 
@@ -282,7 +279,7 @@ extern opera_cdrom_get_size_cb_t    CDROM_GET_SIZE;
 extern opera_cdrom_set_sector_cb_t  CDROM_SET_SECTOR;
 extern opera_cdrom_read_sector_cb_t CDROM_READ_SECTOR;
 
-#define CDIMAGE_SECTOR_SIZE 2048
+uint16_t CDIMAGE_SECTOR_SIZE = 2048;
 
 
 static
@@ -302,8 +299,9 @@ cdimage_set_sector(const uint32_t sector_)
 static
 void
 cdimage_read_sector(void* buf_)
-{	uint32_t start_offset = CDIMAGE_SECTOR* CDIMAGE_SECTOR_SIZE;
-	if ( start_offset>(iso_size- CDIMAGE_SECTOR_SIZE) ) start_offset=(iso_size- CDIMAGE_SECTOR_SIZE);	// Clamp the max offset.
+{	uint32_t start_offset = CDIMAGE_SECTOR * CDIMAGE_SECTOR_SIZE;
+	//if (CDIMAGE_SECTOR_SIZE == 2352) start_offset += 16;
+	if ( start_offset>(iso_size -CDIMAGE_SECTOR_SIZE) ) start_offset=(iso_size - CDIMAGE_SECTOR_SIZE);	// Clamp the max offset.
 	fseek(isofile, start_offset, SEEK_SET);
 	fread(buf_, 1, CDIMAGE_SECTOR_SIZE, isofile);
 }
@@ -704,10 +702,6 @@ void pbus_dma() {
 	bool jp_rt = ImGui::IsKeyPressed(ImGuiKey_R);
 	bool jp_lt = ImGui::IsKeyPressed(ImGuiKey_L);
 
-	//uint32_t str = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_dst;    // 0x570.
-	//uint32_t len = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_len;    // 0x574.
-	//uint32_t end = top->rootp->core_3do__DOT__madam_inst__DOT__pbus_src;    // 0x578.
-	
 	uint32_t str = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma23_curaddr;	// 0x570.
 	uint32_t len = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma23_curlen;	// 0x574.
 	uint32_t end = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma23_nextaddr;	// 0x578.
@@ -897,6 +891,10 @@ int verilate() {
 				top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__o_trace_uop_last)
 				opera_tick();
 			*/
+
+			map_bios = 0;
+			top->rootp->core_3do__DOT__madam_inst__DOT__map_bios = 0;
+			top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000BB770;
 		}
 
 		pix_count++;
@@ -1071,12 +1069,12 @@ int verilate() {
 
 			// Main RAM reads...
 			//if (top->mem_addr >= 0x00000000 && top->mem_addr <= 0x001FFFFF) {
-			if (top->rootp->core_3do__DOT__madam_inst__DOT__dram_cs) {
+			//if (top->rootp->core_3do__DOT__madam_inst__DOT__dram_cs) {
 				if (map_bios) top->i_wb_dat = rom_word;
 				else top->i_wb_dat = ram_word;
-			}
+			//}
 
-			else if (top->mem_addr >= 0x00200000 && top->mem_addr <= 0x003FFFFF) { /*fprintf(logfile, "VRAM            ");*/ top->i_wb_dat = vram_word; }
+			if (top->mem_addr >= 0x00200000 && top->mem_addr <= 0x003FFFFF) { /*fprintf(logfile, "VRAM            ");*/ top->i_wb_dat = vram_word; }
 
 			// BIOS reads...
 			//else if (top->mem_addr >= 0x03000510 && top->mem_addr <= 0x03000510) top->i_wb_dat = 0xE1A00000;  // NOP ! (MOV R0,R0) Skip another delay.
@@ -1093,7 +1091,7 @@ int verilate() {
 			else if (top->mem_addr >= 0x03140000 && top->mem_addr <= 0x0315FFFF) { fprintf(logfile, "NVRAM           "); top->i_wb_dat = nvram_ptr[ (top->mem_addr>>2) & 0x1ffff] & 0xff; }
 			else if (top->mem_addr == 0x03180000 && top->o_wb_we) { fprintf(logfile, "DiagPort        "); sim_diag_port_send(top->o_wb_dat); }
 			else if (top->mem_addr == 0x03180000 && !top->o_wb_we) { fprintf(logfile, "DiagPort        "); top->i_wb_dat = sim_diag_port_get(); }
-			else if (top->mem_addr >= 0x03180004 && top->mem_addr <= 0x031BFFFF) { fprintf(logfile, "Slow Bus        "); }
+			else if (top->mem_addr >= 0x03180004 && top->mem_addr <= 0x031BFFFF) { fprintf(logfile, "Slow Bus        "); top->i_wb_dat = 0x00000000; }
 
 			else if (top->mem_addr >= 0x03200000 && top->mem_addr <= 0x03200fff && !top->o_wb_we) { fprintf(logfile, "VRAM SVF Source "); svf_set_source(); top->i_wb_dat = 0x00000000; }
 			else if (top->mem_addr >= 0x03200000 && top->mem_addr <= 0x03200fff && top->o_wb_we) { fprintf(logfile, "VRAM SVF Copy   "); svf_page_copy(); }
@@ -1329,6 +1327,8 @@ int verilate() {
 			//if (top->mem_addr == 0x03400034) { fprintf(logfile, "CLIO vcnt       "); }
 			if (top->mem_addr == 0x03400038) { fprintf(logfile, "CLIO RandSeed   "); }
 
+			if (top->mem_addr == 0x0340003c) { fprintf(logfile, "CLIO RandSample?"); top->i_wb_dat = 0x00000000; }
+
 			if (top->mem_addr == 0x03400040 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 set   "); }
 			if (top->mem_addr == 0x03400044 && top->o_wb_we) { fprintf(logfile, "CLIO irq0 clear "); }
 			if (top->mem_addr == 0x03400048 && top->o_wb_we) { fprintf(logfile, "CLIO mask0 set  "); }
@@ -1454,6 +1454,9 @@ int verilate() {
 			if (top->mem_addr == 0x034017e0) { fprintf(logfile, "CLIO dspdma     "); }
 			if (top->mem_addr == 0x034017e4) { fprintf(logfile, "CLIO dspprst0   "); }
 			if (top->mem_addr == 0x034017e8) { fprintf(logfile, "CLIO dspprst1   "); }
+
+			if (top->mem_addr == 0x034017f0) { fprintf(logfile, "CLIO fastrand   "); }
+
 			if (top->mem_addr == 0x034017f4) { fprintf(logfile, "CLIO dspppc     "); }
 			if (top->mem_addr == 0x034017f8) { fprintf(logfile, "CLIO dsppnr     "); }
 			if (top->mem_addr == 0x034017fc) { fprintf(logfile, "CLIO dsppgw     "); }
@@ -1486,7 +1489,8 @@ int verilate() {
 			fprintf(logfile, "frame: %d\n", frame_count);
 		}
 
-		if ( (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt & 0x7)==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) {
+		//if ( (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt & 0x7)==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) {
+		if ( top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0 && top->rootp->core_3do__DOT__clio_inst__DOT__field==0) {
 			sim_process_vdl();
 			opera_process_vdl();
 		}
@@ -1549,9 +1553,9 @@ VINT0 goes every even half-frame, and VINT1 every odd one (this is the very begi
 bit 00 - VINT0
 bit 01 - VINT1 (VSyncTimerFirq, ControlPort, SPORTfirq, GraphicsFirq is hung here)
 bit 02 - EXINT (interrupt from devices on XBUS, i.e. for example from CDROM)
-bit 03: Timer0.F Interrupts from timers, only possible from odd (highest in pairs)
-bit 04: Timer0.D
-bit 05: Timer0.B
+bit 03: Timer0.15 Interrupts from timers, only possible from odd (highest in pairs)
+bit 04: Timer0.13
+bit 05: Timer0.11
 bit 06: Timer0.9
 bit 07: Timer0.7
 bit 08: Timer0.5
@@ -1655,12 +1659,23 @@ int main(int argc, char** argv, char** env) {
 
 	//memset(vga_ptr,  0xAA, vga_size);
 
+	// TESTING!! Load a RAM Dump, so we can test the CEL engine stuff etc.
+	ramdump = fopen("ramdump.bin", "rb");
+	fread(ram_ptr, 1, ram_size, ramdump);
+
 	logfile = fopen("sim_trace.txt", "w");
 	inst_file = fopen("sim_inst_trace.txt", "w");
 
 	soundfile = fopen("soundfile.bin", "wb");
 
 	isofile = fopen("aitd_us.iso", "rb");
+	//isofile = fopen("StarBlade.iso", "rb");
+	//isofile = fopen("3DentrO.iso", "rb");
+	//isofile = fopen("3DO teaser trailer 25% ISO.iso", "rb");
+	//isofile = fopen("3DO Homebrew pack #1.iso", "rb");
+	//isofile = fopen("stniccc_3do_4bpp.iso", "rb");
+	//isofile = fopen("optidoom_02c.iso", "rb");
+	//CDIMAGE_SECTOR_SIZE = 2352; isofile = fopen("nfs_usa.bin", "rb");			// 2352-byte sectors!
 	//isofile = fopen("PhotoCD_Gallery.iso", "rb");
 	fseek(isofile, 0L, SEEK_END);
 	iso_size = ftell(isofile);
@@ -1910,7 +1925,6 @@ int main(int argc, char** argv, char** env) {
 		dump_ram = ImGui::Button("RAM Dump");
 
 		if (dump_ram) {
-			FILE* ramdump;
 			ramdump = fopen("ramdump.bin", "wb");
 			fwrite(ram_ptr, 1, ram_size, ramdump);  // Dump main RAM to a file.
 			fclose(ramdump);
@@ -2414,21 +2428,22 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("  sourceptr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__sourceptr);
 		ImGui::Text("    plutptr: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__plutptr);
 
-		int32_t xpos = top->rootp->core_3do__DOT__madam_inst__DOT__xpos;
-		int32_t ypos = top->rootp->core_3do__DOT__madam_inst__DOT__ypos;
-		int32_t hdx = top->rootp->core_3do__DOT__madam_inst__DOT__hdx;
-		int32_t hdy = top->rootp->core_3do__DOT__madam_inst__DOT__hdy;
-		int32_t vdx = top->rootp->core_3do__DOT__madam_inst__DOT__vdx;
-		int32_t vdy = top->rootp->core_3do__DOT__madam_inst__DOT__vdy;
-		int32_t hddx = top->rootp->core_3do__DOT__madam_inst__DOT__hddx;
-		int32_t hddy = top->rootp->core_3do__DOT__madam_inst__DOT__hddy;
+		int32_t xpos = top->rootp->core_3do__DOT__madam_inst__DOT__xpos;	// 16.16
+		int32_t ypos = top->rootp->core_3do__DOT__madam_inst__DOT__ypos;	// 16.16
+		int32_t hdx = top->rootp->core_3do__DOT__madam_inst__DOT__hdx;		// 12.20
+		int32_t hdy = top->rootp->core_3do__DOT__madam_inst__DOT__hdy;		// 12.20
+		int32_t vdx = top->rootp->core_3do__DOT__madam_inst__DOT__vdx;		// 16.16
+		int32_t vdy = top->rootp->core_3do__DOT__madam_inst__DOT__vdy;		// 16.16
+		int32_t hddx = top->rootp->core_3do__DOT__madam_inst__DOT__hddx;	// 12.20
+		int32_t hddy = top->rootp->core_3do__DOT__madam_inst__DOT__hddy;	// 12.20
 
-		for (int xp = 0; xp < 64; xp+=2) {
-			uint32_t x = xpos>>16;
-			uint32_t y = ypos>>16;
-			for (int yp = 0; yp < 16; yp += 2) {
-				vram_ptr[ (vdl_curr + ((y+yp)*640)+x+xp+0) & 0xfffff ] = 0x55;
-				vram_ptr[ (vdl_curr + ((y+yp)*640)+x+xp+1) & 0xfffff ] = 0x55;
+		if (top->rootp->core_3do__DOT__madam_inst__DOT__nextccb>0) {
+			for (int xp = 0; xp < 16; xp++) {
+				uint32_t x = xpos>>16;
+				uint32_t y = ypos>>16;
+				for (int yp = 0; yp < 16; yp++) {
+					disp_ptr[ (/*vdl_curr +*/ ((y+yp)*320)+x+xp) & 0xfffff ] = 0xff00ff00;	// ABGR.
+				}
 			}
 		}
 
@@ -2459,6 +2474,22 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("       pixc: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pixc);
 		ImGui::Text("       pre0: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pre0);
 		ImGui::Text("       pre1: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pre1);
+		ImGui::End();
+
+		ImGui::Begin("CEL Unpacker");
+		ImGui::Text("      state: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__state);
+		ImGui::Text("  bpp (val): %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__bpp);
+		ImGui::Text("     offset: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__offset);
+		ImGui::Text("  pack_type: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pack_type);
+		ImGui::Text("      count: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__count);
+		ImGui::Text("   word_sel: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__word_sel);
+		ImGui::Text("     store0: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store0);
+		ImGui::Text("     store1: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store1);
+		ImGui::Text("    pix_sel: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pix_sel);
+		ImGui::Text("       pix6: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pix6);
+		ImGui::Text("     rd_req: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__rd_req);
+		ImGui::Text("    col_out: 0x%04X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__col_out);
+		ImGui::Text("        eol: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__eol);
 		ImGui::End();
 
 		/*

@@ -584,11 +584,11 @@ uint32_t
 opera_madam_peek(uint32_t addr_)
 {
   /* we need to return actual fifo status */
-  if((addr_ >= 0x400) && (addr_ <= 0x53F))
+  if ((addr_ >= 0x400) && (addr_ <= 0x53F))
     return opera_clio_fifo_read(addr_);
 
   /* status of CEL */
-  if(addr_ == 0x28)
+  if (addr_ == 0x28)
     {
       switch(MADAM.FSM)
         {
@@ -705,7 +705,7 @@ madam_matrix_mul3x3_nz(void)
              (MI21 * MV1) +
              (MI22 * MV2)) >> 16);
 
-  if(tmpMO2 != 0)
+  if (tmpMO2 != 0)
     M /= (int64_t)tmpMO2;
 
   tmpMO0 = (((MI00 * MV0) +
@@ -762,7 +762,7 @@ void
 opera_madam_poke(uint32_t addr_,
                   uint32_t val_)
 {
-   if((addr_ >= 0x400) && (addr_ <= 0x53F))
+   if ((addr_ >= 0x400) && (addr_ <= 0x53F))
    {
       opera_clio_fifo_write(addr_,val_);
       return;
@@ -771,7 +771,7 @@ opera_madam_poke(uint32_t addr_,
    switch(addr_)
    {
       case 0x00:
-         if(KPRINT)
+         if (KPRINT)
             fputc(val_,stderr);
          return;
       case 0x04:
@@ -785,7 +785,7 @@ opera_madam_poke(uint32_t addr_,
          opera_vdlp_set_vdl_head(val_);
          return;
       case SPRSTRT:
-         if(MADAM.FSM == FSM_IDLE)
+         if (MADAM.FSM == FSM_IDLE)
             MADAM.FSM = FSM_INPROCESS;
          return;
       case SPRSTOP:
@@ -793,11 +793,11 @@ opera_madam_poke(uint32_t addr_,
          NEXTCCB = 0;
          return;
       case SPRCNTU:
-         if(MADAM.FSM == FSM_SUSPENDED)
+         if (MADAM.FSM == FSM_SUSPENDED)
             MADAM.FSM = FSM_INPROCESS;
          return;
       case SPRPAUS:
-         if(MADAM.FSM == FSM_INPROCESS)
+         if (MADAM.FSM == FSM_INPROCESS)
             MADAM.FSM = FSM_SUSPENDED;
          return;
 
@@ -892,9 +892,9 @@ opera_madam_cel_handle(void)
   Flag = 0;
 
   while((NEXTCCB != 0) && (!Flag))
-    //if(MADAM.FSM==FSM_INPROCESS)
+    //if (MADAM.FSM==FSM_INPROCESS)
     {
-      if((NEXTCCB == 0) || (Flag))
+      if ((NEXTCCB == 0) || (Flag))
         {
           MADAM.FSM = FSM_IDLE;
           return;
@@ -902,7 +902,7 @@ opera_madam_cel_handle(void)
 
       //1st step -- parce CCB and load it into registers
       CURRENTCCB = (NEXTCCB & 0x00FFFFFC);
-      if((CURRENTCCB >> 20) > 2)
+      if ((CURRENTCCB >> 20) > 2)
         {
           MADAM.FSM = FSM_IDLE;
           return;
@@ -913,7 +913,7 @@ opera_madam_cel_handle(void)
       CCBFLAGS    = mread32(CURRENTCCB);
       CURRENTCCB += 4;
 
-      if(CCBFLAGS & CCB_PXOR)
+      if (CCBFLAGS & CCB_PXOR)
         {
           PXOR1 = 0;
           PXOR2 = 0x1F1F1F1F;
@@ -931,60 +931,60 @@ opera_madam_cel_handle(void)
 
       NEXTCCB = mread32(CURRENTCCB) & 0xFFFFFFFC;
 
-      if(!(CCBFLAGS & CCB_NPABS))
+      if (!(CCBFLAGS & CCB_NPABS))
         {
           NEXTCCB += CURRENTCCB + 4;
           NEXTCCB &= 0x00FFFFFF;
         }
 
-      if(NEXTCCB == 0)
+      if (NEXTCCB == 0)
         NCCBF = 1;
-      if((NEXTCCB >> 20) > 2)
+      if ((NEXTCCB >> 20) > 2)
         NCCBF = 1;
 
       CURRENTCCB += 4;
 
       PDATA = mread32(CURRENTCCB) & 0xFFFFFFFC;
       /*
-        if((PDATA==0))
+        if ((PDATA==0))
       	PDATF=1;
       */
-      if(!(CCBFLAGS & CCB_SPABS))
+      if (!(CCBFLAGS & CCB_SPABS))
         {
           PDATA += CURRENTCCB + 4;
           PDATA &= 0x00FFFFFF;
         }
 
-      if((PDATA >> 20) > 2)
+      if ((PDATA >> 20) > 2)
         PDATF = 1;
       CURRENTCCB += 4;
 
-      if(CCBFLAGS & CCB_LDPLUT)
+      if (CCBFLAGS & CCB_LDPLUT)
         {
           PLUTDATA = mread32(CURRENTCCB) & 0xFFFFFFFC;
           /*
-            if((PLUTDATA == 0))
+            if ((PLUTDATA == 0))
               PLUTF=1;
           */
-          if(!(CCBFLAGS & CCB_PPABS))
+          if (!(CCBFLAGS & CCB_PPABS))
             {
               PLUTDATA += CURRENTCCB + 4;
               PLUTDATA &= 0x00FFFFFF;
             }
 
-          if((PLUTDATA >> 20) > 2)
+          if ((PLUTDATA >> 20) > 2)
             PLUTF = 1;
         }
 
       CURRENTCCB += 4;
 
-      if(NCCBF)
+      if (NCCBF)
         CCBFLAGS |= CCB_LAST;
 
-      if(CCBFLAGS & CCB_LAST)
+      if (CCBFLAGS & CCB_LAST)
         Flag = 1;
 
-      if(CCBFLAGS & CCB_YOXY)
+      if (CCBFLAGS & CCB_YOXY)
         {
           XPOS1616 = mread32(CURRENTCCB);
           YPOS1616 = mread32(CURRENTCCB + 4);
@@ -1000,14 +1000,14 @@ opera_madam_cel_handle(void)
       CEL_ORIGIN_VH_VALUE = ((XPOS1616 & 0x1) | ((YPOS1616 & 0x1) << 15));
 
       /*
-        if((CCBFLAGS&CCB_SKIP)&& debug)
+        if ((CCBFLAGS&CCB_SKIP)&& debug)
         printf("###Cel skipped!!! PDATF=%d PLUTF=%d NCCBF=%d\n",PDATF,PLUTF,NCCBF);
       */
 
-      if(CCBFLAGS & CCB_LAST)
+      if (CCBFLAGS & CCB_LAST)
         NEXTCCB = 0;
 
-      if(CCBFLAGS & CCB_LDSIZE)
+      if (CCBFLAGS & CCB_LDSIZE)
         {
           HDX1616     = ((int32_t)mread32(CURRENTCCB)) >> 4;
           CURRENTCCB += 4;
@@ -1019,7 +1019,7 @@ opera_madam_cel_handle(void)
           CURRENTCCB += 4;
         }
 
-      if(CCBFLAGS & CCB_LDPRS)
+      if (CCBFLAGS & CCB_LDPRS)
         {
           HDDX1616    = ((int32_t)mread32(CURRENTCCB)) >> 4;
           CURRENTCCB += 4;
@@ -1027,27 +1027,27 @@ opera_madam_cel_handle(void)
           CURRENTCCB += 4;
         }
 
-      if(CCBFLAGS & CCB_LDPPMP)
+      if (CCBFLAGS & CCB_LDPPMP)
         {
           PIXC        = mread32(CURRENTCCB);
           CURRENTCCB += 4;
         }
 
-      if(CCBFLAGS & CCB_CCBPRE)
+      if (CCBFLAGS & CCB_CCBPRE)
         {
           PRE0        = mread32(CURRENTCCB);
           CURRENTCCB += 4;
-          if(!(CCBFLAGS & CCB_PACKED))
+          if (!(CCBFLAGS & CCB_PACKED))
             {
               PRE1        = mread32(CURRENTCCB);
               CURRENTCCB += 4;
             }
         }
-      else if(!PDATF)
+      else if (!PDATF)
         {
           PRE0   = mread32(PDATA);
           PDATA += 4;
-          if(!(CCBFLAGS & CCB_PACKED))
+          if (!(CCBFLAGS & CCB_PACKED))
             {
               PRE1   = mread32(PDATA);
               PDATA += 4;
@@ -1085,7 +1085,7 @@ opera_madam_cel_handle(void)
       }
 
       /* load PLUT */
-      if((CCBFLAGS & CCB_LDPLUT) && !PLUTF)
+      if ((CCBFLAGS & CCB_LDPLUT) && !PLUTF)
         {
           switch(PRE0 & PRE0_BPP_MASK)
             {
@@ -1107,15 +1107,15 @@ opera_madam_cel_handle(void)
         CCB decoded -- let's print out our current status
         step#2 -- getting CEL data
       */
-      if(!(CCBFLAGS & CCB_SKIP) && !PDATF)
+      if (!(CCBFLAGS & CCB_SKIP) && !PDATF)
         {
-          if(CCBFLAGS & CCB_PACKED)
+          if (CCBFLAGS & CCB_PACKED)
             {
               DrawPackedCel_New();
             }
           else
             {
-              if((PRE1 & PRE1_LRFORM) && (BPP[PRE0 & PRE0_BPP_MASK] == 16))
+              if ((PRE1 & PRE1_LRFORM) && (BPP[PRE0 & PRE0_BPP_MASK] == 16))
                 DrawLRCel_New();
               else
                 DrawLiteralCel_New();
@@ -1125,7 +1125,7 @@ opera_madam_cel_handle(void)
     }
 
   /* STATBITS &= ~SPRON; */
-  if((NEXTCCB == 0) || (Flag))
+  if ((NEXTCCB == 0) || (Flag))
     MADAM.FSM = FSM_IDLE;
 }
 
@@ -1134,7 +1134,7 @@ void
 HandleDMA8(void)
 {
   /* pbus transfer */
-  if(MADAM.mregs[0x8] & 0x8000)
+  if (MADAM.mregs[0x8] & 0x8000)
     {
       DMAPBus();
       MADAM.mregs[0x8] &= ~0x8000; /* dma done */
@@ -1283,7 +1283,7 @@ mwrite16(const uint32_t addr_,
 #endif
 
   *((uint16_t*)&DRAM[addr]) = val_;
-  if(!HIRESMODE || (addr < 0x200000))
+  if (!HIRESMODE || (addr < 0x200000))
     return;
   *((uint16_t*)&DRAM[addr + 1*1024*1024]) = val_;
   *((uint16_t*)&DRAM[addr + 2*1024*1024]) = val_;
@@ -1331,7 +1331,7 @@ PDEC(const uint32_t  pixel_,
       break;
 
     case 5:   /* 8 bits */
-      if(PRE0 & PRE0_LINEAR)    /* uncoded 8 bit CEL */
+      if (PRE0 & PRE0_LINEAR)    /* uncoded 8 bit CEL */
         {
           pres   = MAPu8b[pix1.raw & 0xFF];
           resamv = 0x49;
@@ -1345,7 +1345,7 @@ PDEC(const uint32_t  pixel_,
 
     case 6:  /* 16 bits */
     case 7:
-      if(PRE0 & PRE0_LINEAR)    /* uncoded 16 bit CEL */
+      if (PRE0 & PRE0_LINEAR)    /* uncoded 16 bit CEL */
         {
           pres   = pix1.raw;
           resamv = 0x49;
@@ -1368,10 +1368,10 @@ PDEC(const uint32_t  pixel_,
     TODO: Do PROJECTOR functions now?
     They'll be done before using the PROCESSOR.
 
-    if(!(PRE1&PRE1_NOSWAP) && (CCBCTL0&(1<<27)))
+    if (!(PRE1&PRE1_NOSWAP) && (CCBCTL0&(1<<27)))
       pres = (pres&0x7ffe)|((pres&0x8000)>>15)|((pres&1)<<15);
 
-    if(!(CCBCTL0 & 0x80000000))
+    if (!(CCBCTL0 & 0x80000000))
       pres = (pres&0x7fff)|((CCBCTL0>>15)&0x8000);
 
     pres=(pres|pdec.pmodeORmask)&pdec.pmodeANDmask;
@@ -1397,7 +1397,7 @@ PPROJ_OUTPUT(uint32_t pdec_output_,
     Determine projector's originating source of VH values.
   */
 
-  if(CCBFLAGS & CCB_PLUTPOS) /* Use pixel decoder output. */
+  if (CCBFLAGS & CCB_PLUTPOS) /* Use pixel decoder output. */
     VHOutput = (pdec_output_ & 0x8001);
   else /* Use VH values determined from the CEL's origin. */
     VHOutput = CEL_ORIGIN_VH_VALUE;
@@ -1406,12 +1406,12 @@ PPROJ_OUTPUT(uint32_t pdec_output_,
     SWAPHV flag
     Swap the H and V values now if requested.
   */
-  if(CCBCTL0 & SWAPHV)
+  if (CCBCTL0 & SWAPHV)
     {
       /* TODO: I have read that PRE1 is only set for unpacked CELs.
          So... should this be ignored if using packed CELs? I don't
          know. */
-      if(!(PRE1 & PRE1_NOSWAP))
+      if (!(PRE1 & PRE1_NOSWAP))
         VHOutput = ((VHOutput >> 15) | ((VHOutput & 1) << 15));
     }
 
@@ -1420,7 +1420,7 @@ PPROJ_OUTPUT(uint32_t pdec_output_,
     CFBDSUB flag
     Substitute the VH values from the frame buffer if requested.
   */
-  if(CCBCTL0 & CFBDSUB)
+  if (CCBCTL0 & CFBDSUB)
     {
       /* TODO: This should be re-enabled sometime. However, it currently
          causes the wing commander 3 movies to screw up again! There
@@ -1521,7 +1521,7 @@ PPROC(uint32_t pixel_,
   pixel_ = ((pixel_ | pproj.pmodeORmask) & pproj.pmodeANDmask);
 
   pixc.raw = (PIXC & 0xFFFF);
-  if(pixel_ & 0x8000)
+  if (pixel_ & 0x8000)
     pixc.raw = (PIXC >> 16);
 
   /*
@@ -1532,7 +1532,7 @@ PPROC(uint32_t pixel_,
     pixc.raw = 0;
   */
 
-  if(CCBFLAGS & CCB_USEAV)
+  if (CCBFLAGS & CCB_USEAV)
     {
       AV.raw = pixc.meaning.av;
     }
@@ -1544,7 +1544,7 @@ PPROC(uint32_t pixel_,
       AV.avsignal.NEG   = 0;
     }
 
-  if(!pixc.meaning.s1)
+  if (!pixc.meaning.s1)
     input1.raw = pixel_;
   else
     input1.raw = fpix_;
@@ -1618,12 +1618,12 @@ PPROC(uint32_t pixel_,
   AOP.raw     = (color1.raw & PXOR1);
   color1.raw &= PXOR2;
 
-  if(AV.avsignal.NEG)
+  if (AV.avsignal.NEG)
     BOP.raw = (color2.raw ^ 0x00FFFFFF);
   else
     BOP.raw = (color2.raw ^ color1.raw);
 
-  if(AV.avsignal.XTEND)
+  if (AV.avsignal.XTEND)
     {
       BOP.R = ((BOP.R << 3) >> 3);
       BOP.B = ((BOP.B << 3) >> 3);
@@ -1634,7 +1634,7 @@ PPROC(uint32_t pixel_,
   color2.G = ((AOP.G + BOP.G + AV.avsignal.NEG) >> pixc.meaning.dv2);
   color2.B = ((AOP.B + BOP.B + AV.avsignal.NEG) >> pixc.meaning.dv2);
 
-  if(!AV.avsignal.nCLIP)
+  if (!AV.avsignal.nCLIP)
     {
       color2.R = clamp_i8(color2.R,0,31);
       color2.G = clamp_i8(color2.G,0,31);
@@ -1647,18 +1647,18 @@ PPROC(uint32_t pixel_,
   out.r16b.b = color2.B;
 
   /* TODO: Is this something the PROJECTOR should do? */
-  if(!(CCBFLAGS & CCB_NOBLK) && (out.raw == 0))
+  if (!(CCBFLAGS & CCB_NOBLK) && (out.raw == 0))
     out.raw = (1 << 10);
 
   /*
-    if(!(PRE1 & PRE1_NOSWAP) && (CCBCTL0 & (1 << 27)))
+    if (!(PRE1 & PRE1_NOSWAP) && (CCBCTL0 & (1 << 27)))
     out.raw = ((out.raw & 0x7FFE) |
     ((out.raw & 0x8000) >> 15) |
     ((out.raw & 1) << 15));
   */
 
   /*
-    if(!(CCBCTL0 & 0x80000000))
+    if (!(CCBCTL0 & 0x80000000))
     out.raw = ((out.raw & 0x7FFF) | ((CCBCTL0 >> 15) & 0x8000));
   */
 
@@ -1719,13 +1719,13 @@ DrawPackedCel_New(void)
 
   SPRHI = nrows + 1;
 
-  if(TestInitVisual(1))
+  if (TestInitVisual(1))
     return;
 
   xvert = XPOS1616;
   yvert = YPOS1616;
 
-  if(TEXEL_FUN_NUMBER == 0)
+  if (TEXEL_FUN_NUMBER == 0)	// Line map?
     {
       for(row = 0; row < TEXTURE_HI_LIM; row++)
         {
@@ -1742,7 +1742,7 @@ DrawPackedCel_New(void)
           xvert    += VDX1616;
           yvert    += VDY1616;
 
-          if(TEXTURE_HI_START)
+          if (TEXTURE_HI_START)
             {
               TEXTURE_HI_START--;
               start = lastaddr;
@@ -1756,51 +1756,44 @@ DrawPackedCel_New(void)
           while(!eor)
             {
               type = BitReaderBig_Read(&bitoper,2);
-              if((int32_t)(bitoper.point + start) >= (lastaddr))
+              if ((int32_t)(bitoper.point + start) >= (lastaddr))
                 type = 0;
 
               pixcount = BitReaderBig_Read(&bitoper,6) + 1;
 
-              if(scipw)
+              if (scipw)
                 {
-                  if(type == 0)
+                  if (type == 0)	// EOR packet.
                     break;
-                  if(scipw >= (int32_t)(pixcount))
+                  if (scipw >= (int32_t)(pixcount))
                     {
                       scipw -= (pixcount);
-                      if(HDX1616)
-                        xcur += (HDX1616 * pixcount);
-                      if(HDY1616)
-                        ycur += (HDY1616 * pixcount);
-                      if(type == 1)
-                        BitReaderBig_Skip(&bitoper,bpp*pixcount);
-                      else if(type == 3)
-                        BitReaderBig_Skip(&bitoper,bpp);
+                      if (HDX1616) xcur += (HDX1616 * pixcount);
+                      if (HDY1616) ycur += (HDY1616 * pixcount);
+                      if (type == 1) BitReaderBig_Skip(&bitoper,bpp*pixcount);	// Literal packet.
+                      else if (type == 3) BitReaderBig_Skip(&bitoper,bpp);		// Repeat packet.
                       continue;
                     }
                   else
                     {
-                      if(HDX1616)
-                        xcur += (HDX1616 * scipw);
-                      if(HDY1616)
-                        ycur += (HDY1616 * scipw);
+                      if (HDX1616) xcur += (HDX1616 * scipw);
+                      if (HDY1616) ycur += (HDY1616 * scipw);
                       pixcount -= scipw;
-                      if(type == 1)
-                        BitReaderBig_Skip(&bitoper,bpp*scipw);
+                      if (type == 1) BitReaderBig_Skip(&bitoper,bpp*scipw);	// Literal packet.
                       scipw = 0;
                     }
                 }
 
               /*
-                if(wcnt >= TEXTURE_WI_LIM)
+                if (wcnt >= TEXTURE_WI_LIM)
                 break;
               */
               wcnt += pixcount;
-              if(wcnt > TEXTURE_WI_LIM)
+              if (wcnt > TEXTURE_WI_LIM)
                 {
                   pixcount -= (wcnt - TEXTURE_WI_LIM);
                   /*
-                    if(pixcount >> 31)
+                    if (pixcount >> 31)
                     break;
                   */
                 }
@@ -1816,8 +1809,7 @@ DrawPackedCel_New(void)
                     for(pix = 0; pix < pixcount; pix++)
                       {
                         CURPIX = PDEC(BitReaderBig_Read(&bitoper,bpp),&LAMV);
-                        if(!pproj.Transparent)
-                          process_pixel(xcur >> 16,ycur >> 16,CURPIX,LAMV);
+                        if (!pproj.Transparent) process_pixel(xcur >> 16,ycur >> 16,CURPIX,LAMV);
 
                         xcur += HDX1616;
                         ycur += HDY1616;
@@ -1825,39 +1817,33 @@ DrawPackedCel_New(void)
                   }
                   break;
                 case 2: /* PACK_TRANSPARENT */
-                  if(HDX1616)
-                    xcur += (HDX1616 * pixcount);
-                  if(HDY1616)
-                    ycur += (HDY1616 * pixcount);
+                  if (HDX1616) xcur += (HDX1616 * pixcount);
+                  if (HDY1616) ycur += (HDY1616 * pixcount);
                   break;
                 case 3: /* PACK_REPEAT */
                   CURPIX = PDEC(BitReaderBig_Read(&bitoper,bpp),&LAMV);
 
-                  if(!pproj.Transparent)
-                    TexelDraw_Line(CURPIX,LAMV,xcur,ycur,pixcount);
+                  if (!pproj.Transparent) TexelDraw_Line(CURPIX,LAMV,xcur,ycur,pixcount);
 
-                  if(HDX1616)
-                    xcur += (HDX1616 * pixcount);
-                  if(HDY1616)
-                    ycur += (HDY1616 * pixcount);
+                  if (HDX1616) xcur += (HDX1616 * pixcount);
+                  if (HDY1616) ycur += (HDY1616 * pixcount);
                   break;
                 }
 
-              if(wcnt >= TEXTURE_WI_LIM)
+              if (wcnt >= TEXTURE_WI_LIM)
                 break;
             }
 
           start = lastaddr;
         }
     }
-  else if(TEXEL_FUN_NUMBER == 1)
+  else if (TEXEL_FUN_NUMBER == 1)	// Scale map?
     {
       int row;
       int drawHeight;
 
       drawHeight = VDY1616;
-      if((CCBFLAGS & CCB_MARIA) && (drawHeight > (1 << 16)))
-        drawHeight = (1 << 16);
+      if ((CCBFLAGS & CCB_MARIA) && (drawHeight > (1 << 16))) drawHeight = (1 << 16);
 
       for(row = 0; row < SPRHI; row++)
         {
@@ -1879,8 +1865,7 @@ DrawPackedCel_New(void)
               int32_t __pix;
 
               type = BitReaderBig_Read(&bitoper,2);
-              if((bitoper.point + start) >= lastaddr)
-                type = 0;
+              if ((bitoper.point + start) >= lastaddr) type = 0;
 
               __pix = (BitReaderBig_Read(&bitoper,6) + 1);
 
@@ -1895,9 +1880,9 @@ DrawPackedCel_New(void)
                       __pix--;
                       CURPIX = PDEC(BitReaderBig_Read(&bitoper,bpp),&LAMV);
 
-                      if(!pproj.Transparent)
+                      if (!pproj.Transparent)
                         {
-                          if(TexelDraw_Scale(CURPIX,
+                          if (TexelDraw_Scale(CURPIX,
                                              LAMV,
                                              xcur >> 16,
                                              ycur >> 16,
@@ -1917,9 +1902,9 @@ DrawPackedCel_New(void)
                   break;
                 case 3: /* PACK_REPEAT */
                   CURPIX = PDEC(BitReaderBig_Read(&bitoper,bpp),&LAMV);
-                  if(!pproj.Transparent)
+                  if (!pproj.Transparent)
                     {
-                      if(TexelDraw_Scale(CURPIX,
+                      if (TexelDraw_Scale(CURPIX,
                                          LAMV,
                                          xcur >> 16,
                                          ycur >> 16,
@@ -1935,14 +1920,14 @@ DrawPackedCel_New(void)
                   break;
                 }
 
-              if(__pix)
+              if (__pix)
                 break;
             }
 
           start = lastaddr;
         }
     }
-  else
+  else		// Artitrary map.
     {
       int row;
       for(row = 0; row < SPRHI; row++)
@@ -1973,7 +1958,7 @@ DrawPackedCel_New(void)
               int32_t __pix;
 
               type = BitReaderBig_Read(&bitoper,2);
-              if((bitoper.point + start) >= lastaddr)
+              if ((bitoper.point + start) >= lastaddr)
                 type = 0;
 
               __pix = (BitReaderBig_Read(&bitoper,6) + 1);
@@ -1989,9 +1974,9 @@ DrawPackedCel_New(void)
                       CURPIX = PDEC(BitReaderBig_Read(&bitoper,bpp),&LAMV);
                       __pix--;
 
-                      if(!pproj.Transparent)
+                      if (!pproj.Transparent)
                         {
-                          if(TexelDraw_Arbitrary(CURPIX,LAMV,xcur,ycur,xcur+hdx,ycur+hdy,xdown+HDX1616,ydown+HDY1616,xdown,ydown))
+                          if (TexelDraw_Arbitrary(CURPIX,LAMV,xcur,ycur,xcur+hdx,ycur+hdy,xdown+HDX1616,ydown+HDY1616,xdown,ydown))
                             break;
                         }
 
@@ -2011,12 +1996,12 @@ DrawPackedCel_New(void)
                 case 3: /* PACK_REPEAT */
                   CURPIX = PDEC(BitReaderBig_Read(&bitoper,bpp),&LAMV);
 
-                  if(!pproj.Transparent)
+                  if (!pproj.Transparent)
                     {
                       while(__pix)
                         {
                           __pix--;
-                          if(TexelDraw_Arbitrary(CURPIX,LAMV,xcur,ycur,xcur+hdx,ycur+hdy,xdown+HDX1616,ydown+HDY1616,xdown,ydown))
+                          if (TexelDraw_Arbitrary(CURPIX,LAMV,xcur,ycur,xcur+hdx,ycur+hdy,xdown+HDX1616,ydown+HDY1616,xdown,ydown))
                             break;
                           xcur  += hdx;
                           ycur  += hdy;
@@ -2035,7 +2020,7 @@ DrawPackedCel_New(void)
                   break;
                 }
 
-              if(__pix)
+              if (__pix)
                 break;
             }
 
@@ -2045,7 +2030,7 @@ DrawPackedCel_New(void)
 
   SPRWI++;
 
-  if(FIXMODE & FIX_BIT_GRAPHICS_STEP_Y)
+  if (FIXMODE & FIX_BIT_GRAPHICS_STEP_Y)
     YPOS1616 = ycur;
   else
     XPOS1616 = xcur;
@@ -2076,7 +2061,7 @@ DrawLiteralCel_New(void)
   SPRWI = (1 + (PRE1 & PRE1_TLHPCNT_MASK));
   SPRHI = (1 + ((PRE0 & PRE0_VCNT_MASK) >> PRE0_VCNT_SHIFT));
 
-  if(TestInitVisual(0))
+  if (TestInitVisual(0))
     return;
 
   xvert = XPOS1616;
@@ -2084,7 +2069,7 @@ DrawLiteralCel_New(void)
 
   switch(TEXEL_FUN_NUMBER)
     {
-    case 0:
+    case 0:	// Line Map?
       {
         uint32_t i;
 
@@ -2093,7 +2078,7 @@ DrawLiteralCel_New(void)
         yvert += (TEXTURE_HI_START * VDY1616);
         PDATA += (((offset + 2) << 2) * TEXTURE_HI_START);
 
-        if(SPRWI > TEXTURE_WI_LIM)
+        if (SPRWI > TEXTURE_WI_LIM)
           SPRWI = TEXTURE_WI_LIM;
 
         for(i = TEXTURE_HI_START; i < TEXTURE_HI_LIM; i++)
@@ -2104,7 +2089,7 @@ DrawLiteralCel_New(void)
             xcur = (xvert + TEXTURE_WI_START * HDX1616);
             ycur = (yvert + TEXTURE_WI_START * HDY1616);
             BitReaderBig_Skip(&bitoper,(bpp * (((PRE0 >> 24) & 0xF))));
-            if(TEXTURE_WI_START)
+            if (TEXTURE_WI_START)
               BitReaderBig_Skip(&bitoper,(bpp * TEXTURE_WI_START));
 
             xvert += VDX1616;
@@ -2114,7 +2099,7 @@ DrawLiteralCel_New(void)
               {
                 CURPIX = PDEC(BitReaderBig_Read(&bitoper,bpp),&LAMV);
 
-                if(!pproj.Transparent)
+                if (!pproj.Transparent)
                   process_pixel(xcur >> 16,ycur >> 16,CURPIX,LAMV);
 
                 xcur += HDX1616;
@@ -2125,7 +2110,7 @@ DrawLiteralCel_New(void)
           }
       }
       break;
-    case 1:
+    case 1:	// Scale Map?
       {
         int32_t drawHeight;
         uint32_t i;
@@ -2134,8 +2119,7 @@ DrawLiteralCel_New(void)
         SPRWI -= ((PRE0 >> 24) & 0xF);
 
         drawHeight = VDY1616;
-        if((CCBFLAGS & CCB_MARIA) && (drawHeight > (1 << 16)))
-          drawHeight = (1 << 16);
+        if ((CCBFLAGS & CCB_MARIA) && (drawHeight > (1 << 16))) drawHeight = (1 << 16);
 
         for(i = 0; i < SPRHI; i++)
           {
@@ -2150,9 +2134,9 @@ DrawLiteralCel_New(void)
               {
                 CURPIX = PDEC(BitReaderBig_Read(&bitoper,bpp),&LAMV);
 
-                if(!pproj.Transparent)
+                if (!pproj.Transparent)
                   {
-                    if(TexelDraw_Scale(CURPIX,
+                    if (TexelDraw_Scale(CURPIX,
                                        LAMV,
                                        xcur >> 16,
                                        ycur >> 16,
@@ -2169,7 +2153,7 @@ DrawLiteralCel_New(void)
           }
       }
       break;
-    default:
+    default:	// Arbitrary Map?
       {
         uint32_t i;
         uint32_t j;
@@ -2198,9 +2182,9 @@ DrawLiteralCel_New(void)
               {
                 CURPIX = PDEC(BitReaderBig_Read(&bitoper,bpp),&LAMV);
 
-                if(!pproj.Transparent)
+                if (!pproj.Transparent)
                   {
-                    if(TexelDraw_Arbitrary(CURPIX, LAMV, xcur, ycur, xcur+hdx, ycur+hdy, xdown+HDX1616, ydown+HDY1616, xdown, ydown))
+                    if (TexelDraw_Arbitrary(CURPIX, LAMV, xcur, ycur, xcur+hdx, ycur+hdy, xdown+HDX1616, ydown+HDY1616, xdown, ydown))
                       break;
                   }
 
@@ -2216,7 +2200,7 @@ DrawLiteralCel_New(void)
       break;
     }
 
-  if(FIXMODE & FIX_BIT_GRAPHICS_STEP_Y)
+  if (FIXMODE & FIX_BIT_GRAPHICS_STEP_Y)
     YPOS1616 = ycur;
   else
     XPOS1616 = xcur;
@@ -2250,7 +2234,7 @@ DrawLRCel_New(void)
   SPRWI = (1 + (PRE1 & PRE1_TLHPCNT_MASK));
   SPRHI = ((((PRE0 & PRE0_VCNT_MASK) >> PRE0_VCNT_SHIFT) << 1) + 2); /* doom fix */
 
-  if(TestInitVisual(0))
+  if (TestInitVisual(0))
     return;
 
   xvert = XPOS1616;
@@ -2262,11 +2246,11 @@ DrawLRCel_New(void)
       xvert += (TEXTURE_HI_START * VDX1616);
       yvert += (TEXTURE_HI_START * VDY1616);
       /*
-        if(SPRHI > TEXTURE_HI_LIM)
+        if (SPRHI > TEXTURE_HI_LIM)
         SPRHI = TEXTURE_HI_LIM;
       */
 
-      if(SPRWI > TEXTURE_WI_LIM)
+      if (SPRWI > TEXTURE_WI_LIM)
         SPRWI = TEXTURE_WI_LIM;
 
       for(i = TEXTURE_HI_START; i < TEXTURE_HI_LIM; i++)
@@ -2280,12 +2264,12 @@ DrawLRCel_New(void)
             {
               CURPIX = PDEC(mread16((PDATA + XY2OFF(j,i,offset << 2))),&LAMV);
 
-              if(!pproj.Transparent)
+              if (!pproj.Transparent)
                 {
                   uint32_t pixel;
                   uint32_t framePixel;
 
-                  if(FIXMODE & FIX_BIT_TIMING_6)
+                  if (FIXMODE & FIX_BIT_TIMING_6)
                     framePixel = mread16((REGCTL2+XY2OFF(xcur >> 16,(ycur>>16)<<1,MADAM.rmod)));
                   else
                     framePixel = mread16((REGCTL2+XY2OFF(xcur >> 16,ycur>>16,MADAM.rmod)));
@@ -2305,7 +2289,7 @@ DrawLRCel_New(void)
         int32_t drawHeight;
 
         drawHeight = VDY1616;
-        if((CCBFLAGS & CCB_MARIA) && (drawHeight > (1 << 16)))
+        if ((CCBFLAGS & CCB_MARIA) && (drawHeight > (1 << 16)))
           drawHeight = (1 << 16);
 
         for(i = 0; i < SPRHI; i++)
@@ -2319,9 +2303,9 @@ DrawLRCel_New(void)
               {
                 CURPIX = PDEC(mread16((PDATA+XY2OFF(j,i,offset<<2))),&LAMV);
 
-                if(!pproj.Transparent)
+                if (!pproj.Transparent)
                   {
-                    if(TexelDraw_Scale(CURPIX,
+                    if (TexelDraw_Scale(CURPIX,
                                        LAMV,
                                        xcur >> 16,
                                        ycur >> 16,
@@ -2354,9 +2338,9 @@ DrawLRCel_New(void)
             {
               CURPIX = PDEC(mread16((PDATA+XY2OFF(j,i,offset<<2))),&LAMV);
 
-              if(!pproj.Transparent)
+              if (!pproj.Transparent)
                 {
-                  if(TexelDraw_Arbitrary(CURPIX,
+                  if (TexelDraw_Arbitrary(CURPIX,
                                          LAMV,
                                          xcur,
                                          ycur,
@@ -2378,7 +2362,7 @@ DrawLRCel_New(void)
       break;
     }
 
-  if(FIXMODE & FIX_BIT_GRAPHICS_STEP_Y)
+  if (FIXMODE & FIX_BIT_GRAPHICS_STEP_Y)
     YPOS1616 = ycur;
   else
     XPOS1616 = xcur;
@@ -2407,7 +2391,7 @@ QuadCCWTest(int32_t wdt_)
   float wdt;
   uint32_t tmp;
 
-  if((CCBFLAGS & CCB_ACCW) && (CCBFLAGS & CCB_ACW))
+  if ((CCBFLAGS & CCB_ACCW) && (CCBFLAGS & CCB_ACW))
     return FALSE;
 
   wdt = (float)wdt_;
@@ -2418,7 +2402,7 @@ QuadCCWTest(int32_t wdt_)
     return FALSE;
   if (tmp != TexelCCWTest(HDX1616 + HDDX1616*SPRHI, HDY1616 + HDDY1616*SPRHI, VDX1616 + HDDX1616*SPRHI * wdt, VDY1616 + HDDY1616*SPRHI * wdt))
     return FALSE;
-  if(tmp == (CCBFLAGS & (CCB_ACCW | CCB_ACW)))
+  if (tmp == (CCBFLAGS & (CCB_ACCW | CCB_ACW)))
     return TRUE;
   return FALSE;
 }
@@ -2438,53 +2422,53 @@ TestInitVisual(int32_t packed_)
   int32_t xpoints[4];
   int32_t ypoints[4];
 
-  if(!(CCBFLAGS & CCB_ACCW) && !(CCBFLAGS & CCB_ACW))
+  if (!(CCBFLAGS & CCB_ACCW) && !(CCBFLAGS & CCB_ACW))	// Return -1, if the ACCW and ACW flag bits are both NOT set. 
     return -1;
 
-  if(!packed_)
+  if (!packed_)	// Non-packed CEL...
     {
-      xpoints[0] = (XPOS1616 >> 16);
+      xpoints[0] = (XPOS1616 >> 16);	// Grab the Integer part of the X coords.
       xpoints[1] = (XPOS1616+HDX1616*SPRWI)>>16;
       xpoints[2] = (XPOS1616+VDX1616*SPRHI)>>16;
       xpoints[3] = ((XPOS1616+VDX1616*SPRHI+
                      (HDX1616+HDDX1616*SPRHI)*SPRWI) >> 16);
-      if((xpoints[0] < 0) &&
+      if ((xpoints[0] < 0) &&
          (xpoints[1] < 0) &&
          (xpoints[2] < 0) &&
          (xpoints[3] < 0))
-        return -1;
-      if((xpoints[0] > MADAM.clipx) &&
+        return -1;				// Return -1, if all four X coords are less than 0 (negative).
+      if ((xpoints[0] > MADAM.clipx) &&
          (xpoints[1] > MADAM.clipx) &&
          (xpoints[2] > MADAM.clipx) &&
          (xpoints[3] > MADAM.clipx))
-        return -1;
+        return -1;				// Return -1, if all four Y coords are greater than clipx.
 
-      ypoints[0] = (YPOS1616 >> 16);
+      ypoints[0] = (YPOS1616 >> 16);	// Grab the Integer part of the Y coords.
       ypoints[1] = ((YPOS1616+HDY1616*SPRWI) >> 16);
       ypoints[2] = ((YPOS1616+VDY1616*SPRHI) >> 16);
       ypoints[3] = ((YPOS1616+VDY1616*SPRHI+
                      (HDY1616+HDDY1616*SPRHI)*SPRWI) >> 16);
-      if((ypoints[0] < 0) &&
+      if ((ypoints[0] < 0) &&
          (ypoints[1] < 0) &&
          (ypoints[2] < 0) &&
          (ypoints[3] < 0))
-        return -1;
-      if((ypoints[0] > MADAM.clipy) &&
+        return -1;				// Return -1, if all four Y coords are less than 0 (negative).
+      if ((ypoints[0] > MADAM.clipy) &&
          (ypoints[1] > MADAM.clipy) &&
          (ypoints[2] > MADAM.clipy) &&
          (ypoints[3] > MADAM.clipy))
-        return -1;
+        return -1;				// Return -1, if all four Y coords are greater than clipy.
     }
-  else
+  else	// Packed CEL...
     {
       xpoints[0] = (XPOS1616 >> 16);
       xpoints[1] = ((XPOS1616 + VDX1616 * SPRHI) >> 16);
-      if((xpoints[0] < 0) &&
+      if ((xpoints[0] < 0) &&
          (xpoints[1] < 0) &&
          (HDX1616   <= 0) &&
          (HDDX1616  <= 0))
         return -1;
-      if((xpoints[0] > MADAM.clipx) &&
+      if ((xpoints[0] > MADAM.clipx) &&
          (xpoints[1] > MADAM.clipx) &&
          (HDX1616   >= 0)           &&
          (HDDX1616  >= 0))
@@ -2492,30 +2476,30 @@ TestInitVisual(int32_t packed_)
 
       ypoints[0] = (YPOS1616 >> 16);
       ypoints[1] = ((YPOS1616 + VDY1616 * SPRHI) >> 16);
-      if((ypoints[0] < 0) &&
+      if ((ypoints[0] < 0) &&
          (ypoints[1] < 0) &&
          (HDY1616   <= 0) &&
          (HDDY1616  <= 0))
         return -1;
-      if((ypoints[0] > MADAM.clipy) &&
+      if ((ypoints[0] > MADAM.clipy) &&
          (ypoints[1] > MADAM.clipy) &&
          (HDY1616   >= 0)           &&
          (HDDY1616  >= 0))
         return -1;
     }
 
-  if((HDDX1616 == 0) && (HDDY1616 == 0))
+  if ((HDDX1616 == 0) && (HDDY1616 == 0))
     {
-      if((HDX1616 == 0) && (VDY1616 == 0))
+      if ((HDX1616 == 0) && (VDY1616 == 0))
         {
-          if(((HDY1616 < 0) && (VDX1616 > 0)) ||
+          if (((HDY1616 < 0) && (VDX1616 > 0)) ||
              ((HDY1616 > 0) && (VDX1616 < 0)))
             {
-              if(CCBFLAGS & CCB_ACW)
+              if (CCBFLAGS & CCB_ACW)
                 {
-                  if((ABS(HDY1616) == 0x10000) &&
+                  if ((ABS(HDY1616) == 0x10000) &&
                      (ABS(VDX1616) == 0x10000) &&
-                     !((YPOS1616|XPOS1616)&0xffff))
+                     !((YPOS1616|XPOS1616)&0xffff))	// Check for no X/Y fraction.
                     {
                       return Init_Line_Map();
                     }
@@ -2528,11 +2512,11 @@ TestInitVisual(int32_t packed_)
             }
           else
             {
-              if(CCBFLAGS & CCB_ACCW)
+              if (CCBFLAGS & CCB_ACCW)
                 {
-                  if((ABS(HDY1616) == 0x10000) &&
+                  if ((ABS(HDY1616) == 0x10000) &&
                      (ABS(VDX1616) == 0x10000) &&
-                     !((YPOS1616|XPOS1616)&0xffff))
+                     !((YPOS1616|XPOS1616)&0xffff))	// Check for no X/Y fraction.
                     {
                       return Init_Line_Map();
                     }
@@ -2546,16 +2530,16 @@ TestInitVisual(int32_t packed_)
 
           return -1;
         }
-      else if((HDY1616 == 0) && (VDX1616 == 0))
+      else if ((HDY1616 == 0) && (VDX1616 == 0))
         {
-          if(((HDX1616 < 0) && (VDY1616 > 0)) ||
+          if (((HDX1616 < 0) && (VDY1616 > 0)) ||
              ((HDX1616 > 0) && (VDY1616 < 0)))
             {
-              if(CCBFLAGS & CCB_ACCW)
+              if (CCBFLAGS & CCB_ACCW)
                 {
-                  if((ABS(HDX1616) == 0x10000) &&
+                  if ((ABS(HDX1616) == 0x10000) &&
                      (ABS(VDY1616) == 0x10000) &&
-                     !((YPOS1616|XPOS1616)&0xffff))
+                     !((YPOS1616|XPOS1616)&0xffff))	// Check for no X/Y fraction.
                     {
                       return Init_Line_Map();
                     }
@@ -2568,11 +2552,11 @@ TestInitVisual(int32_t packed_)
             }
           else
             {
-              if(CCBFLAGS & CCB_ACW)
+              if (CCBFLAGS & CCB_ACW)
                 {
-                  if((ABS(HDX1616) == 0x10000) &&
+                  if ((ABS(HDX1616) == 0x10000) &&
                      (ABS(VDY1616) == 0x10000) &&
-                     !((YPOS1616|XPOS1616)&0xffff))
+                     !((YPOS1616|XPOS1616)&0xffff))	// Check for no X/Y fraction.
                     {
                       return Init_Line_Map();
                     }
@@ -2588,7 +2572,7 @@ TestInitVisual(int32_t packed_)
         }
     }
 
-  if(QuadCCWTest(!packed_ ? SPRWI : 2048))
+  if (QuadCCWTest(!packed_ ? SPRWI : 2048))
     return -1;
 
   Init_Arbitrary_Map();
@@ -2605,107 +2589,107 @@ Init_Line_Map(void)
   TEXTURE_HI_START = 0;
   TEXTURE_HI_LIM   = SPRHI;
 
-  if((HDX1616 < 0) || (VDX1616 < 0))
+  if ((HDX1616 < 0) || (VDX1616 < 0))
     XPOS1616 -= 0x8000;
-  if((HDY1616 < 0) || (VDY1616 < 0))
+  if ((HDY1616 < 0) || (VDY1616 < 0))
     YPOS1616 -= 0x8000;
 
-  if(VDX1616 < 0)
+  if (VDX1616 < 0)
     {
-      if(((XPOS1616 - ((SPRHI - 1) << 16)) >> 16) < 0)
+      if (((XPOS1616 - ((SPRHI - 1) << 16)) >> 16) < 0)
         TEXTURE_HI_LIM = ((XPOS1616 >> 16) + 1);
-      if(TEXTURE_HI_LIM > SPRHI)
+      if (TEXTURE_HI_LIM > SPRHI)
         TEXTURE_HI_LIM = SPRHI;
     }
-  else if(VDX1616 > 0)
+  else if (VDX1616 > 0)
     {
-      if(((XPOS1616 + (SPRHI << 16)) >> 16) > MADAM.clipx)
+      if (((XPOS1616 + (SPRHI << 16)) >> 16) > MADAM.clipx)
         TEXTURE_HI_LIM = (MADAM.clipx - (XPOS1616>>16) + 1);
     }
 
-  if(VDY1616 < 0)
+  if (VDY1616 < 0)
     {
-      if((((YPOS1616) - ((SPRHI - 1) << 16)) >> 16) < 0)
+      if ((((YPOS1616) - ((SPRHI - 1) << 16)) >> 16) < 0)
         TEXTURE_HI_LIM = ((YPOS1616 >> 16) + 1);
-      if(TEXTURE_HI_LIM > SPRHI)
+      if (TEXTURE_HI_LIM > SPRHI)
         TEXTURE_HI_LIM = SPRHI;
     }
-  else if(VDY1616 > 0)
+  else if (VDY1616 > 0)
     {
-      if(((YPOS1616 + (SPRHI << 16)) >> 16) > MADAM.clipy)
+      if (((YPOS1616 + (SPRHI << 16)) >> 16) > MADAM.clipy)
         TEXTURE_HI_LIM = (MADAM.clipy - (YPOS1616 >> 16) + 1);
     }
 
-  if(HDX1616 < 0)
+  if (HDX1616 < 0)
     TEXTURE_WI_LIM = ((XPOS1616 >> 16) + 1);
-  else if(HDX1616 > 0)
+  else if (HDX1616 > 0)
     TEXTURE_WI_LIM = (MADAM.clipx - (XPOS1616 >> 16) + 1);
 
-  if(HDY1616 < 0)
+  if (HDY1616 < 0)
     TEXTURE_WI_LIM = ((YPOS1616 >> 16) + 1);
-  else if(HDY1616 > 0)
+  else if (HDY1616 > 0)
     TEXTURE_WI_LIM = (MADAM.clipy - (YPOS1616 >> 16) + 1);
 
-  if(XPOS1616 < 0)
+  if (XPOS1616 < 0)
     {
-      if(HDX1616 < 0)
+      if (HDX1616 < 0)
         return -1;
-      else if(HDX1616 > 0)
+      else if (HDX1616 > 0)
         TEXTURE_WI_START = -(XPOS1616 >> 16);
 
-      if(VDX1616 < 0)
+      if (VDX1616 < 0)
         return -1;
-      else if(VDX1616 > 0)
+      else if (VDX1616 > 0)
         TEXTURE_HI_START = -(XPOS1616 >> 16);
     }
-  else if((XPOS1616 >> 16) > MADAM.clipx)
+  else if ((XPOS1616 >> 16) > MADAM.clipx)
     {
-      if(HDX1616 > 0)
+      if (HDX1616 > 0)
         return -1;
-      else if(HDX1616 < 0)
+      else if (HDX1616 < 0)
         TEXTURE_WI_START = ((XPOS1616 >> 16) - MADAM.clipx);
 
-      if(VDX1616 > 0)
+      if (VDX1616 > 0)
         return -1;
-      else if(VDX1616 < 0)
+      else if (VDX1616 < 0)
         TEXTURE_HI_START = ((XPOS1616 >> 16) - MADAM.clipx);
     }
 
-  if(YPOS1616 < 0)
+  if (YPOS1616 < 0)
     {
-      if(HDY1616 < 0)
+      if (HDY1616 < 0)
         return -1;
-      else if(HDY1616 > 0)
+      else if (HDY1616 > 0)
         TEXTURE_WI_START = -(YPOS1616 >> 16);
 
-      if(VDY1616 < 0)
+      if (VDY1616 < 0)
         return -1;
-      else if(VDY1616 > 0)
+      else if (VDY1616 > 0)
         TEXTURE_HI_START = -(YPOS1616 >> 16);
     }
-  else if((YPOS1616 >> 16) > MADAM.clipy)
+  else if ((YPOS1616 >> 16) > MADAM.clipy)
     {
-      if(HDY1616 > 0)
+      if (HDY1616 > 0)
         return -1;
-      else if(HDY1616 < 0)
+      else if (HDY1616 < 0)
         TEXTURE_WI_START = ((YPOS1616 >> 16) - MADAM.clipy);
 
-      if(VDY1616 > 0)
+      if (VDY1616 > 0)
         return -1;
-      else if(VDY1616 < 0)
+      else if (VDY1616 < 0)
         TEXTURE_HI_START = ((YPOS1616 >> 16) - MADAM.clipy);
     }
 
   /*
-    if(TEXTURE_WI_START<((PRE0>>24)&0xf))
+    if (TEXTURE_WI_START<((PRE0>>24)&0xf))
     TEXTURE_WI_START=((PRE0>>24)&0xf);
     TEXTURE_WI_START+=(PRE0>>24)&0xf;
-    if(TEXTURE_WI_START<0)TEXTURE_WI_START=0;
-    if(TEXTURE_HI_START<0)TEXTURE_HI_START=0;
-    if(TEXTURE_HI_LIM>SPRHI)TEXTURE_HI_LIM=SPRHI;
+    if (TEXTURE_WI_START<0)TEXTURE_WI_START=0;
+    if (TEXTURE_HI_START<0)TEXTURE_HI_START=0;
+    if (TEXTURE_HI_LIM>SPRHI)TEXTURE_HI_LIM=SPRHI;
   */
 
-  if(TEXTURE_WI_LIM <= 0)
+  if (TEXTURE_WI_LIM <= 0)
     return -1;
 
   return 0;
@@ -2721,9 +2705,9 @@ Init_Scale_Map(void)
 
   TEXEL_FUN_NUMBER = 1;
 
-  if((HDX1616 < 0) || (VDX1616 < 0))
+  if ((HDX1616 < 0) || (VDX1616 < 0))
     XPOS1616 -= 0x8000;
-  if((HDY1616 < 0) || (VDY1616 < 0))
+  if ((HDY1616 < 0) || (VDY1616 < 0))
     YPOS1616 -= 0x8000;
 
   deltax = (HDX1616 + VDX1616);
@@ -2767,7 +2751,7 @@ TexelDraw_Line(uint16_t CURPIX_,
       uint32_t next;
 
       next = mread16(REGCTL2 + XY2OFF(xcur_,ycur_,MADAM.rmod));
-      if(next != curr)
+      if (next != curr)
         {
           curr  = next;
           pixel = PPROC(CURPIX_,next,LAMV_);
@@ -2786,7 +2770,7 @@ readPIX(int32_t x_,
 {
   uint32_t src = REGCTL2;
 
-  if(HIRESMODE)
+  if (HIRESMODE)
     {
       src += XY2OFF(x_ >> 1,y_ >> 1,MADAM.rmod);
       src += ((((y_ & 1) << 1) + (x_ & 1)) * 1024 * 1024);
@@ -2808,7 +2792,7 @@ writePIX(int32_t  x_,
 {
   uint32_t src = REGCTL3;
 
-  if(HIRESMODE)
+  if (HIRESMODE)
     {
       src += XY2OFF(x_ >> 1,y_ >> 1,MADAM.wmod);
       src += ((((y_ & 1) << 1) + (x_ & 1)) * 1024 * 1024);
@@ -2835,29 +2819,29 @@ TexelDraw_Scale(uint16_t CURPIX_,
   uint32_t pixel;
   uint32_t framePixel;
 
-  if(FIXMODE & FIX_BIT_TIMING_3)
+  if (FIXMODE & FIX_BIT_TIMING_3)
     {
       deltay_ *= 5;
       ycur_   *= 5;
     }
 
-  if((HDX1616 < 0) && (deltax_ < 0) && (xcur_ < 0))
+  if ((HDX1616 < 0) && (deltax_ < 0) && (xcur_ < 0))
     return -1;
-  else if((HDY1616 < 0) && (deltay_ < 0) && (ycur_ < 0))
+  else if ((HDY1616 < 0) && (deltay_ < 0) && (ycur_ < 0))
     return -1;
-  else if((HDX1616 > 0) && (deltax_ > MADAM.clipx) && (xcur_ > MADAM.clipx))
+  else if ((HDX1616 > 0) && (deltax_ > MADAM.clipx) && (xcur_ > MADAM.clipx))
     return -1;
-  else if((HDY1616 > 0) && (deltay_ > MADAM.clipy) && (ycur_ > MADAM.clipy))
+  else if ((HDY1616 > 0) && (deltay_ > MADAM.clipy) && (ycur_ > MADAM.clipy))
     return -1;
 
-  if(xcur_ == deltax_)
+  if (xcur_ == deltax_)
     return 0;
 
   for(y = ycur_; y != deltay_; y += TEXEL_INCY)
     {
       for(x = xcur_; x != deltax_; x += TEXEL_INCX)
         {
-          if(!TESTCLIP(x,y))
+          if (!TESTCLIP(x,y))
             continue;
 
           process_pixel(x,y,CURPIX_,LAMV_);
@@ -2904,110 +2888,102 @@ TexelDraw_Arbitrary(uint16_t CURPIX_,
   yC_ >>= (16 - HIRESMODE);
   yD_ >>= (16 - HIRESMODE);
 
-  if((xA_ == xB_) && (xB_ == xC_) && (xC_ == xD_))
+  if ((xA_ == xB_) && (xB_ == xC_) && (xC_ == xD_))
     return 0;
 
   maxxt = ((MADAM.clipx + 1) << HIRESMODE);
   maxyt = ((MADAM.clipy + 1) << HIRESMODE);
 
-  if((HDX1616 < 0) && (HDDX1616 < 0))
+  if ((HDX1616 < 0) && (HDDX1616 < 0))
     {
-      if((xA_ < 0) && (xB_ < 0) && (xC_ < 0) && (xD_ < 0))
+      if ((xA_ < 0) && (xB_ < 0) && (xC_ < 0) && (xD_ < 0))
         return -1;
     }
 
-  if((HDX1616 > 0) && (HDDX1616 > 0))
+  if ((HDX1616 > 0) && (HDDX1616 > 0))
     {
-      if((xA_ >= maxxt) && (xB_ >= maxxt) && (xC_ >= maxxt) && (xD_ >= maxxt))
+      if ((xA_ >= maxxt) && (xB_ >= maxxt) && (xC_ >= maxxt) && (xD_ >= maxxt))
         return -1;
     }
 
-  if((HDY1616 < 0) && (HDDY1616 < 0))
+  if ((HDY1616 < 0) && (HDDY1616 < 0))
     {
-      if((yA_ < 0) && (yB_ < 0) && (yC_ < 0) && (yD_ < 0))
+      if ((yA_ < 0) && (yB_ < 0) && (yC_ < 0) && (yD_ < 0))
         return -1;
     }
 
-  if((HDY1616 > 0) && (HDDY1616 > 0))
+  if ((HDY1616 > 0) && (HDDY1616 > 0))
     {
-      if((yA_ >= maxyt) && (yB_ >= maxyt) && (yC_ >= maxyt) && (yD_ >= maxyt))
+      if ((yA_ >= maxyt) && (yB_ >= maxyt) && (yC_ >= maxyt) && (yD_ >= maxyt))
         return -1;
     }
 
   miny = maxy = yA_;
-
-  if(miny > yB_)
-    miny = yB_;
-  if(miny > yC_)
-    miny = yC_;
-  if(miny > yD_)
-    miny = yD_;
-  if(maxy < yB_)
-    maxy = yB_;
-  if(maxy < yC_)
-    maxy = yC_;
-  if(maxy < yD_)
-    maxy = yD_;
+  if (miny > yB_) miny = yB_;
+  if (miny > yC_) miny = yC_;
+  if (miny > yD_) miny = yD_;
+  if (maxy < yB_) maxy = yB_;
+  if (maxy < yC_) maxy = yC_;
+  if (maxy < yD_) maxy = yD_;
 
   y = miny;
-  if(y < 0)
+  if (y < 0)
     y = 0;
-  if(maxy < maxyt)
-    maxyt = maxy;
+  if (maxy < maxyt) maxyt = maxy;
 
   for(; y < maxyt; y++)
     {
       int cnt_cross = 0;
-      if((y < yB_) && (y >= yA_))
+      if ((y < yB_) && (y >= yA_))
         {
           xpoints[cnt_cross] = (int32_t)((((xB_-xA_)*(y-yA_))/(yB_-yA_))+xA_);
           updowns[cnt_cross++] = 1;
         }
-      else if((y >= yB_) && (y < yA_))
+      else if ((y >= yB_) && (y < yA_))
         {
           xpoints[cnt_cross] = (int32_t)((((xA_-xB_)*(y-yB_))/(yA_-yB_))+xB_);
           updowns[cnt_cross++] = 0;
         }
 
-      if((y < yC_) && (y >= yB_))
+      if ((y < yC_) && (y >= yB_))
         {
           xpoints[cnt_cross] = (int32_t)((((xC_-xB_)*(y-yB_))/(yC_-yB_))+xB_);
           updowns[cnt_cross++] = 1;
         }
-      else if((y >= yC_) && (y < yB_))
+      else if ((y >= yC_) && (y < yB_))
         {
           xpoints[cnt_cross] = (int32_t)((((xB_-xC_)*(y-yC_))/(yB_-yC_))+xC_);
           updowns[cnt_cross++] = 0;
         }
 
-      if((y < yD_) && (y >= yC_))
+      if ((y < yD_) && (y >= yC_))
         {
           xpoints[cnt_cross] = (int32_t)((((xD_-xC_)*(y-yC_))/(yD_-yC_))+xC_);
           updowns[cnt_cross++] = 1;
         }
-      else if((y >= yD_) && (y < yC_))
+      else if ((y >= yD_) && (y < yC_))
         {
           xpoints[cnt_cross] = (int32_t)((((xC_-xD_)*(y-yD_))/(yC_-yD_))+xD_);
           updowns[cnt_cross++] = 0;
         }
 
-      if(cnt_cross & 1)
+      if (cnt_cross & 1)
         {
-          if((y < yA_) && (y >= yD_))
+          if ((y < yA_) && (y >= yD_))
             {
               xpoints[cnt_cross] = (int32_t)((((xA_-xD_)*(y-yD_))/(yA_-yD_))+xD_);
               updowns[cnt_cross] = 1;
             }
-          else if((y >= yA_) && (y < yD_))
+          else if ((y >= yA_) && (y < yD_))
             {
               xpoints[cnt_cross] = (int32_t)((((xD_-xA_)*(y-yA_))/(yD_-yA_))+xA_);
               updowns[cnt_cross] = 0;
             }
         }
 
-      if(cnt_cross != 0)
+      if (cnt_cross != 0)
         {
-          if(xpoints[0] > xpoints[1])
+          if (xpoints[0] > xpoints[1])
             {
               xpoints[1] += xpoints[0];
               xpoints[0]  = xpoints[1] - xpoints[0];
@@ -3018,23 +2994,23 @@ TexelDraw_Arbitrary(uint16_t CURPIX_,
               updowns[1] = tmp;
             }
 
-          if(cnt_cross > 2)
+          if (cnt_cross > 2)
             {
-              if(((CCBFLAGS & CCB_ACW)  && (updowns[2] == 0)) ||
+              if (((CCBFLAGS & CCB_ACW)  && (updowns[2] == 0)) ||
                  ((CCBFLAGS & CCB_ACCW) && (updowns[2] == 1)))
                 {
                   x = xpoints[2];
-                  if(x < 0)
+                  if (x < 0)
                     x = 0;
 
                   maxx = xpoints[3];
-                  if(maxx > maxxt)
+                  if (maxx > maxxt)
                     maxx = maxxt;
 
                   for(; x < maxx; x++)
                     {
                       next = readPIX(x,y);
-                      if(next != curr)
+                      if (next != curr)
                         {
                           curr  = next;
                           pixel = PPROC(CURPIX_,next,LAMV_);
@@ -3045,21 +3021,21 @@ TexelDraw_Arbitrary(uint16_t CURPIX_,
                 }
             }
 
-          if(((CCBFLAGS & CCB_ACW)  && (updowns[0] == 0)) ||
+          if (((CCBFLAGS & CCB_ACW)  && (updowns[0] == 0)) ||
              ((CCBFLAGS & CCB_ACCW) && (updowns[0] == 1)))
             {
               x = xpoints[0];
-              if(x < 0)
+              if (x < 0)
                 x = 0;
 
               maxx = xpoints[1];
-              if(maxx > maxxt)
+              if (maxx > maxxt)
                 maxx = maxxt;
 
               for(; x < maxx; x++)
                 {
                   next = readPIX(x,y);
-                  if(next != curr)
+                  if (next != curr)
                     {
                       curr  = next;
                       pixel = PPROC(CURPIX_,next,LAMV_);

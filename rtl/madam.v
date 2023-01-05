@@ -167,7 +167,7 @@ parameter HDDY = 11;
 parameter PIXC = 12;
 parameter PRE0 = 13;
 parameter PRE1 = 14;
-parameter CELDONE = 15;
+parameter CCBDONE = 15;
 
 reg [31:0] flags;
 reg [31:0] nextptr;
@@ -185,10 +185,42 @@ reg [31:0] pixc;
 reg [31:0] pre0;
 reg [31:0] pre1;
 
+/*
+wire SKIP = flags[31];
+wire LAST = flags[30];
+wire NPABS = flags[29];
+wire SPABS = flags[28];
+wire PPABS = flags[27];
+wire LDSIZE = flags[26];
+wire LDPRS = flags[25];
+wire LDPIXC = flags[24];
+wire LDPLUT = flags[23];
+wire CCBPRE = flags[22];
+wire YOXY = flags[21];
+wire ACSC = flags[20];
+wire ALSC = flags[19];
+wire ACW = flags[18];
+wire ACCW = flags[17];
+wire TWD = flags[16];
+wire LCE = flags[15];
+wire ACE = flags[14];
+//flags[13]
+wire MARIA = flags[12];
+wire PXOR = flags[11];
+wire USEAV = flags[10];
+wire PACKED = flags[9];
+wire [1:0] POVER = flags[8:7];
+wire PLUTPOS = flags[6];
+wire BGND = flags[5];
+wire NOBLK = flags[4];
+wire [3:0] PLUTA = flags[3:0];
+*/
 
 reg [7:0] state;
 reg [5:0] fetch_idx;
 reg [23:0] fetch_addr;
+
+reg up_start;
 
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
@@ -197,23 +229,28 @@ if (!reset_n) begin
 	cel_dma_req <= 1'b0;
 	cpu_ack <= 1'b0;
 	dma_ack <= 1'b0;
+	up_start <= 1'b0;
+	up_next_pix <= 1'b0;
 end
 else begin
-	cpu_ack <= cpu_stb;
-	
+	up_start <= 1'b0;
+	up_next_pix <= 1'b0;
+
 	if (!cpu_stb && !cpu_ack && cel_dma_req) dma_ack <= 1'b1;
 	else if (cel_dma_req==1'b0) dma_ack <= 1'b0;
 	
-	if (cel_dma_req && dma_ack) cpu_ack <= 1'b0;	// Override.
+	if (cel_dma_req && dma_ack) cpu_ack <= 1'b0;
+	else cpu_ack <= cpu_stb;
 	
 	
 	case (state)
 	0: begin
-		if (madam_cs && cpu_addr[15:0]==SPRSTRT && cpu_wr) begin	// CELStart write.
+		//if (madam_cs && cpu_addr[15:0]==SPRSTRT && cpu_wr) begin	// CELStart write.
+		if (nextccb>32'h00000000) begin	// CELStart write.
 			dma_addr <= nextccb;
-			fetch_idx <= 6'd0;
 			cel_dma_req <= 1'b1;
 			dma_rd <= 1'b1;
+			fetch_idx <= 6'd0;
 			state <= state + 1;
 		end
 	end
@@ -223,19 +260,19 @@ else begin
 		fetch_idx <= fetch_idx + 1;
 		
 		case (fetch_idx)
-			FLAGS: if (mem_din[CCB_SKIP]) state <= CELDONE; else flags <= mem_din;
+			FLAGS: if (mem_din[CCB_SKIP]) state <= CCBDONE; else flags <= mem_din;
 		  NEXTPTR: nextptr <= mem_din;
 		SOURCEPTR: sourceptr <= mem_din;
 		  PLUTPTR: plutptr <= mem_din;
 		     XPOS: xpos <= mem_din;
 		     YPOS: ypos <= mem_din;
 		
-		      HDX: if (flags[CCB_LDSIZE]) hdx <= mem_din; else begin fetch_idx <= HDDX; dma_addr <= dma_addr; end
+		      HDX: if (flags[CCB_LDSIZE]) hdx <= mem_din; else begin fetch_idx <= HDDX; dma_addr <= dma_addr; end	// inhibit dma_addr inc
 		      HDY: hdy <= mem_din;
 		      VDX: vdx <= mem_din;
 		      VDY: vdy <= mem_din;
 		
-		     HDDX: if (flags[CCB_LDPRS]) hddx <= mem_din; else begin fetch_idx <= PIXC; dma_addr <= dma_addr; end
+		     HDDX: if (flags[CCB_LDPRS]) hddx <= mem_din; else begin fetch_idx <= PIXC; dma_addr <= dma_addr; end	// inhibit dma_addr inc
 		     HDDY: hddy <= mem_din;
 		
 		     PIXC: if (flags[CCB_LDPPMP]) pixc <= mem_din;
@@ -243,24 +280,62 @@ else begin
 		     PRE0: pre0 <= mem_din;
 		     PRE1: pre1 <= mem_din;
 			 
-		  CELDONE: begin
-				cel_dma_req <= 1'b0;
-				dma_rd <= 1'b0;
-				state <= 15;
+		  CCBDONE: begin
+				dma_addr <= sourceptr;	// Point to start of pixel data (PDATA) for CEL.
+				state <= state + 1'd1;
 			end
 		
 		default: ;
 		endcase
 	end
 	
-	15: begin
+	2: begin
+		up_start <= 1'b1;		// Start the Unpacker!
+		state <= state + 1'd1;
+	end
+	
+	3: begin
+		if (up_rd_req) dma_addr <= dma_addr + 4;	// If packer requests a new word from RAM, increment the address.
+		//if (up_eol) state <= state + 1'd1;			// EOL (End Of Line) found in CEL, stop for now.
+		state <= state + 1'd1;
+	end
+	
+	4: begin
+		up_next_pix <= 1'b1;
+		state <= 8'd3;
+	end
+	
+	5: begin
 		cel_dma_req <= 1'b0;
+		dma_rd <= 1'b0;
 		state <= 8'd0;
 	end
 	
 	default: ;
 	endcase
 end
+
+
+wire up_rd_req;
+reg up_next_pix;
+wire up_eol;
+wire [15:0] col_out;
+
+unpacker  unpacker_inst (
+	.clock( clk_25m ),		// input clock
+	.reset_n( reset_n ),	// input reset_n
+	
+	.bpp( pre0[2:0] ),		// input [2:0] bpp
+	
+	.start( up_start ),		// input start
+	.din( mem_din ),		// input [31:0] din
+	
+	.rd_req( up_rd_req ),		// input rd_req
+	.next_pix( up_next_pix ),	// input next_pix
+	
+	.eol( up_eol ),				// output eol
+	.col_out( col_out ) 		// input [15:0] col_out
+);
 
 
 reg [2:0] pcsc_index;
@@ -470,7 +545,9 @@ always @(*) begin
 		*/
 		
 		// 0x0600 to 0x069C = Hardware Multiplier (Matrix Engine).
-		default: cpu_dout = 32'hBADACCE5;
+		
+		//default: cpu_dout = 32'hBADACCE5;	// default case.
+		default: cpu_dout = 32'h00000000;	// default case. TESTING !!
 	endcase
 end
 
@@ -1276,15 +1353,15 @@ else begin
 			16'h0598: dma25_nextaddr <= cpu_din[21:0];
 			16'h059c: dma25_nextlen <= cpu_din[21:0];	
 
-			16'h05a0: dma26_curaddr <= cpu_din[21:0];		// CELControl
-			16'h05a4: dma26_curlen <= cpu_din[21:0];
-			16'h05a8: dma26_nextaddr <= cpu_din[21:0];
-			16'h05ac: dma26_nextlen <= cpu_din[21:0];	
+			16'h05a0: dma26_curaddr <= cpu_din[21:0];		// CELControl. CurrentCCB
+			16'h05a4: dma26_curlen <= cpu_din[21:0];		// nextCCB
+			16'h05a8: dma26_nextaddr <= cpu_din[21:0];		// PLUTdata
+			16'h05ac: dma26_nextlen <= cpu_din[21:0];		// PDATA
 
-			16'h05b0: dma27_curaddr <= cpu_din[21:0];		// CELData
-			16'h05b4: dma27_curlen <= cpu_din[21:0];
-			16'h05b8: dma27_nextaddr <= cpu_din[21:0];
-			16'h05bc: dma27_nextlen <= cpu_din[21:0];	
+			16'h05b0: dma27_curaddr <= cpu_din[21:0];		// CELData. engafetch
+			16'h05b4: dma27_curlen <= cpu_din[21:0];		// engalen
+			16'h05b8: dma27_nextaddr <= cpu_din[21:0];		// engbfetch
+			16'h05bc: dma27_nextlen <= cpu_din[21:0];		// engblen
 
 			16'h05c0: dma28_curaddr <= cpu_din[21:0];		// Commandgrabber
 			16'h05c4: dma28_curlen <= cpu_din[21:0];

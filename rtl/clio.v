@@ -67,7 +67,7 @@ module clio (			// IC140 on FZ1.
 	output dmareq,			// To MADAM?
 	
 	input pdint_n,			// Labelled "UNCINT#" on the FZ1 schematic. Slow Bus Interrupt?
-	output firq_n,			// To the ARM CPU.
+	output reg firq_n,		// To the ARM CPU.
 	
 	input [2:0] clc,		// CLIO Opera Device bits? Tech guide calls this "Control Code". Probably works like the RGA bus on the Amiga?
 	inout cready_n,			// Tech guide calls this "Hand shake control for devices".
@@ -89,13 +89,12 @@ module clio (			// IC140 on FZ1.
 	input vram_busy
 );
 
-wire [31:0] irq0_masked = irq0_pend & irq0_enable;	// Opera suggests irq0_enable (mask) *can* be used to mask the MSB bit.
+wire [31:0] irq0_masked = irq0_pend & irq0_enable;	// Opera code suggests irq0_enable (mask) *can* be used to mask the MSB bit?
 wire irq0_trig = |irq0_masked;						// (which denotes that any irq1_pend bits are set).
 
 wire [31:0] irq1_masked = irq1_pend & irq1_enable;
-wire irq1_trig = |irq1_masked;		// bitwise OR, after masking irq1_pend with the irq1_enable bits.
+wire irq1_trig = |irq1_masked;						// bitwise OR, after masking irq1_pend with the irq1_enable bits.
 
-assign firq_n = !(irq0_trig | irq1_trig);
 
 // Timings taken from a 3DO patent, IIRC... ElectronAsh.
 wire read_en  = hcnt>=11 && hcnt<=1292;
@@ -269,17 +268,13 @@ always @(*) begin
 	16'h003c: cpu_dout = random;	// 0x3c - read only?
 
 // IRQs...
-	//16'h0040: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
-	//16'h0044: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
-	//16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
-	//16'h004c: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read = Return zeros?
-	
 	16'h0040: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
 	16'h0044: cpu_dout = irq0_pend;			// Read = irq0_pend (PENDING) bits.
 	
 	//16'h0048: cpu_dout = {1'b1, irq0_enable[30:0]};	// Read = irq0_enable (MASK) bits. For some reason, opera_clio_peek() always returns with the MSB bit set?
-	16'h0048: cpu_dout = irq0_enable;		// Read = irq0_enable (MASK) bits. Seemes to be needed for normal BIOS boot with cstatbits[0] (POR), and no DIPIR set?
-	16'h004c: cpu_dout = irq0_enable;		// Read = Return zeros? 
+	16'h0048: cpu_dout = irq0_enable;				// Read = irq0_enable (MASK) bits. Seems to be needed for normal BIOS boot with cstatbits[0] (POR), and no DIPIR set?
+	//16'h004c: cpu_dout = {1'b1, irq0_enable[30:0]};		// Read (Opera reads the same as for 0x0048).
+	16'h004c: cpu_dout = irq0_enable;		// Read. TESTING !!
 
 	16'h0050: cpu_dout = mode;				// 0x50 - Writing to 0x50 SETs mode bits. Reading = ?
 	16'h0054: cpu_dout = mode;				// 0x54 - Writing to 0x54 CLEARs mode bits. Reading = ?
@@ -401,6 +396,9 @@ always @(*) begin
 	16'h17e0: cpu_dout = dspdma;	// 0x17e0.
 	16'h17e4: cpu_dout = dspprst0;	// 0x17e4. Write triggers DSP reset 0?
 	16'h17e8: cpu_dout = dspprst1;	// 0x17e8. Write triggers DSP reset 1?
+	
+	16'h17f0: cpu_dout = seed;		// 0x17f0. fastrand.
+	
 	16'h17f4: cpu_dout = dspppc;	// 0x17f4.
 	16'h17f8: cpu_dout = dsppnr;	// 0x17f8.
 	16'h17fc: cpu_dout = dsppgw;	// 0x17fc. Start / Stop the DSP.
@@ -419,7 +417,8 @@ always @(*) begin
 	16'hc008: cpu_dout = uncle_addr;	// 0xc008
 	16'hc00c: cpu_dout = uncle_rom;		// 0xc00c
 	
-	default: cpu_dout = 32'hBADACCE5;	// default case.
+	//default: cpu_dout = 32'hBADACCE5;	// default case.
+	default: cpu_dout = 32'h00000000;	// default case. TESTING !!
 	endcase
 end
 
@@ -454,14 +453,21 @@ wire [7:0] fifo_spoof = (fifo_idx==4'd0)  ? 8'h83 : // CDROM_CMD_READ_ID
 always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera returns 0x02020000.
-	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
-	//cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
+	
+	//cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
+	cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
+
+	dipir1 <= 32'h00000000;			// 0x8000 - active. 0x4000 - happened before reset. 0x00xx - device number of the DIPIR
+	dipir2 <= 32'h00004000;			// 0x4000==Opera.   (second DIPIR reg)
+	
 	expctl <= 32'h00000080;			// Opera starts with this -> 0x80; // ARM has the expansion bus.
 	field <= 1'b0;
 	hcnt <= 32'd0;
 	vcnt <= 32'd0;
 	
 	unclerev <= 32'h03800000;		//  Opera returns 0x03800000. ?
+	//sunclerev <= 32'h00000000;		//  Opera returns 0x00000000 sometimes. ?
+	
 	unc_soft_rev <= 32'h00000000;
 	
 	slack <= 10'd64;
@@ -484,6 +490,8 @@ if (!reset_n) begin
 	//vint1 <= 11'd5;
 	vint0 <= 11'd0;
 	vint1 <= 11'd0;
+	
+	seed <= 32'ha5a5a5a5;
 end
 else begin
 	// Setting an upper nibble bit of the adbio reg will set the corresponding lower bit.
@@ -538,15 +546,19 @@ else begin
 	irq0_pend[2] <= ((poll_0&POLST) && (poll_0&POLSTMASK)) || ((poll_0&POLDT) && (poll_0&POLDTMASK));
 	*/
 	
-	if ( hcnt==32'd4 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
-	if ( hcnt==32'd4 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
+	if ({cpu_addr,2'b00}==16'h17f0 && cpu_rd) seed <= (69069*seed)+1; seed <= seed&16'hffff;
+	
+	if ( hcnt==32'd0 && vcnt==(vint0&11'h7FF)) irq0_pend[0] <= 1'b1;	// vint0 is on irq0, bit 0.
+	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
+	
 
-	
-	//irq0_pend[31] <= (|irq1_pend);	// If ANY irq1_pend bits are set, use that to set (or clear) bit 31 of irq0_pend.
-	
-	irq1_pend_prev <= irq1_pend;
+	if (|irq1_pend) irq0_pend[31] <= 1'b1;	// If ANY irq1_pend bits are set, set bit 31 of irq0_pend.
+
+	//irq1_pend_prev <= irq1_pend;
 	// If irq1_pend has changed, and if ANY irq1_pend bits (bitwise OR) are high, set bit [31] of irq0_pend.
-	if ( (irq1_pend_prev!=irq1_pend) && (|irq1_pend) ) irq0_pend[31] <= 1'b1;
+	//if ( (irq1_pend_prev!=irq1_pend) && (|irq1_pend) ) irq0_pend[31] <= 1'b1;
+	
+	firq_n <= !(irq0_trig /*| irq1_trig*/);
 	
 
 	hcnt <= hcnt + 1'd1;
@@ -1146,10 +1158,10 @@ if (!reset_n) begin
 	tmr_wrap <= 1'b0;
 	tmr_ena_clr <= 1'b0;
 	tmr_cnt_prev <= 16'h0000;
-	//tmr_cnt <= 16'hFFFF;
-	//tmr_bkp <= 16'hFFFF;
-	tmr_cnt <= 16'h0001;
-	tmr_bkp <= 16'h0001;
+	tmr_cnt <= 16'hFFFF;
+	tmr_bkp <= 16'hFFFF;
+	//tmr_cnt <= 16'h0010;
+	//tmr_bkp <= 16'h0010;
 end
 else begin
 	tmr_wrap <= 1'b0;
