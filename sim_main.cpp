@@ -153,6 +153,8 @@ bool single_step = 0;
 bool multi_step = 0;
 int multi_step_amount = 8;
 
+int spr_width = 32;
+
 FILE* vgap;
 
 // Data
@@ -901,12 +903,31 @@ int verilate() {
 
 		pix_count++;
 
-		uint16_t spr_wi = top->rootp->core_3do__DOT__madam_inst__DOT__pre1&0x7ff;
+		uint16_t spr_wi = (top->rootp->core_3do__DOT__madam_inst__DOT__pre1&0x7ff) + 1;
+		//uint16_t spr_wi = spr_width;
+
+		/*
+		clut[0x00] = 0x35ED42; clut[0x01] = 0x3035EF; clut[0x02] = 0x31CD35; clut[0x03] = 0xAB2DAD; clut[0x04] = 0x3E0E29; clut[0x05] = 0x8B4650; clut[0x06] = 0x256A25; clut[0x07] = 0x492128;
+		clut[0x08] = 0x467142; clut[0x09] = 0x514E92; clut[0x0a] = 0x56D44E; clut[0x0b] = 0xB456B2; clut[0x0c] = 0x5EF456; clut[0x0d] = 0xD518E6; clut[0x0e] = 0x1D0614; clut[0x0f] = 0xC56335;
+		clut[0x10] = 0x5F176B; clut[0x11] = 0x587399; clut[0x12] = 0x77BA7F; clut[0x13] = 0xFF0C62; clut[0x14] = 0x7BDE00; clut[0x15] = 0x010000; clut[0x16] = 0x000000; clut[0x17] = 0x000000;
+		clut[0x18] = 0x000000; clut[0x19] = 0x003FE6; clut[0x1a] = 0x462000; clut[0x1b] = 0x0B8DB0; clut[0x1c] = 0x000B8D; clut[0x1d] = 0xFC000B; clut[0x1e] = 0xB4F400; clut[0x1f] = 0x800000;
+		*/
+
+		clut[0x00] = 0x35ED; clut[0x01] = 0x4230; clut[0x02] = 0x35EF; clut[0x03] = 0x31CD; clut[0x04] = 0x35AB; clut[0x05] = 0x2DAD; clut[0x06] = 0x3E0E; clut[0x07] = 0x298B;
+		clut[0x08] = 0x4650; clut[0x09] = 0x256A; clut[0x0a] = 0x2549; clut[0x0b] = 0x2128; clut[0x0c] = 0x4671; clut[0x0d] = 0x4251; clut[0x0e] = 0x4E92; clut[0x0f] = 0x56D4;
+		clut[0x10] = 0x4EB4; clut[0x11] = 0x56B2; clut[0x12] = 0x5EF4; clut[0x13] = 0x56D5; clut[0x14] = 0x18E6; clut[0x15] = 0x1D06; clut[0x16] = 0x14C5; clut[0x17] = 0x6335;
+		clut[0x18] = 0x5F17; clut[0x19] = 0x6B58; clut[0x1a] = 0x7399; clut[0x1b] = 0x77BA; clut[0x1c] = 0x7FFF; clut[0x1d] = 0x0C62; clut[0x1e] = 0x7BDE; clut[0x1f] = 0x0001;
+		clut[0x20] = 0x0000; clut[0x21] = 0x0000; clut[0x22] = 0x0000; clut[0x23] = 0x0000; clut[0x24] = 0x0000; clut[0x25] = 0x0000; clut[0x26] = 0x3FE6; clut[0x27] = 0x4620;
+		clut[0x28] = 0x000B; clut[0x29] = 0x8DB0; clut[0x2a] = 0x000B; clut[0x2b] = 0x8DFC; clut[0x2c] = 0x000B; clut[0x2d] = 0xB4F4; clut[0x2e] = 0x0080; clut[0x2f] = 0x0000;
 
 		if (top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pix_valid) {
-			disp_ptr[ ((my_y*320) + my_x) & 0xfffff] = 0xff<<24 | top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__col_out << 10;	// ABGR.
+			uint16_t colour = clut[top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__col_out];
+			rgb[0] = (colour & 0x7C00) >> 7;
+			rgb[1] = (colour & 0x03E0) >> 2;
+			rgb[2] = (colour & 0x001F) << 3;
+			disp_ptr[ ((my_y*320) + my_x) & 0xfffff] = 0xff<<24 | rgb[2]<<16 | rgb[1]<<8 | rgb[0];	// ABGR.
 			my_x++;
-			if (my_x==spr_wi) {
+			if (my_x==spr_wi || top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__eol) {
 				my_x = 0;
 				my_y++;
 			}
@@ -1935,6 +1956,7 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Checkbox("RUN", &run_enable);
 
 		dump_ram = ImGui::Button("RAM Dump");
+		ImGui::SameLine(); ImGui::SliderInt("spr_width", &spr_width, 8, 128);
 
 		if (dump_ram) {
 			ramdump = fopen("ramdump.bin", "wb");
@@ -2490,16 +2512,28 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("       pre1: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pre1);
 		ImGui::End();
 
+		uint32_t dat     = top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__dat;
+		uint32_t store_u = top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store_u;
+		uint32_t store_l = top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store_l;
+		uint8_t pack_type = top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pack_type;
+
 		ImGui::Begin("CEL Unpacker");
 		ImGui::Text("      state: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__state);
 		ImGui::Text("  bpp (val): %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__bpp);
 		ImGui::Text("     offset: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__offset);
-		ImGui::Text("  pack_type: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pack_type);
+		
+		ImGui::Text("  pack_type: %d", pack_type);
+		ImGui::SameLine();
+		if (pack_type==0) ImGui::Text(" EOL ");
+		else if (pack_type==1) ImGui::Text(" LITERAL ");
+		else if (pack_type==2) ImGui::Text(" TRANSP ");
+		else if (pack_type==3) ImGui::Text(" REPEAT ");
+		else ImGui::Text(" ??? ");
+
 		ImGui::Text("      count: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__count);
 		ImGui::Text("      shift: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__shift);
 		ImGui::Text("     rd_req: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__rd_req);
-		ImGui::Text("      store: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store);
-		ImGui::Text("        dat: 0x%06X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__dat);
+		ImGui::Text("  dat/store: 0x%04X %08X%08X", dat, store_u,store_l);
 		ImGui::Text("    col_out: 0x%04X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__col_out);
 		ImGui::Text("        eol: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__eol);
 		ImGui::End();
