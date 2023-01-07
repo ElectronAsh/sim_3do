@@ -64,6 +64,8 @@ FILE* soundfile;
 FILE* isofile;
 FILE* ramdump;
 
+FILE* cel_file;
+uint32_t cel_size = 0;
 
 uint32_t sound_out;
 
@@ -153,7 +155,7 @@ bool single_step = 0;
 bool multi_step = 0;
 int multi_step_amount = 8;
 
-int spr_width = 32;
+int spr_width = 128;
 
 FILE* vgap;
 
@@ -898,7 +900,13 @@ int verilate() {
 
 			map_bios = 0;
 			top->rootp->core_3do__DOT__madam_inst__DOT__map_bios = 0;
-			top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000BB770;
+			//top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000BB770;
+			//top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000B7ee4;
+			//top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000Bdd80;
+			//top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000bc4f0;
+			//top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000Bfc70;
+
+			top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x00000000;
 		}
 
 		pix_count++;
@@ -913,13 +921,26 @@ int verilate() {
 		clut[0x18] = 0x000000; clut[0x19] = 0x003FE6; clut[0x1a] = 0x462000; clut[0x1b] = 0x0B8DB0; clut[0x1c] = 0x000B8D; clut[0x1d] = 0xFC000B; clut[0x1e] = 0xB4F400; clut[0x1f] = 0x800000;
 		*/
 
+		// PLUT, for coded_packed_6bpp.cel...
+		clut[0x00] = 0x7FFF; clut[0x01] = 0x698C; clut[0x02] = 0x64E8; clut[0x03] = 0x60A6; clut[0x04] = 0x7BBD; clut[0x05] = 0x6B5B; clut[0x06] = 0x5EF7; clut[0x07] = 0x4A52;
+		clut[0x08] = 0x2951; clut[0x09] = 0x3192; clut[0x0a] = 0x4E73; clut[0x0b] = 0x2110; clut[0x0c] = 0x0C6C; clut[0x0d] = 0x56B5; clut[0x0f] = 0x10AE; clut[0x17] = 0x39CE;
+		clut[0x10] = 0x294A; clut[0x11] = 0x1084; clut[0x12] = 0x18C0; clut[0x13] = 0x2528; clut[0x14] = 0x318C; clut[0x15] = 0x2108; clut[0x16] = 0x0840; clut[0x17] = 0x2921;
+		clut[0x18] = 0x0000; clut[0x19] = 0x3161; clut[0x1a] = 0x3DC2; clut[0x1b] = 0x4A02; clut[0x1c] = 0x5E83; clut[0x1d] = 0x6AE3; clut[0x1f] = 0x7B64; clut[0x27] = 0x7F84;
+
+		/*
+		// PLUT, for one of the BIOS "Please Insert CD" screen CELs...
 		clut[0x00] = 0x35ED; clut[0x01] = 0x4230; clut[0x02] = 0x35EF; clut[0x03] = 0x31CD; clut[0x04] = 0x35AB; clut[0x05] = 0x2DAD; clut[0x06] = 0x3E0E; clut[0x07] = 0x298B;
 		clut[0x08] = 0x4650; clut[0x09] = 0x256A; clut[0x0a] = 0x2549; clut[0x0b] = 0x2128; clut[0x0c] = 0x4671; clut[0x0d] = 0x4251; clut[0x0e] = 0x4E92; clut[0x0f] = 0x56D4;
 		clut[0x10] = 0x4EB4; clut[0x11] = 0x56B2; clut[0x12] = 0x5EF4; clut[0x13] = 0x56D5; clut[0x14] = 0x18E6; clut[0x15] = 0x1D06; clut[0x16] = 0x14C5; clut[0x17] = 0x6335;
 		clut[0x18] = 0x5F17; clut[0x19] = 0x6B58; clut[0x1a] = 0x7399; clut[0x1b] = 0x77BA; clut[0x1c] = 0x7FFF; clut[0x1d] = 0x0C62; clut[0x1e] = 0x7BDE; clut[0x1f] = 0x0001;
 		clut[0x20] = 0x0000; clut[0x21] = 0x0000; clut[0x22] = 0x0000; clut[0x23] = 0x0000; clut[0x24] = 0x0000; clut[0x25] = 0x0000; clut[0x26] = 0x3FE6; clut[0x27] = 0x4620;
 		clut[0x28] = 0x000B; clut[0x29] = 0x8DB0; clut[0x2a] = 0x000B; clut[0x2b] = 0x8DFC; clut[0x2c] = 0x000B; clut[0x2d] = 0xB4F4; clut[0x2e] = 0x0080; clut[0x2f] = 0x0000;
+		*/
 
+		if (my_x == spr_wi || top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__eol) {
+			my_x = 0;
+			my_y++;
+		}
 		if (top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pix_valid) {
 			uint16_t colour = clut[top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__col_out];
 			rgb[0] = (colour & 0x7C00) >> 7;
@@ -927,10 +948,6 @@ int verilate() {
 			rgb[2] = (colour & 0x001F) << 3;
 			disp_ptr[ ((my_y*320) + my_x) & 0xfffff] = 0xff<<24 | rgb[2]<<16 | rgb[1]<<8 | rgb[0];	// ABGR.
 			my_x++;
-			if (my_x==spr_wi || top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__eol) {
-				my_x = 0;
-				my_y++;
-			}
 		}
 
 		//jp_a = top->rootp->core_3do__DOT__clio_inst__DOT__field;	// Toggling "A" button, to test joypad. (works in BIOS joypad test)
@@ -1038,6 +1055,7 @@ int verilate() {
 
 		if ( (top->o_wb_stb && top->i_wb_ack) || top->rootp->core_3do__DOT__madam_inst__DOT__dma_ack) {
 			// Handle writes to Main RAM, with byte masking...
+			/*
 			if (top->rootp->core_3do__DOT__madam_inst__DOT__dram_cs && top->mem_wr) {                // 2MB masked.
 				//printf("Main RAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->mem_addr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
 				if (top->o_wb_sel & 8) ram_ptr[(top->mem_addr & 0x1ffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // ram_ptr is now BYTE addressed.
@@ -1045,6 +1063,7 @@ int verilate() {
 				if (top->o_wb_sel & 2) ram_ptr[(top->mem_addr & 0x1ffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
 				if (top->o_wb_sel & 1) ram_ptr[(top->mem_addr & 0x1ffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
 			}
+			*/
 
 			// Handle writes to VRAM, with byte masking...
 			if (top->rootp->core_3do__DOT__madam_inst__DOT__vram_cs && top->mem_wr) {                // 1MB masked.
@@ -1702,6 +1721,13 @@ int main(int argc, char** argv, char** env) {
 
 	soundfile = fopen("soundfile.bin", "wb");
 
+	cel_file = fopen("coded_packed_6bpp.cel", "rb");
+	fseek(cel_file, 0L, SEEK_END);
+	cel_size = ftell(cel_file);
+	fseek(cel_file, 0L, SEEK_SET);
+	fread(ram_ptr+0, 1, cel_size, cel_file);
+	
+
 	isofile = fopen("aitd_us.iso", "rb");
 	//isofile = fopen("StarBlade.iso", "rb");
 	//isofile = fopen("3DentrO.iso", "rb");
@@ -1712,7 +1738,7 @@ int main(int argc, char** argv, char** env) {
 	//CDIMAGE_SECTOR_SIZE = 2352; isofile = fopen("nfs_usa.bin", "rb");			// 2352-byte sectors!
 	//isofile = fopen("PhotoCD_Gallery.iso", "rb");
 	fseek(isofile, 0L, SEEK_END);
-	iso_size = ftell(isofile);
+	
 	fseek(isofile, 0L, SEEK_SET);
 
 
@@ -1956,7 +1982,7 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Checkbox("RUN", &run_enable);
 
 		dump_ram = ImGui::Button("RAM Dump");
-		ImGui::SameLine(); ImGui::SliderInt("spr_width", &spr_width, 8, 128);
+		ImGui::SameLine(); ImGui::SliderInt("spr_width", &spr_width, 32, 388);
 
 		if (dump_ram) {
 			ramdump = fopen("ramdump.bin", "wb");
@@ -1978,9 +2004,9 @@ int main(int argc, char** argv, char** env) {
 		ImGui::SameLine(); ImGui::SliderInt("Step amount", &multi_step_amount, 8, 1024);
 
 		ImGui::Separator();
-		ImGui::Image(my_tex_id,  ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
+		ImGui::Image(my_tex_id,  ImVec2(width*2, height*2), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
 		ImGui::SameLine();
-		ImGui::Image(my_tex_id2, ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
+		ImGui::Image(my_tex_id2, ImVec2(width/2, height/2), ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
 		ImGui::End();
 
 		ImGui::Begin("3DO BIOS ROM Editor");
@@ -2512,17 +2538,27 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("       pre1: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__pre1);
 		ImGui::End();
 
-		uint32_t dat     = top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__dat;
-		uint32_t store_u = top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store_u;
+		uint16_t store_u = top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store_u;
 		uint32_t store_l = top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__store_l;
 		uint8_t pack_type = top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__pack_type;
+		uint8_t bpp = top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__bpp;
 
 		ImGui::Begin("CEL Unpacker");
 		ImGui::Text("      state: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__state);
-		ImGui::Text("  bpp (val): %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__bpp);
+		
+		ImGui::Text("       bpp: %d", bpp);
+		ImGui::SameLine();
+		if (bpp == 1) ImGui::Text(" (1BPP) ");
+		else if (bpp == 2) ImGui::Text(" (2BPP) ");
+		else if (bpp == 3) ImGui::Text(" (4BPP) ");
+		else if (bpp == 4) ImGui::Text(" (6BPP) ");
+		else if (bpp == 5) ImGui::Text(" (8BPP) ");
+		else if (bpp == 6) ImGui::Text(" (16BPP) ");
+		else ImGui::Text(" ??? "); // bpp==0 and bpp==7 are reserved.
+
 		ImGui::Text("     offset: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__offset);
 		
-		ImGui::Text("  pack_type: %d", pack_type);
+		ImGui::Text("       type: %d", pack_type);
 		ImGui::SameLine();
 		if (pack_type==0) ImGui::Text(" EOL ");
 		else if (pack_type==1) ImGui::Text(" LITERAL ");
@@ -2533,7 +2569,7 @@ int main(int argc, char** argv, char** env) {
 		ImGui::Text("      count: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__count);
 		ImGui::Text("      shift: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__shift);
 		ImGui::Text("     rd_req: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__rd_req);
-		ImGui::Text("  dat/store: 0x%04X %08X%08X", dat, store_u,store_l);
+		ImGui::Text("      store: 0x%04X %08X", store_u, store_l);
 		ImGui::Text("    col_out: 0x%04X", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__col_out);
 		ImGui::Text("        eol: %d", top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__eol);
 		ImGui::End();

@@ -246,13 +246,13 @@ else begin
 	case (state)
 	0: begin
 		//if (madam_cs && cpu_addr[15:0]==SPRSTRT && cpu_wr) begin	// CELStart write.
-		if (nextccb>32'h00000000) begin	// CELStart write.
+		//if (nextccb>32'h00000000) begin	// CELStart write.
 			dma_addr <= nextccb;
 			cel_dma_req <= 1'b1;
 			dma_rd <= 1'b1;
 			fetch_idx <= 6'd0;
 			state <= state + 1;
-		end
+		//end
 	end
 	
 	1: if (dma_ack) begin
@@ -326,6 +326,7 @@ unpacker  unpacker_inst (
 	.reset_n( reset_n ),	// input reset_n
 	
 	.bpp( pre0[2:0] ),		// input [2:0] bpp
+	.skipx( pre0[27:24] ),	// input [3:0] skipx
 	
 	.start( up_start ),		// input start
 	.din( mem_din ),		// input [31:0] din
