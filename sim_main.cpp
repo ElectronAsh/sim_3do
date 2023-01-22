@@ -494,7 +494,7 @@ void sim_process_vdl() {
 	uint32_t offset = vdl_curr & 0xfffff;
 	//uint32_t offset = vdl_next & 0xfffff;
 
-	for (int i = 0; i < (vram_size / 16); i++) {
+	for (uint32_t i = 0; i < (vram_size / 16); i++) {
 		uint16_t pixel;
 
 		if ((i % 320) == 0) my_line++;
@@ -902,7 +902,6 @@ int verilate() {
 			top->rootp->core_3do__DOT__madam_inst__DOT__map_bios = 0;
 			//top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000BB770;
 			//top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000B7ee4;
-			//top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000Bdd80;
 			//top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000bc4f0;
 			//top->rootp->core_3do__DOT__madam_inst__DOT__nextccb = 0x000Bfc70;
 
@@ -937,7 +936,11 @@ int verilate() {
 		clut[0x28] = 0x000B; clut[0x29] = 0x8DB0; clut[0x2a] = 0x000B; clut[0x2b] = 0x8DFC; clut[0x2c] = 0x000B; clut[0x2d] = 0xB4F4; clut[0x2e] = 0x0080; clut[0x2f] = 0x0000;
 		*/
 
-		if (my_x == spr_wi || top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__eol) {
+		//if (top->i_wb_dat==0x00f00104) run_enable = 0;
+
+		/*
+		//if (my_x == spr_wi || top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__eol) {
+		if (top->rootp->core_3do__DOT__madam_inst__DOT__unpacker_inst__DOT__eol) {
 			my_x = 0;
 			my_y++;
 		}
@@ -949,6 +952,7 @@ int verilate() {
 			disp_ptr[ ((my_y*320) + my_x) & 0xfffff] = 0xff<<24 | rgb[2]<<16 | rgb[1]<<8 | rgb[0];	// ABGR.
 			my_x++;
 		}
+		*/
 
 		//jp_a = top->rootp->core_3do__DOT__clio_inst__DOT__field;	// Toggling "A" button, to test joypad. (works in BIOS joypad test)
 
@@ -956,6 +960,8 @@ int verilate() {
 		//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_alu_main__DOT__o_pc_plus_8_ff;
 		//cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__postalu_pc_plus_8_ff - 8;
 		cur_pc = top->rootp->core_3do__DOT__zap_top_inst__DOT__u_zap_core__DOT__u_zap_writeback__DOT__i_pc_plus_8_buf_ff - 8;
+
+		//if (top->mem_addr==0x000011664) run_enable = 0;
 
 		//if (cur_pc==0x00000ee0) run_enable=0;
 		//if (top->mem_addr==0x0000FEDC && top->o_wb_we) run_enable = 0;
@@ -1055,7 +1061,6 @@ int verilate() {
 
 		if ( (top->o_wb_stb && top->i_wb_ack) || top->rootp->core_3do__DOT__madam_inst__DOT__dma_ack) {
 			// Handle writes to Main RAM, with byte masking...
-			/*
 			if (top->rootp->core_3do__DOT__madam_inst__DOT__dram_cs && top->mem_wr) {                // 2MB masked.
 				//printf("Main RAM Write!  Addr:0x%08X  Data:0x%08X  BE:0x%01X\n", top->mem_addr&0xFFFFF, top->o_wb_dat, top->o_wb_sel);
 				if (top->o_wb_sel & 8) ram_ptr[(top->mem_addr & 0x1ffffc) + 0] = (top->o_wb_dat >> 24) & 0xff;  // ram_ptr is now BYTE addressed.
@@ -1063,7 +1068,6 @@ int verilate() {
 				if (top->o_wb_sel & 2) ram_ptr[(top->mem_addr & 0x1ffffc) + 2] = (top->o_wb_dat >> 8)  & 0xff;
 				if (top->o_wb_sel & 1) ram_ptr[(top->mem_addr & 0x1ffffc) + 3] = (top->o_wb_dat >> 0)  & 0xff;
 			}
-			*/
 
 			// Handle writes to VRAM, with byte masking...
 			if (top->rootp->core_3do__DOT__madam_inst__DOT__vram_cs && top->mem_wr) {                // 1MB masked.
@@ -1542,8 +1546,8 @@ int verilate() {
 			fprintf(logfile, "frame: %d\n", frame_count);
 		}
 
-		//if ( (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt & 0x7)==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) {
-		if ( top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0 && top->rootp->core_3do__DOT__clio_inst__DOT__field==0) {
+		if ( (top->rootp->core_3do__DOT__clio_inst__DOT__vcnt & 0x7)==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0) {
+		//if ( top->rootp->core_3do__DOT__clio_inst__DOT__vcnt==0 && top->rootp->core_3do__DOT__clio_inst__DOT__hcnt == 0 && top->rootp->core_3do__DOT__clio_inst__DOT__field==0) {
 			sim_process_vdl();
 			opera_process_vdl();
 		}
@@ -1713,28 +1717,30 @@ int main(int argc, char** argv, char** env) {
 	//memset(vga_ptr,  0xAA, vga_size);
 
 	// TESTING!! Load a RAM Dump, so we can test the CEL engine stuff etc.
-	ramdump = fopen("ramdump.bin", "rb");
-	fread(ram_ptr, 1, ram_size, ramdump);
+	//ramdump = fopen("ramdump.bin", "rb");
+	//fread(ram_ptr, 1, ram_size, ramdump);
 
 	logfile = fopen("sim_trace.txt", "w");
 	inst_file = fopen("sim_inst_trace.txt", "w");
 
 	soundfile = fopen("soundfile.bin", "wb");
 
+	/*
 	cel_file = fopen("coded_packed_6bpp.cel", "rb");
+	//cel_file = fopen("coded_unpacked_6bpp.cel", "rb");
 	fseek(cel_file, 0L, SEEK_END);
 	cel_size = ftell(cel_file);
 	fseek(cel_file, 0L, SEEK_SET);
 	fread(ram_ptr+0, 1, cel_size, cel_file);
-	
+	*/
 
-	isofile = fopen("aitd_us.iso", "rb");
+	//isofile = fopen("aitd_us.iso", "rb");
 	//isofile = fopen("StarBlade.iso", "rb");
 	//isofile = fopen("3DentrO.iso", "rb");
 	//isofile = fopen("3DO teaser trailer 25% ISO.iso", "rb");
 	//isofile = fopen("3DO Homebrew pack #1.iso", "rb");
 	//isofile = fopen("stniccc_3do_4bpp.iso", "rb");
-	//isofile = fopen("optidoom_02c.iso", "rb");
+	isofile = fopen("optidoom_02c.iso", "rb");
 	//CDIMAGE_SECTOR_SIZE = 2352; isofile = fopen("nfs_usa.bin", "rb");			// 2352-byte sectors!
 	//isofile = fopen("PhotoCD_Gallery.iso", "rb");
 	fseek(isofile, 0L, SEEK_END);
@@ -2281,7 +2287,7 @@ int main(int argc, char** argv, char** env) {
 				case 0b10010: ImGui::Text(" IRQ "); break;
 				case 0b10011: ImGui::Text(" SVC "); break;
 				case 0b11011: ImGui::Text(" UND "); break;
-				      defaut: ImGui::Text("     "); break;
+				     default: ImGui::Text("     "); break;
 			}
 		ImGui::Separator();
 		ImGui::Text(" Zap Core decompile");

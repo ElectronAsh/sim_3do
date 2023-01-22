@@ -1,32 +1,28 @@
-// -----------------------------------------------------------------------------
-// --                                                                         --
-// --    (C) 2016-2022 Revanth Kamaraj (krevanth)                             --
-// --                                                                         -- 
-// -- --------------------------------------------------------------------------
-// --                                                                         --
-// -- This program is free software; you can redistribute it and/or           --
-// -- modify it under the terms of the GNU General Public License             --
-// -- as published by the Free Software Foundation; either version 2          --
-// -- of the License, or (at your option) any later version.                  --
-// --                                                                         --
-// -- This program is distributed in the hope that it will be useful,         --
-// -- but WITHOUT ANY WARRANTY; without even the implied warranty of          --
-// -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           --
-// -- GNU General Public License for more details.                            --
-// --                                                                         --
-// -- You should have received a copy of the GNU General Public License       --
-// -- along with this program; if not, write to the Free Software             --
-// -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA           --
-// -- 02110-1301, USA.                                                        --
-// --                                                                         --
-// -----------------------------------------------------------------------------
+//
+// (C) 2016-2022 Revanth Kamaraj (krevanth)
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 3
+// of the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+// 02110-1301, USA.
+//
 
 module zap_writeback #(
-        parameter BP_ENTRIES = 1024,    // BP entries.
-        parameter FLAG_WDT = 32,        // Flags width a.k.a CPSR.
-        parameter PHY_REGS = 46,        // Number of physical registers.
-        parameter CPSR_INIT = 0,        // Initial value of CPSR.
-        parameter RESET_VECTOR = 0      // Reset vector.
+        parameter logic [31:0] BP_ENTRIES   = 32'd1024,  // BP entries.
+        parameter logic [31:0] FLAG_WDT     = 32'd32,    // Flags width a.k.a CPSR.
+        parameter logic [31:0] PHY_REGS     = 32'd46,    // Number of physical registers.
+        parameter logic [31:0] CPSR_INIT    = 32'd0,     // Initial value of CPSR.
+        parameter logic [31:0] RESET_VECTOR = 32'd0      // Reset vector.
 )
 (
         // Decompile.
@@ -39,12 +35,18 @@ module zap_writeback #(
         // Shelve output.
         output logic                          o_shelve,
 
+        // PID
+        input   logic [6:0]                   i_cpu_pid,
+
+        // L4 enable.
+        input   logic                         i_l4_enable,
+
         // Clear BTB
         input   logic                         i_clear_btb,
 
         // Clock and reset.
-        input logic                           i_clk, 
-        input logic                           i_reset,   
+        input logic                           i_clk,
+        input logic                           i_reset,
 
         // Inputs from memory unit valid signal.
         input logic                           i_valid,
@@ -58,14 +60,14 @@ module zap_writeback #(
         input logic                           i_clear_from_decode,
         input logic      [31:0]               i_pc_from_decode,
         input logic                           i_clear_from_icache,
-        input logic                           i_confirm_from_alu, // Added
-        input logic [31:0]                    i_alu_pc_ff, // Added
-        input logic [1:0]                     i_taken,            // Added
+        input logic                           i_confirm_from_alu,
+        input logic [31:0]                    i_alu_pc_ff,
+        input logic [1:0]                     i_taken,
 
         // 4 read ports for high performance.
-        input logic   [$clog2(PHY_REGS)-1:0] i_rd_index_0, 
-        input logic   [$clog2(PHY_REGS)-1:0] i_rd_index_1, 
-        input logic   [$clog2(PHY_REGS)-1:0] i_rd_index_2, 
+        input logic   [$clog2(PHY_REGS)-1:0] i_rd_index_0,
+        input logic   [$clog2(PHY_REGS)-1:0] i_rd_index_1,
+        input logic   [$clog2(PHY_REGS)-1:0] i_rd_index_2,
         input logic   [$clog2(PHY_REGS)-1:0] i_rd_index_3,
 
         // Memory load indicator.
@@ -75,18 +77,20 @@ module zap_writeback #(
         input   logic [$clog2(PHY_REGS)-1:0] i_wr_index,
         input   logic [31:0]                 i_wr_data,
         input   logic [FLAG_WDT-1:0]         i_flags,
-        input   logic                        i_thumb,
         input   logic [$clog2(PHY_REGS)-1:0] i_wr_index_1,
         input   logic [31:0]                 i_wr_data_1,
         input   logic [PHY_REGS-1:0]         i_wr_index_2,
         input   logic [31:0]                 i_wr_data_2,
+
+        // From active CPSR.
+        input   logic                        i_mode16,
 
         // Interrupt indicators.
         input   logic                         i_irq,
         input   logic                         i_fiq,
         input   logic                         i_instr_abt,
         input   logic [1:0]                   i_data_abt,
-        input   logic                         i_swi,    
+        input   logic                         i_swi,
         input   logic                         i_und,
 
         // Program counter, PC + 8. This value is captured in the fetch
@@ -101,9 +105,9 @@ module zap_writeback #(
         output logic      [31:0]                 o_copro_reg_rd_data_ff,
 
         // Read data from the register file.
-        output logic     [31:0]               o_rd_data_0,         
-        output logic     [31:0]               o_rd_data_1,         
-        output logic     [31:0]               o_rd_data_2,         
+        output logic     [31:0]               o_rd_data_0,
+        output logic     [31:0]               o_rd_data_1,
+        output logic     [31:0]               o_rd_data_2,
         output logic     [31:0]               o_rd_data_3,
 
         // Program counter (dedicated port).
@@ -111,7 +115,13 @@ module zap_writeback #(
         output logic     [31:0]               o_pc_check,
         output logic     [31:0]               o_pc_nxt,
 
-        // Predict.
+        // Branch state.
+        output logic     [1:0]                o_taken,
+
+        //
+        // Predict. MSB is valid indication and the rest indicates the
+        // PC predicted. If MSB=0, ignore this.
+        //
         output logic     [32:0]               o_pred,
 
         // CPSR output
@@ -126,7 +136,7 @@ module zap_writeback #(
 
         // Trace
         output logic [2047:0]                o_trace,
-        output logic                         o_trace_valid, 
+        output logic                         o_trace_valid,
         output logic                         o_trace_uop_last
 );
 
@@ -149,18 +159,18 @@ logic [32:0]                      pc_del_ff, pc_del_nxt;
 logic [32:0]                      pc_del2_ff, pc_del2_nxt;
 logic [32:0]                      pc_del3_ff, pc_del3_nxt;
 
-logic                             arm_mode;
+logic                             mode32;
 logic                             clear_from_btb;
 logic [31:0]                      pc_from_btb;
 
-always_comb  arm_mode     = (cpsr_ff[T] == 1'd0) ? 1'd1 : 1'd0;
-always_comb  o_shelve     = shelve_ff; // Shelve the PC until it is needed.
-always_comb  o_pc         = pc_del3_ff[31:0];
-always_comb  o_pc_check   = pc_del2_ff[31:0];
-always_comb  o_pc_nxt     = pc_ff[31:0];
-always_comb  o_cpsr_nxt   = cpsr_nxt;
-always_comb  o_wb_stb     = pc_del3_ff[32];
-always_comb  o_wb_cyc     = pc_del3_ff[32];
+assign  mode32     = (cpsr_ff[T] == 1'd0) ? 1'd1 : 1'd0;
+assign  o_shelve     = shelve_ff;
+assign  o_pc         = pc_del3_ff[31:0];
+assign  o_pc_check   = pc_del2_ff[31:0];
+assign  o_pc_nxt     = pc_ff[31:0];
+assign  o_cpsr_nxt   = cpsr_nxt;
+assign  o_wb_stb     = pc_del3_ff[32];
+assign  o_wb_cyc     = pc_del3_ff[32];
 
 // ----------------------------------------------------------------------------
 // Register file
@@ -169,7 +179,7 @@ always_comb  o_wb_cyc     = pc_del3_ff[32];
 zap_register_file u_zap_register_file
 (
 .i_clk(i_clk),
- .i_reset        (       i_reset         ),       
+ .i_reset        (       i_reset         ),
 
  .i_wr_addr_a    (       wa1             ),
  .i_wr_addr_b    (       wa2             ),
@@ -179,7 +189,7 @@ zap_register_file u_zap_register_file
  .i_wr_data_b    (       wdata2          ),
  .i_wr_data_c    (     i_wr_data_2       ),
 
- .i_wen          (       wen             ),        
+ .i_wen          (       wen             ),
 
  .i_rd_addr_a    ( i_copro_reg_en ? i_copro_reg_rd_index : i_rd_index_0 ),
  .i_rd_addr_b    (       i_rd_index_1    ),
@@ -190,37 +200,66 @@ zap_register_file u_zap_register_file
  .o_rd_data_b    (       o_rd_data_1     ),
  .o_rd_data_c    (       o_rd_data_2     ),
  .o_rd_data_d    (       o_rd_data_3     )
+
 );
 
 // ----------------------------------------------------------------------------
 // Combinational Logic
 // ----------------------------------------------------------------------------
 
+// PC control tree.
 always_comb
-begin: blk1
+begin: pc_control_tree
+
         shelve_nxt               = shelve_ff;
         pc_shelve_nxt            = pc_shelve_ff;
-        wen                      = 1'd0;
-        wa1                      = PHY_RAZ_REGISTER;
-        wa2                      = PHY_RAZ_REGISTER;
-        wdata1                   = 32'd0;
-        wdata2                   = 32'd0;
-        o_clear_from_writeback   = 0;
-
-        cpsr_nxt                 = cpsr_ff;
-        o_pred                   = 33'd0;
-
         pc_nxt                   = pc_ff;
         pc_del_nxt               = pc_del_ff;
         pc_del2_nxt              = pc_del2_ff;
         pc_del3_nxt              = pc_del3_ff;
+        o_pred                   = 33'd0;
 
-        // ------------------- Low priority PC control tree -------------------------------
-        // Keep looking further down for more high priority logic that can modify the PC.
-        // Grep for High priority PC control tree.
-        // --------------------------------------------------------------------------------
-
-        if ( i_clear_from_alu )
+        if ( i_data_abt[1] )
+        begin
+                // Return do the same instruction.
+                pc_shelve ( mode32 ? i_pc_plus_8_buf_ff - 8 :
+                                       i_pc_plus_8_buf_ff - 4 );
+        end
+        else if ( i_data_abt[0] )
+        begin
+                // Returns do LR - 8 to get back to the same instruction.
+                pc_shelve( DABT_VECTOR );
+        end
+        else if ( i_fiq )
+        begin
+                // Returns do LR - 4 to get back to the same instruction.
+                pc_shelve ( FIQ_VECTOR );
+        end
+        else if ( i_irq  )
+        begin
+                // Returns do LR - 4 to get back to the same instruction.
+                pc_shelve ( IRQ_VECTOR );
+        end
+        else if ( i_instr_abt )
+        begin
+                // Returns do LR - 4 to get back to the same instruction.
+                pc_shelve ( PABT_VECTOR );
+        end
+        else if ( i_swi )
+        begin
+                // Returns to LR to return next instruction.
+                pc_shelve (SWI_VECTOR);
+        end
+        else if ( i_und )
+        begin
+                // Returns do LR to return to the next instruction.
+                pc_shelve(UND_VECTOR);
+        end
+        else if ( i_valid && i_mem_load_ff && i_wr_index_1 == {2'd0, ARCH_PC} )
+        begin
+                pc_shelve(i_wr_data_1);
+        end
+        else if ( i_clear_from_alu )
         begin
                 pc_shelve(i_pc_from_alu);
         end
@@ -243,117 +282,118 @@ begin: blk1
                 pc_del3_nxt = 33'd0;
                 shelve_nxt  = 1'd0;
         end
-        else if ( i_clear_from_icache ) // Lowest priority.
+        else if ( i_clear_from_icache )
         begin
                 pc_shelve (pc_del3_ff[31:0]);
         end
-        else if ( clear_from_btb && pc_del3_ff[32] ) // Lowest priority now.
+        else if ( clear_from_btb && pc_del3_ff[32] )
         begin
                 pc_shelve (pc_from_btb);
                 o_pred = {1'd1, pc_from_btb};
         end
         else
         begin
-                pc_nxt[31:0] = pc_ff[31:0] + (i_thumb ? 32'd2 : 32'd4);
+                pc_nxt[31:0] = pc_ff[31:0] + (i_mode16 ? 32'd2 : 32'd4);
                 pc_del_nxt   = pc_ff;
                 pc_del2_nxt  = pc_del_ff;
                 pc_del3_nxt  = pc_del2_ff;
         end
 
-        // -------------- High priority PC control tree -------------------------
-        // The stuff below has more priority than the above. This means even in
-        // a global stall, interrupts can overtake execution. Further, writes to 
-        // PC that reach writeback can cancel a global stall. On interrupts or 
-        // jumps, all units are flushed effectively clearing any global stalls.
-        // -----------------------------------------------------------------------
-             
+        // FCSE
+        if ( pc_nxt[31:25] == 0 ) begin
+                pc_nxt[31:25] = i_cpu_pid;
+        end
+
+        pc_nxt[0] = 1'd0; // Lower bit of PC is always 0x0.
+
+end: pc_control_tree
+
+// Register file write.
+always_comb
+begin: register_file_write
+
+        wen                      = 1'd0;
+        wa1                      = PHY_RAZ_REGISTER;
+        wa2                      = PHY_RAZ_REGISTER;
+        wdata1                   = 32'd0;
+        wdata2                   = 32'd0;
+        o_clear_from_writeback   = 0;
+        cpsr_nxt                 = cpsr_ff;
+
         if ( i_data_abt[1] )
         begin
-                pc_shelve ( arm_mode ? i_pc_plus_8_buf_ff - 8 : i_pc_plus_8_buf_ff - 4 );
                 o_clear_from_writeback = 1'd1;
-        end   
+        end
         else if ( i_data_abt[0] )
         begin
-                // Returns do LR - 8 to get back to the same instruction.
-                pc_shelve( DABT_VECTOR ); 
-
                 wen                     = 1;
-                wdata1                  = arm_mode ? i_pc_plus_8_buf_ff : i_pc_plus_8_buf_ff + 4;
+                wdata1                  = mode32 ?
+                                          i_pc_plus_8_buf_ff :
+                                          i_pc_plus_8_buf_ff + 4;
                 wa1                     = PHY_ABT_R14;
                 wa2                     = PHY_ABT_SPSR;
                 wdata2                  = cpsr_ff;
-                cpsr_nxt[`ZAP_CPSR_MODE] = ABT;
+                cpsr_nxt[ZAP_CPSR_MODE:0] = ABT;
 
+                //
+                // Disable IRQ interrupts when entering exception.
+                // Go to 32-bit mode.
+                //
                 chmod ();
         end
         else if ( i_fiq )
         begin
-                // Returns do LR - 4 to get back to the same instruction.
-                pc_shelve ( FIQ_VECTOR ); 
-
                 wen                     = 1;
-                wdata1                  = arm_mode ? i_wr_data : i_pc_plus_8_buf_ff ;
+                wdata1                  = mode32 ? i_wr_data : i_pc_plus_8_buf_ff ;
                 wa1                     = PHY_FIQ_R14;
                 wa2                     = PHY_FIQ_SPSR;
                 wdata2                  = cpsr_ff;
-                cpsr_nxt[`ZAP_CPSR_MODE] = FIQ;
-                cpsr_nxt[F]             = 1'd1;
+                cpsr_nxt[ZAP_CPSR_MODE:0] = FIQ;
+                cpsr_nxt[F]             = 1'd1; // Mask FIQ interrupts.
 
                 chmod ();
         end
         else if ( i_irq )
         begin
-                pc_shelve (IRQ_VECTOR); 
-
                 wen                     = 1;
-                wdata1                  = arm_mode ? i_wr_data : i_pc_plus_8_buf_ff ;
+                wdata1                  = mode32 ? i_wr_data : i_pc_plus_8_buf_ff ;
                 wa1                     = PHY_IRQ_R14;
                 wa2                     = PHY_IRQ_SPSR;
                 wdata2                  = cpsr_ff;
-                cpsr_nxt[`ZAP_CPSR_MODE] = IRQ;
-                // Returns do LR - 4 to get back to the same instruction.
+                cpsr_nxt[ZAP_CPSR_MODE:0] = IRQ;
 
                 chmod ();
         end
         else if ( i_instr_abt )
         begin
-                // Returns do LR - 4 to get back to the same instruction.
-                pc_shelve (PABT_VECTOR); 
-
                 wen    = 1;
-                wdata1 = arm_mode ? i_wr_data : i_pc_plus_8_buf_ff ;
+                wdata1 = mode32 ? i_wr_data : i_pc_plus_8_buf_ff ;
                 wa1    = PHY_ABT_R14;
                 wa2    = PHY_ABT_SPSR;
                 wdata2 = cpsr_ff;
-                cpsr_nxt[`ZAP_CPSR_MODE]  = ABT;
+                cpsr_nxt[ZAP_CPSR_MODE:0]  = ABT;
 
                 chmod ();
         end
         else if ( i_swi )
         begin
-                // Returns do LR to return to the next instruction.
-                pc_shelve(SWI_VECTOR); 
-
                 wen                     = 1;
-                wdata1                  = arm_mode ? i_wr_data : i_pc_plus_8_buf_ff ;
+                wdata1                  = mode32 ? i_wr_data : i_pc_plus_8_buf_ff - 32'd4;
                 wa1                     = PHY_SVC_R14;
                 wa2                     = PHY_SVC_SPSR;
                 wdata2                  = cpsr_ff;
-                cpsr_nxt[`ZAP_CPSR_MODE] = SVC;
+                cpsr_nxt[ZAP_CPSR_MODE:0] = SVC;
 
                 chmod ();
         end
         else if ( i_und )
         begin
-                // Returns do LR to return to the next instruction.
-                pc_shelve(UND_VECTOR); 
-
                 wen                     = 1;
-                wdata1                  = arm_mode ? i_wr_data : i_pc_plus_8_buf_ff ;
+                wdata1                  = mode32 ? i_wr_data : i_pc_plus_8_buf_ff - 32'd4;
                 wa1                     = PHY_UND_R14;
                 wa2                     = PHY_UND_SPSR;
                 wdata2                  = cpsr_ff;
-                cpsr_nxt[`ZAP_CPSR_MODE] = UND;
+                cpsr_nxt[ZAP_CPSR_MODE:0] = UND;
 
                 chmod ();
         end
@@ -383,15 +423,17 @@ begin: blk1
                 // Load to PC will trigger from writeback.
                 if ( i_mem_load_ff && i_wr_index_1 == {2'd0, ARCH_PC})
                 begin
-                        pc_shelve (i_wr_data_1);
                         o_clear_from_writeback  = 1'd1;
-                        cpsr_nxt[T]             = i_wr_data_1[0]; // Switch A/T state.
+
+                        // Switch state only if this is 0.
+                        if ( i_l4_enable == 1'd0 )
+                        begin
+                                cpsr_nxt[T] = i_wr_data_1[0];
+                        end
                 end
         end
 
-        // lower bit of pc = 0.
-        pc_nxt[0] = 1'd0;
-end
+end: register_file_write
 
 // ----------------------------------------------------------------------------
 // Sequential Logic
@@ -446,14 +488,15 @@ zap_btb #(.BP_ENTRIES(BP_ENTRIES)) u_zap_btb (
         .i_rd_addr(pc_del_ff[31:0]),
         .i_rd_addr_del(pc_del2_ff[31:0]),
         .o_clear_from_btb(clear_from_btb),
-        .o_pc_from_btb(pc_from_btb)
+        .o_pc_from_btb(pc_from_btb),
+        .o_branch_state(o_taken)
 );
 
 // ----------------------------------------------------------------------------
 // Tasks
 // ----------------------------------------------------------------------------
 
-function void pc_shelve (input [31:0] new_pc);
+function automatic void pc_shelve (input [31:0] new_pc);
 begin
         if (!i_code_stall )
         begin
@@ -477,17 +520,17 @@ begin
 end
 endfunction
 
-function void chmod;
+function automatic void chmod;
 begin
         o_clear_from_writeback  = 1'd1;
-        cpsr_nxt[I]             = 1'd1; // Mask interrupts.
-        cpsr_nxt[T]             = 1'd0; // Go to ARM mode.
+        cpsr_nxt[I]             = 1'd1; // Mask IRQ interrupt.
+        cpsr_nxt[T]             = 1'd0; // Go to mode32 mode.
 end
 endfunction
 
 `ifdef DEBUG_EN
 
-        /* For simulation only */
+        // For simulation only
         logic [1023:0] msg_nxt;
         logic          trace_uop_last_nxt;
         logic          trace_valid_nxt;
@@ -527,34 +570,38 @@ endfunction
                 end
                 else if ( i_und )
                 begin
+                        assert(1'd0) else
+                        $display("Error: Undefined instruction detected at address=%x CPSR=%x",
+                        i_pc_plus_8_buf_ff - 8, i_flags);
+						
                         $sformat(msg_nxt, "%x:<UND>", i_pc_plus_8_buf_ff - 8);
                 end
                 else if ( i_copro_reg_en  )
                 begin
-                        $sformat(msg_nxt, 
-                                "CP15_ASYNC_UPDATE:idx=%x data=%x", 
+                        $sformat(msg_nxt,
+                                "CP15_ASYNC_UPDATE:idx=%x data=%x",
                                  i_copro_reg_wr_index, i_copro_reg_wr_data);
                 end
                 else if ( i_valid )
                 begin
-                        $sformat(msg_nxt, 
-                        "%x:<%s> %x@%x %x@%x %x", 
+                        $sformat(msg_nxt,
+                        "%x:<%s> %x@%x %x@%x %x",
                         i_pc_plus_8_buf_ff - 8, i_decompile, wa1, wdata1, wa2, wdata2, i_flags);
 
                         trace_uop_last_nxt = i_uop_last;
-                end              
-                else if ( i_decompile_valid )
+                end
+                else if ( i_decompile_valid ) // Condition code failed.
                 begin
-                         $sformat(msg_nxt, 
-                        "%x:<%s>*", 
+                         $sformat(msg_nxt,
+                        "%x:<%s>*",
                         i_pc_plus_8_buf_ff - 8, i_decompile);
 
                         trace_uop_last_nxt = i_uop_last;
-                end 
+                end
         end
 
         // Happens on the same edge as register update.
-        always @ ( posedge i_clk ) 
+        always @ ( posedge i_clk )
         begin
                 o_trace          <= msg_nxt;
                 o_trace_uop_last <= trace_uop_last_nxt;
@@ -611,14 +658,17 @@ endfunction
                 end
         end
 
-        /* Above block is for simulation only */ 
+        // Above block is for simulation only
 `else
 
 // Tie off trace to 0.
 assign o_trace         = '0;
 assign o_trace_valid   = '0;
 assign o_trace_uop_last= '0;
-wire   unused          = |{i_decompile_valid, i_uop_last};
+
+logic unused;
+
+assign unused          = |{i_decompile_valid, i_uop_last};
 
 `endif
 

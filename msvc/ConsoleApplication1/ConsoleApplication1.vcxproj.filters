@@ -121,7 +121,7 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\out\Vcore_3do.cpp">
-      <Filter>Source Files\Vcore</Filter>
+      <Filter>Source Files\libopera</Filter>
     </ClCompile>
     <ClCompile Include="..\..\out\Vcore_3do___024root__DepSet_h7c47ef47__0.cpp">
       <Filter>Source Files\Vcore</Filter>

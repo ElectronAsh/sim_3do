@@ -1,38 +1,32 @@
-// -----------------------------------------------------------------------------
-// --                                                                         --
-// --    (C) 2016-2022 Revanth Kamaraj (krevanth)                             --
-// --                                                                         -- 
-// -- --------------------------------------------------------------------------
-// --                                                                         --
-// -- This program is free software; you can redistribute it and/or           --
-// -- modify it under the terms of the GNU General Public License             --
-// -- as published by the Free Software Foundation; either version 2          --
-// -- of the License, or (at your option) any later version.                  --
-// --                                                                         --
-// -- This program is distributed in the hope that it will be useful,         --
-// -- but WITHOUT ANY WARRANTY; without even the implied warranty of          --
-// -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           --
-// -- GNU General Public License for more details.                            --
-// --                                                                         --
-// -- You should have received a copy of the GNU General Public License       --
-// -- along with this program; if not, write to the Free Software             --
-// -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA           --
-// -- 02110-1301, USA.                                                        --
-// --                                                                         --
-// -----------------------------------------------------------------------------
-//                                                                            --    
-// TLB management unit for the ZAP processor. The TLB units use single cycle  --
-// clearing memories since TLBs are shallow.                                  --
-//                                                                            --
-// -----------------------------------------------------------------------------
+//
+// (C) 2016-2022 Revanth Kamaraj (krevanth)
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 3
+// of the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+// 02110-1301, USA.
+//
+// TLB management unit for the ZAP processor. The TLB units use single cycle
+// clearing memories since TLBs are shallow.
+//
 
 
 module zap_tlb #(
 
-parameter LPAGE_TLB_ENTRIES   = 8,
-parameter SPAGE_TLB_ENTRIES   = 8,
-parameter SECTION_TLB_ENTRIES = 8,
-parameter FPAGE_TLB_ENTRIES   = 8
+parameter logic [31:0] LPAGE_TLB_ENTRIES   = 32'd8,
+parameter logic [31:0] SPAGE_TLB_ENTRIES   = 32'd8,
+parameter logic [31:0] SECTION_TLB_ENTRIES = 32'd8,
+parameter logic [31:0] FPAGE_TLB_ENTRIES   = 32'd8
 
 ) (
 
@@ -51,7 +45,7 @@ input   logic    [31:0]  i_address_nxt,
 input   logic            i_hold,
 
 // CPSR, SR, DAC register.
-input   logic    [`ZAP_CPSR_MODE] i_cpsr,
+input   logic    [ZAP_CPSR_MODE:0] i_cpsr,
 input   logic    [1:0]   i_sr,
 input   logic    [31:0]  i_dac_reg,
 input   logic    [31:0]  i_baddr,
@@ -67,7 +61,7 @@ output  logic    [31:0]  o_far,
 output  logic            o_fault,
 output  logic            o_cacheable,
 output  logic            o_busy,
-input   wire             i_idle,
+input   logic            i_idle,
 
 // Wishbone memory interface - Needs to go through some OR gates.
 output logic             o_wb_stb_nxt,
@@ -77,7 +71,8 @@ output logic             o_wb_wen_nxt,
 output logic [3:0]       o_wb_sel_nxt,
 input  logic [31:0]      i_wb_dat,
 output logic [31:0]      o_wb_dat_nxt,
-input  logic             i_wb_ack 
+input  logic             i_wb_ack,
+input  logic             i_wb_err
 
 );
 
@@ -108,59 +103,125 @@ logic                            unused;
 
 // ----------------------------------------------------------------------------
 
-function [31:0] max ( input [31:0] a, b, c, d );
+function automatic [31:0] max ( input [31:0] a, b, c, d );
              if ( a >= b && a >= c && a >= d )                max = a;
         else if ( b >= a && b >= c && b >= d )                max = b;
         else if ( c >= a && c >= b && c >= d )                max = c;
         else                                                  max = d;
-endfunction 
+endfunction
 
-generate 
-        if      ( 10+$clog2(FPAGE_TLB_ENTRIES) == 11 ) always_comb u0 = i_address_nxt[11];    
-        else                                           always_comb u0 = 1'd0;
+// U0 generation.
+if      ( 10+$clog2(FPAGE_TLB_ENTRIES) == 11 )
+begin: l_two_fp
+        always_comb u0 = i_address_nxt[11];
+end
+else
+begin: l_more_than_two_fp
+        always_comb u0 = 1'd0;
+end
 
-        if      ( 12+$clog2(SPAGE_TLB_ENTRIES) == 13 ) always_comb u1 = |i_address_nxt[15:13]; 
-        else if ( 12+$clog2(SPAGE_TLB_ENTRIES) == 14 ) always_comb u1 = |i_address_nxt[15:14]; 
-        else if ( 12+$clog2(SPAGE_TLB_ENTRIES) == 15 ) always_comb u1 = i_address_nxt[15]; 
-        else                                           always_comb u1 = 1'd0;
+// U1 generation.
+if      ( 12+$clog2(SPAGE_TLB_ENTRIES) == 13 )
+begin: l_two_sp
+        always_comb u1 = |i_address_nxt[15:13];
+end
+else if ( 12+$clog2(SPAGE_TLB_ENTRIES) == 14 )
+begin: l_four_sp
+        always_comb u1 = |i_address_nxt[15:14];
+end
+else if ( 12+$clog2(SPAGE_TLB_ENTRIES) == 15 )
+begin: l_eight_sp
+        always_comb u1 = i_address_nxt[15];
+end
+else
+begin: l_more_than_eight_sp
+        always_comb u1 = 1'd0;
+end
 
-        if      ( 16+$clog2(LPAGE_TLB_ENTRIES) == 17 ) always_comb u2 = |i_address_nxt[19:17]; 
-        else if ( 16+$clog2(LPAGE_TLB_ENTRIES) == 18 ) always_comb u2 = |i_address_nxt[19:18]; 
-        else if ( 16+$clog2(LPAGE_TLB_ENTRIES) == 19 ) always_comb u2 = i_address_nxt[19]; 
-        else                                           always_comb u2 = 1'd0;
+// U2 generation
+if      ( 16+$clog2(LPAGE_TLB_ENTRIES) == 17 )
+begin: l_two_lp
+        always_comb u2 = |i_address_nxt[19:17];
+end
+else if ( 16+$clog2(LPAGE_TLB_ENTRIES) == 18 )
+begin: l_four_lp
+        always_comb u2 = |i_address_nxt[19:18];
+end
+else if ( 16+$clog2(LPAGE_TLB_ENTRIES) == 19 )
+begin: l_eight_lp
+        always_comb u2 = i_address_nxt[19];
+end
+else
+begin: l_more_than_eight_lp
+        always_comb u2 = 1'd0;
+end
 
-        if      ( 10+$clog2(FPAGE_TLB_ENTRIES) == 11 ) always_comb u3 = tlb_address[11]; 
-        else                                           always_comb u3 = 1'd0;
+///////////////////////////////////////////////////////////////////////////////
 
-        if      ( 12+$clog2(SPAGE_TLB_ENTRIES) == 13 ) always_comb u4 = |tlb_address[15:13]; 
-        else if ( 12+$clog2(SPAGE_TLB_ENTRIES) == 14 ) always_comb u4 = |tlb_address[15:14]; 
-        else if ( 12+$clog2(SPAGE_TLB_ENTRIES) == 15 ) always_comb u4 = tlb_address[15]; 
-        else                                           always_comb u4 = 1'd0;
+// U3 generation.
+if      ( 10+$clog2(FPAGE_TLB_ENTRIES) == 11 )
+begin: l_two_fp_tlb
+        always_comb u3 = tlb_address[11];
+end
+else
+begin: l_more_than_two_fp_tlb
+        always_comb u3 = 1'd0;
+end
 
-        if      ( 16+$clog2(LPAGE_TLB_ENTRIES) == 17 ) always_comb u5 = |tlb_address[19:17]; 
-        else if ( 16+$clog2(LPAGE_TLB_ENTRIES) == 18 ) always_comb u5 = |tlb_address[19:18]; 
-        else if ( 16+$clog2(LPAGE_TLB_ENTRIES) == 19 ) always_comb u5 = tlb_address[19];
-        else                                           always_comb u5 = 1'd0;
-endgenerate 
+// U4 generation
+if      ( 12+$clog2(SPAGE_TLB_ENTRIES) == 13 )
+begin: l_two_sp_tlb
+        always_comb u4 = |tlb_address[15:13];
+end
+else if ( 12+$clog2(SPAGE_TLB_ENTRIES) == 14 )
+begin: l_four_sp_tlb
+        always_comb u4 = |tlb_address[15:14];
+end
+else if ( 12+$clog2(SPAGE_TLB_ENTRIES) == 15 )
+begin: l_eight_sp_tlb
+        always_comb u4 = tlb_address[15];
+end
+else
+begin: l_more_than_eight_sp_tlb
+        always_comb u4 = 1'd0;
+end
+
+// U5 generation.
+if      ( 16+$clog2(LPAGE_TLB_ENTRIES) == 17 )
+begin: l_two_lp_tlb
+        always_comb u5 = |tlb_address[19:17];
+end
+else if ( 16+$clog2(LPAGE_TLB_ENTRIES) == 18 )
+begin: l_four_lp_tlb
+        always_comb u5 = |tlb_address[19:18];
+end
+else if ( 16+$clog2(LPAGE_TLB_ENTRIES) == 19 )
+begin: l_eight_lp_tlb
+        always_comb u5 = tlb_address[19];
+end
+else
+begin: l_more_than_eight_lp_tlb
+        always_comb u5 = 1'd0;
+end
 
 // -----------------------------------------------------------------------------
 
-localparam W = max (    
+localparam [31:0] W = max (
         20+$clog2(SECTION_TLB_ENTRIES),
         16+$clog2(LPAGE_TLB_ENTRIES),
         12+$clog2(SPAGE_TLB_ENTRIES),
         10+$clog2(FPAGE_TLB_ENTRIES)
 );
 
-always_comb unused = |{i_address_nxt[9:0], tlb_address[9:0], i_address_nxt[31:W], 
+always_comb unused = |{i_address_nxt[9:0], tlb_address[9:0], i_address_nxt[31:W],
                        tlb_address[31:W], u0, u1, u2, u3, u4, u5,
-                       setlb_rdata, sptlb_rdata, lptlb_rdata, fptlb_rdata, 
+                       setlb_rdata, sptlb_rdata, lptlb_rdata, fptlb_rdata,
                        setlb_ren, sptlb_ren, lptlb_ren, fptlb_ren
                        };
 
 // ----------------------------------------------------------------------------
 
-zap_mem_inv_block #(.WIDTH(`ZAP_SECTION_TLB_WDT), .DEPTH(SECTION_TLB_ENTRIES)) 
+zap_mem_inv_block #(.WIDTH(`ZAP_SECTION_TLB_WDT), .DEPTH(SECTION_TLB_ENTRIES))
 u_section_tlb (
 .i_clk          (i_clk),
 .i_reset        (i_reset),
@@ -183,7 +244,7 @@ u_section_tlb (
 
 // ----------------------------------------------------------------------------
 
-zap_mem_inv_block #(.WIDTH(`ZAP_LPAGE_TLB_WDT), .DEPTH(LPAGE_TLB_ENTRIES)) 
+zap_mem_inv_block #(.WIDTH(`ZAP_LPAGE_TLB_WDT), .DEPTH(LPAGE_TLB_ENTRIES))
 u_lpage_tlb   (
 .i_clk          (i_clk),
 .i_reset        (i_reset),
@@ -206,7 +267,7 @@ u_lpage_tlb   (
 
 // ----------------------------------------------------------------------------
 
-zap_mem_inv_block #(.WIDTH(`ZAP_SPAGE_TLB_WDT), .DEPTH(SPAGE_TLB_ENTRIES)) 
+zap_mem_inv_block #(.WIDTH(`ZAP_SPAGE_TLB_WDT), .DEPTH(SPAGE_TLB_ENTRIES))
 u_spage_tlb   (
 .i_clk          (i_clk),
 .i_reset        (i_reset),
@@ -253,11 +314,11 @@ u_fpage_tlb (
 // ----------------------------------------------------------------------------
 
 zap_tlb_check #(
-.LPAGE_TLB_ENTRIES(LPAGE_TLB_ENTRIES), 
-.SPAGE_TLB_ENTRIES(SPAGE_TLB_ENTRIES), 
+.LPAGE_TLB_ENTRIES(LPAGE_TLB_ENTRIES),
+.SPAGE_TLB_ENTRIES(SPAGE_TLB_ENTRIES),
 .SECTION_TLB_ENTRIES(SECTION_TLB_ENTRIES),
 .FPAGE_TLB_ENTRIES(FPAGE_TLB_ENTRIES)
-) 
+)
 u_zap_tlb_check (
 .i_clk          (i_clk),
 .i_clkena       (!i_hold),
@@ -342,6 +403,7 @@ zap_tlb_fsm #(
 
 .i_wb_dat       (i_wb_dat),
 .i_wb_ack       (i_wb_ack),
+.i_wb_err       (i_wb_err),
 
 .o_wb_sel_nxt   (o_wb_sel_nxt),
 .o_wb_cyc_nxt   (o_wb_cyc_nxt),

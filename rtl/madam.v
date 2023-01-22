@@ -40,7 +40,9 @@ module madam (
 	output reg dma_ack
 );
 
-assign mem_addr = (dma_ack) ? dma_addr : cpu_addr;
+
+
+assign mem_addr = (state==8'd4) ? up_addr : (dma_ack) ? dma_addr : cpu_addr;
 assign mem_dout = (dma_ack) ? dma_dout : cpu_dout;
 assign mem_rd   = (dma_ack) ? dma_rd : cpu_rd;
 assign mem_wr   = (dma_ack) ? dma_wr : cpu_wr;
@@ -242,7 +244,7 @@ else begin
 	if (cel_dma_req && dma_ack) cpu_ack <= 1'b0;
 	else cpu_ack <= cpu_stb;
 	
-	
+	/*
 	case (state)
 	0: begin
 		//if (madam_cs && cpu_addr[15:0]==SPRSTRT && cpu_wr) begin	// CELStart write.
@@ -300,7 +302,8 @@ else begin
 	end
 	
 	4: begin
-		if (up_rd_req) dma_addr <= dma_addr + 4;	// If packer requests a new word from RAM, increment the address.
+		//dma_addr <= up_addr;
+		//if (up_rd_req) dma_addr <= dma_addr + 4;	// If packer requests a new word from RAM, increment the address.
 		//if (up_eol) state <= 5;						// EOL (End Of Line) found in CEL, stop for now.
 		//state <= 8'd3;
 	end
@@ -313,6 +316,7 @@ else begin
 	
 	default: ;
 	endcase
+	*/
 end
 
 
@@ -320,6 +324,7 @@ wire up_rd_req;
 reg up_next_pix;
 wire up_eol;
 wire [15:0] col_out;
+wire [31:0] up_addr;
 
 unpacker  unpacker_inst (
 	.clock( clk_25m ),		// input clock
@@ -328,8 +333,11 @@ unpacker  unpacker_inst (
 	.bpp( pre0[2:0] ),		// input [2:0] bpp
 	.skipx( pre0[27:24] ),	// input [3:0] skipx
 	
-	.start( up_start ),		// input start
-	.din( mem_din ),		// input [31:0] din
+	.sourceptr( sourceptr ),	// input [31:0] sourceptr
+	.up_addr( up_addr ),		// output [31:0] up_addr
+	
+	.start( up_start ),			// input start
+	.din( mem_din ),			// input [31:0] din
 	
 	.rd_req( up_rd_req ),		// input rd_req
 	.next_pix( up_next_pix ),	// input next_pix

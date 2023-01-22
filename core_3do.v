@@ -54,9 +54,10 @@ zap_top zap_top_inst (
 	.o_wb_sel( o_wb_sel ),			// output [3:0]
 	.o_wb_cti( o_wb_cti ),			// output [2:0]	not used atm.
 	.o_wb_bte( o_wb_bte ),			// output [1:0]	not used atm.
-	.i_wb_ack( i_wb_ack ),			// input
-	.i_wb_dat( zap_din )			// input [31:0]
-	//.i_wb_dat( i_wb_dat )			// input [31:0]
+	.i_wb_ack( i_wb_ack ),			// input  i_wb_ack
+	.i_wb_err( 1'b0 ),				// input  i_wb_err
+	.i_wb_dat( zap_din )			// input [31:0]  i_wb_dat
+	//.i_wb_dat( i_wb_dat )			// input [31:0]  i_wb_dat
 );
 
 
