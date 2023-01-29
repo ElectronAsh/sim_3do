@@ -307,7 +307,7 @@ void
 cdimage_read_sector(void* buf_)
 {	uint32_t start_offset = CDIMAGE_SECTOR * CDIMAGE_SECTOR_SIZE;
 	//if (CDIMAGE_SECTOR_SIZE == 2352) start_offset += 16;
-	if ( start_offset>(iso_size -CDIMAGE_SECTOR_SIZE) ) start_offset=(iso_size - CDIMAGE_SECTOR_SIZE);	// Clamp the max offset.
+	//if ( start_offset>(iso_size -CDIMAGE_SECTOR_SIZE) ) start_offset=(iso_size - CDIMAGE_SECTOR_SIZE);	// Clamp the max offset.
 	fseek(isofile, start_offset, SEEK_SET);
 	fread(buf_, 1, CDIMAGE_SECTOR_SIZE, isofile);
 }
@@ -815,7 +815,7 @@ static void sim_clio_handle_dma(uint32_t val_)
 		uint8_t b0, b1, b2, b3;
 
 		trg = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curaddr;	// 0x03300540. DMA Target (Source/Dest address). Likely always the dest, for a CDROM DMA?
-		len = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curlen;		// 0x03300544. DMA Length (in BYTES).
+		len = top->rootp->core_3do__DOT__madam_inst__DOT__dma_stack_inst__DOT__dma20_curlen;	// 0x03300544. DMA Length (in BYTES).
 
 		fprintf(logfile, "Xbus DMA  trg: 0x%08X  len: 0x%08X\n", trg, len);
 
@@ -840,12 +840,14 @@ static void sim_clio_handle_dma(uint32_t val_)
 					ram_ptr[ (trg & 0x1fffff) + 2 ] = b2;
 					ram_ptr[ (trg & 0x1fffff) + 3 ] = b3;
 				}
+				/*
 				else {
 					vram_ptr[ (trg & 0xfffff) + 0 ] = b0;
 					vram_ptr[ (trg & 0xfffff) + 1 ] = b1;
 					vram_ptr[ (trg & 0xfffff) + 2 ] = b2;
 					vram_ptr[ (trg & 0xfffff) + 3 ] = b3;
 				}
+				*/
 
 				trg += 4;
 				len -= 4;
@@ -1736,11 +1738,11 @@ int main(int argc, char** argv, char** env) {
 
 	//isofile = fopen("aitd_us.iso", "rb");
 	//isofile = fopen("StarBlade.iso", "rb");
-	//isofile = fopen("3DentrO.iso", "rb");
+	isofile = fopen("3DentrO.iso", "rb");
 	//isofile = fopen("3DO teaser trailer 25% ISO.iso", "rb");
 	//isofile = fopen("3DO Homebrew pack #1.iso", "rb");
 	//isofile = fopen("stniccc_3do_4bpp.iso", "rb");
-	isofile = fopen("optidoom_02c.iso", "rb");
+	//isofile = fopen("optidoom_02c.iso", "rb");
 	//CDIMAGE_SECTOR_SIZE = 2352; isofile = fopen("nfs_usa.bin", "rb");			// 2352-byte sectors!
 	//isofile = fopen("PhotoCD_Gallery.iso", "rb");
 	fseek(isofile, 0L, SEEK_END);
@@ -2503,17 +2505,15 @@ int main(int argc, char** argv, char** env) {
 		int32_t hddx = top->rootp->core_3do__DOT__madam_inst__DOT__hddx;	// 12.20
 		int32_t hddy = top->rootp->core_3do__DOT__madam_inst__DOT__hddy;	// 12.20
 
-		/*
 		if (top->rootp->core_3do__DOT__madam_inst__DOT__nextccb>0) {
 			for (int xp = 0; xp < 16; xp++) {
 				uint32_t x = xpos>>16;
 				uint32_t y = ypos>>16;
 				for (int yp = 0; yp < 16; yp++) {
-					disp_ptr[((y+yp)*320)+x+xp) & 0xfffff ] = 0xff00ff00;	// ABGR.
+					disp_ptr[ ((y+yp)*320)+x+xp & 0xfffff ] = 0xff00ff00;	// ABGR.
 				}
 			}
 		}
-		*/
 
 		ImGui::Text("       xpos: 0x%08X", top->rootp->core_3do__DOT__madam_inst__DOT__xpos);
 		ImGui::SameLine(); ImGui::Text(" %f", (double)xpos / (double)(1<<16));

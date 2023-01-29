@@ -1,10 +1,15 @@
-# sim_3do
+# WIP 3DO FPGA core, by ElectronAsh and Revanth. 
 
 :+1:Zap ARMv5T core by Revanth Kamaraj, from opencores.com
 
 :+1:Verilator by Wilson Snyder.
 
 :+1:Dear Imgui library by Omar (ocornut).
+
+
+This is now a joint effort between ElectronAsh and Revanth.
+
+(Revanth wrote the Zap ARM CPU core, which has high complexity, and currently represents the bulk of the core logic.)
 
 
 I run Verilator from within WSL2 / Ubuntu, to "compile" the Verilog into the C/C++ sim model.

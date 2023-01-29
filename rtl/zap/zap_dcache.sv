@@ -1,38 +1,42 @@
-//
-// (C) 2016-2022 Revanth Kamaraj (krevanth)
-//
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either version 3
-// of the License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
-// 02110-1301, USA.
-//
-// This is the top level cache module that contains the MMU and cache.
-// This is the data cache.
-//
+// -----------------------------------------------------------------------------
+// --                                                                         --
+// --    (C) 2016-2022 Revanth Kamaraj (krevanth)                             --
+// --                                                                         --
+// -- --------------------------------------------------------------------------
+// --                                                                         --
+// -- This program is free software; you can redistribute it and/or           --
+// -- modify it under the terms of the GNU General Public License             --
+// -- as published by the Free Software Foundation; either version 2          --
+// -- of the License, or (at your option) any later version.                  --
+// --                                                                         --
+// -- This program is distributed in the hope that it will be useful,         --
+// -- but WITHOUT ANY WARRANTY; without even the implied warranty of          --
+// -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           --
+// -- GNU General Public License for more details.                            --
+// --                                                                         --
+// -- You should have received a copy of the GNU General Public License       --
+// -- along with this program; if not, write to the Free Software             --
+// -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA           --
+// -- 02110-1301, USA.                                                        --
+// --                                                                         --
+// -----------------------------------------------------------------------------
+// --                                                                         --
+// -- This is the top level cache module that contains the MMU and cache.     --
+// -- This is the data cache.                                                 --
+// --                                                                         --
+// -----------------------------------------------------------------------------
 
 module zap_dcache #(
 
-parameter logic [31:0] CACHE_SIZE             = 32'd1024,
-parameter logic [31:0] SPAGE_TLB_ENTRIES      = 32'd8,
-parameter logic [31:0] LPAGE_TLB_ENTRIES      = 32'd8,
-parameter logic [31:0] SECTION_TLB_ENTRIES    = 32'd8,
-parameter logic [31:0] FPAGE_TLB_ENTRIES      = 32'd8,
-parameter logic [31:0] CACHE_LINE             = 32'd8,
-parameter logic        BE_32_ENABLE           = 1'd0
+parameter [31:0] CACHE_SIZE             = 1024, 
+parameter [31:0] SPAGE_TLB_ENTRIES      = 8,
+parameter [31:0] LPAGE_TLB_ENTRIES      = 8,
+parameter [31:0] SECTION_TLB_ENTRIES    = 8,
+parameter [31:0] FPAGE_TLB_ENTRIES      = 8,
+parameter [31:0] CACHE_LINE             = 8,
+parameter        BE_32_ENABLE           = 0
 
-)
-(
+) /* Port List */ (
 
 // Clock and reset.
 input   logic            i_clk,
@@ -63,11 +67,10 @@ output  logic            o_err,
 output  logic [7:0]      o_fsr,
 output  logic [31:0]     o_far,
 output  logic            o_err2,
-input   logic [63:0]     i_reg_idx,
-input   logic [5:0]      i_reg_idx_bin,
-output  logic [63:0]     o_lock,
-output  logic [31:0]     o_reg_dat,
-output  logic [63:0]     o_reg_idx,
+input   logic [63:0]     i_reg_idx, /* Register to load to. added */
+output  logic [63:0]     o_lock,    /* Register that is locked. added */
+output  logic [31:0]     o_reg_dat, /* Register data. aded */
+output  logic [63:0]     o_reg_idx, /* Register index. added */
 
 // MMU controls from/to processor.
 input   logic            i_mmu_en,
@@ -77,14 +80,14 @@ input   logic            i_cache_clean_req,
 output logic             o_cache_inv_done,
 output  logic            o_cache_clean_done,
 
-input   logic [ZAP_CPSR_MODE:0] i_cpsr,
+input   logic [`ZAP_CPSR_MODE] i_cpsr,
 input   logic [1:0]            i_sr,
 input   logic [31:0]           i_baddr,
 input   logic [31:0]           i_dac_reg,
 input  logic                   i_tlb_inv,
 
 // Wishbone. Signals from all 4 modules are ORed.
-output logic              o_wb_stb, o_wb_stb_nxt,
+output logic              o_wb_stb, o_wb_stb_nxt, 
 output logic              o_wb_cyc, o_wb_cyc_nxt,
 output logic              o_wb_wen, o_wb_wen_nxt,
 output logic  [3:0]       o_wb_sel, o_wb_sel_nxt,
@@ -92,20 +95,19 @@ output logic  [31:0]      o_wb_dat, o_wb_dat_nxt,
 output logic  [31:0]      o_wb_adr, o_wb_adr_nxt,
 output logic  [2:0]       o_wb_cti, o_wb_cti_nxt,
 input  logic [31:0]       i_wb_dat,
-input  logic              i_wb_ack,
-input  logic              i_wb_err
+input  logic              i_wb_ack
 
 );
 
 `include "zap_defines.svh"
 `include "zap_localparams.svh"
 
-localparam [2:0] SELECT_CCH = 3'b001;
-localparam [2:0] SELECT_TAG = 3'b010;
-localparam [2:0] SELECT_TLB = 3'b100;
+localparam                      S0=0;
+localparam                      S1=1;
+localparam                      S2=2;
 
-logic [2:0]                      wb_stb;
-logic [2:0]                      wb_cyc;
+logic [2:0]                      wb_stb; 
+logic [2:0]                      wb_cyc; 
 logic [2:0]                      wb_wen;
 logic [3:0]                      wb_sel [2:0];
 logic [31:0]                     wb_dat [2:0];
@@ -127,18 +129,13 @@ logic                            tr_cache_tag_dirty, cf_cache_tag_dirty;
 logic                            cf_cache_clean_req, cf_cache_inv_req;
 logic                            tr_cache_inv_done, tr_cache_clean_done;
 logic [2:0]                      wb_ack;
-logic [2:0]                      state_ff, state_nxt;
+logic [1:0]                      state_ff, state_nxt;
 logic [31:0]                     cache_address;
 logic                            hold;
 logic                            idle;
-logic  [2:0]                     wb_err;
-logic                            unused;
 
 // Selection 2 of Wishbone CTI[2x3] is always on all CPU supported modes.
 always_comb wb_cti[2] = CTI_EOB;
-
-// wb_err[1] is unused.
-assign unused = |{wb_err[1]};
 
 // Basic cache FSM - serves as Master 0.
 zap_dcache_fsm #(.CACHE_SIZE(CACHE_SIZE), .CACHE_LINE(CACHE_LINE), .BE_32_ENABLE(BE_32_ENABLE)) u_zap_cache_fsm (
@@ -184,7 +181,6 @@ zap_dcache_fsm #(.CACHE_SIZE(CACHE_SIZE), .CACHE_LINE(CACHE_LINE), .BE_32_ENABLE
         .o_wb_cyc_nxt           (wb_cyc[0]),
         .o_hold                 (hold),
         .i_reg_idx              (i_reg_idx),
-        .i_reg_idx_bin          (i_reg_idx_bin),
         .o_lock                 (o_lock),
         .o_reg_dat              (o_reg_dat),
         .o_reg_idx              (o_reg_idx),
@@ -206,8 +202,7 @@ zap_dcache_fsm #(.CACHE_SIZE(CACHE_SIZE), .CACHE_LINE(CACHE_LINE), .BE_32_ENABLE
         .o_wb_wen_nxt           (wb_wen[0]),
         .o_wb_cti_nxt           (wb_cti[0]),
         .i_wb_dat               (i_wb_dat),
-        .i_wb_ack               (wb_ack[0]),
-        .i_wb_err               (wb_err[0])
+        .i_wb_ack               (wb_ack[0])
 );
 
 // Cache Tag RAM - As a master - this performs cache clean - Master 1.
@@ -289,8 +284,7 @@ u_zap_tlb (
         .o_wb_sel_nxt   (wb_sel[2]),
         .o_wb_dat_nxt   (wb_dat[2]),
         .i_wb_dat       (i_wb_dat),
-        .i_wb_ack       (wb_ack[2]),
-        .i_wb_err       (wb_err[2])
+        .i_wb_ack       (wb_ack[2])
 );
 
 // Sequential Block
@@ -298,25 +292,25 @@ always_ff @ ( posedge i_clk )
 begin
         if ( i_reset )
         begin
-                state_ff <= SELECT_CCH;
+                state_ff <= S0;
                 o_wb_stb <= 1'd0;
-                o_wb_cyc <= 1'd0;
-                o_wb_adr <= 'x;
+                o_wb_cyc <= 1'd0; 
+                o_wb_adr <= 32'd0;
                 o_wb_cti <= CTI_EOB;
-                o_wb_sel <= 'x;
-                o_wb_dat <= 'x;
-                o_wb_wen <= 'x;
+                o_wb_sel <= 4'd0;
+                o_wb_dat <= 32'd0;
+                o_wb_wen <= 1'd0;
         end
         else
         begin
                 state_ff <= state_nxt;
-                o_wb_stb <= o_wb_stb_nxt;
-                o_wb_cyc <= o_wb_cyc_nxt;
-                o_wb_adr <= o_wb_adr_nxt;
-                o_wb_cti <= o_wb_cti_nxt;
-                o_wb_sel <= o_wb_sel_nxt;
-                o_wb_dat <= o_wb_dat_nxt;
-                o_wb_wen <= o_wb_wen_nxt;
+                o_wb_stb <= o_wb_stb_nxt; 
+                o_wb_cyc <= o_wb_cyc_nxt; 
+                o_wb_adr <= o_wb_adr_nxt; 
+                o_wb_cti <= o_wb_cti_nxt; 
+                o_wb_sel <= o_wb_sel_nxt; 
+                o_wb_dat <= o_wb_dat_nxt; 
+                o_wb_wen <= o_wb_wen_nxt; 
         end
 end
 
@@ -325,19 +319,14 @@ always_comb
 begin
         state_nxt = state_ff;
 
-        if ( i_wb_err )
-        begin
-                assert ( i_wb_ack ) else $fatal(2, "Error: ERR=1 but ACK=0.");
-        end
-
         // Change state only if strobe is inactive or strobe has just completed.
-        if ( !o_wb_stb || (o_wb_stb && i_wb_ack) )
+        if ( !o_wb_stb || (o_wb_stb && i_wb_ack) ) 
         begin
                 casez({wb_cyc[2],wb_cyc[1],wb_cyc[0]})
-                3'b1?? : state_nxt = SELECT_TLB; // TLB.
-                3'b01? : state_nxt = SELECT_TAG; // Tag.
-                3'b001 : state_nxt = SELECT_CCH; // Cache.
-                default: state_nxt = state_ff;
+                3'b1?? : state_nxt = S2; // TLB.
+                3'b01? : state_nxt = S1; // Tag.
+                3'b001 : state_nxt = S0; // Cache.
+                default: state_nxt = state_ff;                                       
                 endcase
         end
 end
@@ -345,63 +334,27 @@ end
 // Route ACKs to respective masters.
 always_comb
 begin
-        {wb_err, wb_ack} = 6'd0;
+        wb_ack = 0;
 
         case(state_ff)
-        SELECT_CCH      : {wb_err[0], wb_ack[0]} = {i_wb_err, i_wb_ack};
-        SELECT_TAG      : {wb_err[1], wb_ack[1]} = {i_wb_err, i_wb_ack};
-        SELECT_TLB      : {wb_err[2], wb_ack[2]} = {i_wb_err, i_wb_ack};
-        default         : {wb_err   , wb_ack   } = {6{1'dx}};
+        S0: wb_ack[0] = i_wb_ack;
+        S1: wb_ack[1] = i_wb_ack;
+        S2: wb_ack[2] = i_wb_ack;
         endcase
 end
 
 // Combo signals for external MUXing.
 always_comb
 begin
-        case(state_nxt)
-        SELECT_CCH:
-        begin
-                o_wb_stb_nxt = wb_stb[0];
-                o_wb_cyc_nxt = wb_cyc[0];
-                o_wb_adr_nxt = wb_adr[0];
-                o_wb_dat_nxt = wb_dat[0];
-                o_wb_cti_nxt = wb_cti[0];
-                o_wb_sel_nxt = wb_sel[0];
-                o_wb_wen_nxt = wb_wen[0];
-        end
-        SELECT_TAG:
-        begin
-                o_wb_stb_nxt = wb_stb[1];
-                o_wb_cyc_nxt = wb_cyc[1];
-                o_wb_adr_nxt = wb_adr[1];
-                o_wb_dat_nxt = wb_dat[1];
-                o_wb_cti_nxt = wb_cti[1];
-                o_wb_sel_nxt = wb_sel[1];
-                o_wb_wen_nxt = wb_wen[1];
-        end
-        SELECT_TLB:
-        begin
-                o_wb_stb_nxt = wb_stb[2];
-                o_wb_cyc_nxt = wb_cyc[2];
-                o_wb_adr_nxt = wb_adr[2];
-                o_wb_dat_nxt = wb_dat[2];
-                o_wb_cti_nxt = wb_cti[2];
-                o_wb_sel_nxt = wb_sel[2];
-                o_wb_wen_nxt = wb_wen[2];
-        end
-        default:
-        begin
-                o_wb_stb_nxt = 'x;
-                o_wb_cyc_nxt = 'x;
-                o_wb_adr_nxt = 'x;
-                o_wb_dat_nxt = 'x;
-                o_wb_cti_nxt = 'x;
-                o_wb_sel_nxt = 'x;
-                o_wb_wen_nxt = 'x;
-        end
-        endcase
+        o_wb_stb_nxt = wb_stb[state_nxt];
+        o_wb_cyc_nxt = wb_cyc[state_nxt];
+        o_wb_adr_nxt = wb_adr[state_nxt];
+        o_wb_dat_nxt = wb_dat[state_nxt];
+        o_wb_cti_nxt = wb_cti[state_nxt];
+        o_wb_sel_nxt = wb_sel[state_nxt];
+        o_wb_wen_nxt = wb_wen[state_nxt];
 end
 
-endmodule
+endmodule // zap_cache
 
 

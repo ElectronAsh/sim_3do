@@ -40,9 +40,7 @@ module madam (
 	output reg dma_ack
 );
 
-
-
-assign mem_addr = (state==8'd4) ? up_addr : (dma_ack) ? dma_addr : cpu_addr;
+assign mem_addr = /*(state==8'd4) ? up_addr :*/ (dma_ack) ? dma_addr : cpu_addr;
 assign mem_dout = (dma_ack) ? dma_dout : cpu_dout;
 assign mem_rd   = (dma_ack) ? dma_rd : cpu_rd;
 assign mem_wr   = (dma_ack) ? dma_wr : cpu_wr;
@@ -58,11 +56,10 @@ assign dram_cs = (cpu_addr>=32'h00000000 && cpu_addr<=32'h001fffff);	// 2MB main
 assign vram_cs = (cpu_addr>=32'h00200000 && cpu_addr<=32'h002fffff);	// 1MB VRAM.
 
 // BIOS is mapped to the (2MB) DRAM range at start-up / reset. Any write to that range will Clear map_bios.
-// BIOS is always mapped at 0x00300000-0x003fffff.
+// BIOS is also always mapped at 0x00300000-0x003fffff.
 // TODO: Is the 1MB BIOS only mapped to the lower 1MB of DRAM range, or is it mirrored to the upper 1MB of DRAM as well?
 reg map_bios;
 assign bios_cs = (dram_cs && map_bios) || (cpu_addr>=32'h00300000 && cpu_addr<=32'h003fffff);
-
 
 /*
 	vuint32			CELStart;	// 0100: Start CEL Engine
@@ -244,17 +241,16 @@ else begin
 	if (cel_dma_req && dma_ack) cpu_ack <= 1'b0;
 	else cpu_ack <= cpu_stb;
 	
-	/*
 	case (state)
 	0: begin
-		//if (madam_cs && cpu_addr[15:0]==SPRSTRT && cpu_wr) begin	// CELStart write.
-		//if (nextccb>32'h00000000) begin	// CELStart write.
+		if (madam_cs && cpu_addr[15:0]==SPRSTRT && cpu_wr) begin	// CELStart write.
+		//if (nextccb > 32'h00000000) begin	// CELStart write.
 			dma_addr <= nextccb;
 			cel_dma_req <= 1'b1;
 			dma_rd <= 1'b1;
 			fetch_idx <= 6'd0;
 			state <= state + 1;
-		//end
+		end
 	end
 	
 	1: if (dma_ack) begin
@@ -284,13 +280,15 @@ else begin
 			 
 		  CCBDONE: begin
 				dma_addr <= sourceptr;	// Point to start of pixel data (PDATA) for CEL.
-				state <= state + 1'd1;
+				//state <= state + 1'd1;
+				state <= 5;	// TESTING !! (skipping CEL Engine stuff, just drawing the squares on the sim for now).
 			end
 		
 		default: ;
 		endcase
 	end
 	
+	/*
 	2: begin
 		up_start <= 1'b1;		// Start the Unpacker!
 		state <= state + 1'd1;
@@ -307,6 +305,7 @@ else begin
 		//if (up_eol) state <= 5;						// EOL (End Of Line) found in CEL, stop for now.
 		//state <= 8'd3;
 	end
+	*/
 	
 	5: begin
 		cel_dma_req <= 1'b0;
@@ -316,7 +315,6 @@ else begin
 	
 	default: ;
 	endcase
-	*/
 end
 
 
@@ -1010,7 +1008,7 @@ reg [21:0] dma22_curlen;	// 0x564
 reg [21:0] dma22_nextaddr;	// 0x568
 reg [21:0] dma22_nextlen;	// 0x56c
 
-reg [21:0] dma23_curaddr;	// 0x570. PlayerBus (ControlPort).
+reg [21:0] dma23_curaddr;	// 0x570. PBUS (PlayerBus / ControlPort).
 reg [21:0] dma23_curlen;	// 0x574
 reg [21:0] dma23_nextaddr;	// 0x578
 reg [21:0] dma23_nextlen;	// 0x57c

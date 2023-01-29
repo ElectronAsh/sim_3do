@@ -179,19 +179,19 @@ sim_xbus_attach(sim_xbus_device dev_)
 {
 	int i;
 
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < 16; i++)	// Find a free device slot.
 	{
 		if (!xdev[i])
 			break;
 	}
 
-	if (i == 16)
+	if (i == 16)	// Return -1 if no free slots.
 		return -1;
 
-	xdev[i] = dev_;
-	xdev[i](XBP_INIT, NULL);
+	xdev[i] = dev_;				// Else, attach dev to the first available slot.
+	xdev[i](XBP_INIT, NULL);	// Init the xbus plugin for this slot / device.
 
-	return i;
+	return i;	// Return the slot number.
 }
 
 void

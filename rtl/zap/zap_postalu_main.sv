@@ -1,28 +1,34 @@
-//
-// (C) 2016-2022 Revanth Kamaraj (krevanth)
-//
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either version 3
-// of the License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
-// 02110-1301, USA.
-//
-// This is the post ALU stage for RAM reads
-//
+// ---------------------------------------------------------------------------
+// --                                                                       --
+// --    (C) 2016-2022 Revanth Kamaraj (krevanth)                           --
+// --                                                                       -- 
+// -- ------------------------------------------------------------------------
+// --                                                                       --
+// -- This program is free software; you can redistribute it and/or         --
+// -- modify it under the terms of the GNU General Public License           --
+// -- as published by the Free Software Foundation; either version 2        --
+// -- of the License, or (at your option) any later version.                --
+// --                                                                       --
+// -- This program is distributed in the hope that it will be useful,       --
+// -- but WITHOUT ANY WARRANTY; without even the implied warranty of        --
+// -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         --
+// -- GNU General Public License for more details.                          --
+// --                                                                       --
+// -- You should have received a copy of the GNU General Public License     --
+// -- along with this program; if not, write to the Free Software           --
+// -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA         --
+// -- 02110-1301, USA.                                                      --
+// --                                                                       --
+// ---------------------------------------------------------------------------
+// --                                                                       --
+// -- This is the post ALU stage for RAM reads                              --
+// --                                                                       --
+// ---------------------------------------------------------------------------
 
 module zap_postalu_main #(
-        parameter logic [31:0] PHY_REGS  = 32'd46, // Number of physical registers.
-        parameter logic [31:0] FLAG_WDT  = 32'd32  // Width of active CPSR.
+
+        parameter [31:0] PHY_REGS  = 32'd46, // Number of physical registers.
+        parameter [31:0] FLAG_WDT  = 32'd32  // Width of active CPSR.
 )
 (
         // ------------------------------------------------------------------
@@ -95,7 +101,7 @@ module zap_postalu_main #(
         output logic                              o_data_wb_cyc_ff,
         output logic                              o_data_wb_stb_ff,
         output logic [31:0]                       o_data_wb_dat_ff,
-        output logic [3:0]                        o_data_wb_sel_ff
+        output logic [3:0]                        o_data_wb_sel_ff 
 );
 
 logic sleep_ff;
@@ -104,103 +110,71 @@ always_ff @ (posedge i_clk)
 begin
         if ( i_reset )
         begin
-                sleep_ff                         <= 1'd0;
-                o_dav_ff                         <= '0;
-                o_decompile_valid                <= '0;
-                o_uop_last                       <= '0;
-                o_abt_ff                         <= '0;
-                o_irq_ff                         <= '0;
-                o_fiq_ff                         <= '0;
-                o_swi_ff                         <= '0;
-                o_und_ff                         <= '0;
-                o_data_wb_cyc_ff                 <= '0;
-                o_data_wb_stb_ff                 <= '0;
-
-                o_alu_result_ff                  <= 'x;
-                o_mem_srcdest_index_ff           <= 'x;
-                o_mem_srcdest_index_ff           <= 'x;
-                o_mem_load_ff                    <= 'x;
-                o_mem_unsigned_byte_enable_ff    <= 'x;
-                o_mem_signed_byte_enable_ff      <= 'x;
-                o_mem_signed_halfword_enable_ff  <= 'x;
-                o_mem_unsigned_halfword_enable_ff<= 'x;
-                o_mem_translate_ff               <= 'x;
-                o_decompile                      <= 'x;
-                o_data_wb_sel_ff                 <= 'x;
-                o_data_wb_dat_ff                 <= 'x;
-                o_data_wb_we_ff                  <= 'x;
-                o_flags_ff                       <= 'x;
-                o_pc_plus_8_ff                   <= 'x;
-                o_destination_index_ff           <= 'x;
+                o_alu_result_ff                  <= 0; 
+                o_dav_ff                         <= 0; 
+                o_decompile_valid                <= 0;
+                o_uop_last                       <= 0;
+                o_pc_plus_8_ff                   <= 0; 
+                o_destination_index_ff           <= 0; 
+                o_abt_ff                         <= 0; 
+                o_irq_ff                         <= 0; 
+                o_fiq_ff                         <= 0; 
+                o_swi_ff                         <= 0; 
+                o_und_ff                         <= 0;
+                o_mem_srcdest_index_ff           <= 0; 
+                o_mem_srcdest_index_ff           <= 0; 
+                o_mem_load_ff                    <= 0; 
+                o_mem_unsigned_byte_enable_ff    <= 0; 
+                o_mem_signed_byte_enable_ff      <= 0; 
+                o_mem_signed_halfword_enable_ff  <= 0; 
+                o_mem_unsigned_halfword_enable_ff<= 0; 
+                o_mem_translate_ff               <= 0; 
+                o_decompile                      <= 0; 
+                o_data_wb_cyc_ff                 <= 0;
+                o_data_wb_stb_ff                 <= 0;
+                o_data_wb_sel_ff                 <= 0;
+                o_data_wb_dat_ff                 <= 0;
+                o_data_wb_we_ff                  <= 0;
+                o_flags_ff                       <= 0;
         end
-        else if ( i_clear_from_writeback )
+        else if ( i_clear_from_writeback ) 
         begin
-                o_dav_ff                         <= '0;
-                o_decompile_valid                <= '0;
-                o_uop_last                       <= '0;
-                o_mem_load_ff                    <= '0;
-                o_dav_ff                         <= '0;
-                o_abt_ff                         <= '0;
-                o_irq_ff                         <= '0;
-                o_fiq_ff                         <= '0;
-                o_swi_ff                         <= '0;
-                o_und_ff                         <= '0;
-                sleep_ff                         <= '0;
-                o_data_wb_cyc_ff                 <= '0;
-                o_data_wb_stb_ff                 <= '0;
-
-                o_alu_result_ff                  <= 'x;
-                o_mem_srcdest_index_ff           <= 'x;
-                o_mem_srcdest_index_ff           <= 'x;
-                o_mem_load_ff                    <= 'x;
-                o_mem_unsigned_byte_enable_ff    <= 'x;
-                o_mem_signed_byte_enable_ff      <= 'x;
-                o_mem_signed_halfword_enable_ff  <= 'x;
-                o_mem_unsigned_halfword_enable_ff<= 'x;
-                o_mem_translate_ff               <= 'x;
-                o_decompile                      <= 'x;
-                o_data_wb_sel_ff                 <= 'x;
-                o_data_wb_dat_ff                 <= 'x;
-                o_data_wb_we_ff                  <= 'x;
-                o_flags_ff                       <= 'x;
-                o_pc_plus_8_ff                   <= 'x;
-                o_destination_index_ff           <= 'x;
+                sleep_ff                         <= 'd1; 
+                o_dav_ff                         <= 'd0; 
+                o_decompile_valid                <= 'd0;
+                o_uop_last                       <= 'd0;
+                o_mem_load_ff                    <= 'd0;
+                o_dav_ff                         <= 'd0;
+                o_flags_ff                       <= 'd0;
+                o_abt_ff                         <= 'd0;
+                o_irq_ff                         <= 'd0;
+                o_fiq_ff                         <= 'd0;
+                o_swi_ff                         <= 'd0;
+                o_und_ff                         <= 'd0;
+                sleep_ff                         <= 'd0;
+                o_data_wb_cyc_ff                 <= 'd0;
+                o_data_wb_stb_ff                 <= 'd0;
         end
         else if ( !i_data_stall )
         begin
                 if ( i_data_mem_fault || sleep_ff )
                 begin
-                        sleep_ff                         <= 1'd1;
-                        o_dav_ff                         <= '0;
-                        o_mem_load_ff                    <= '0;
-                        o_dav_ff                         <= '0;
-                        o_decompile_valid                <= '0;
-                        o_uop_last                       <= '0;
-                        o_abt_ff                         <= '0;
-                        o_irq_ff                         <= '0;
-                        o_fiq_ff                         <= '0;
-                        o_swi_ff                         <= '0;
-                        o_und_ff                         <= '0;
-                        o_mem_load_ff                    <= '0;
-                        o_data_wb_cyc_ff                 <= '0;
-                        o_data_wb_stb_ff                 <= '0;
-
-                        o_alu_result_ff                  <= 'x;
-                        o_mem_srcdest_index_ff           <= 'x;
-                        o_mem_srcdest_index_ff           <= 'x;
-                        o_mem_load_ff                    <= 'x;
-                        o_mem_unsigned_byte_enable_ff    <= 'x;
-                        o_mem_signed_byte_enable_ff      <= 'x;
-                        o_mem_signed_halfword_enable_ff  <= 'x;
-                        o_mem_unsigned_halfword_enable_ff<= 'x;
-                        o_mem_translate_ff               <= 'x;
-                        o_decompile                      <= 'x;
-                        o_data_wb_sel_ff                 <= 'x;
-                        o_data_wb_dat_ff                 <= 'x;
-                        o_data_wb_we_ff                  <= 'x;
-                        o_flags_ff                       <= 'x;
-                        o_pc_plus_8_ff                   <= 'x;
-                        o_destination_index_ff           <= 'x;
+                        sleep_ff                         <= 'd1; 
+                        o_dav_ff                         <= 'd0; 
+                        o_mem_load_ff                    <= 'd0;
+                        o_dav_ff                         <= 'd0;
+                        o_decompile_valid                <= 'd0;
+                        o_uop_last                       <= 'd0;
+                        o_flags_ff                       <= 'd0;
+                        o_abt_ff                         <= 'd0;
+                        o_irq_ff                         <= 'd0;
+                        o_fiq_ff                         <= 'd0;
+                        o_swi_ff                         <= 'd0;
+                        o_und_ff                         <= 'd0;
+                        sleep_ff                         <= 'd0;
+                        o_mem_load_ff                    <= 'd0;
+                        o_data_wb_cyc_ff                 <= 'd0;
+                        o_data_wb_stb_ff                 <= 'd0;
                 end
                 else
                 begin
@@ -208,9 +182,9 @@ begin
                         o_decompile_valid                <= i_decompile_valid;
                         o_uop_last                       <= i_uop_last;
                         o_alu_result_ff                  <= i_alu_result_ff;
-                        o_dav_ff                         <= i_dav_ff;
+                        o_dav_ff                         <= i_dav_ff;          
                         o_flags_ff                       <= i_flags_ff;
-                        o_destination_index_ff           <= i_destination_index_ff;
+                        o_destination_index_ff           <= i_destination_index_ff; 
                         o_abt_ff                         <= i_abt_ff;
                         o_irq_ff                         <= i_irq_ff;
                         o_fiq_ff                         <= i_fiq_ff;
@@ -218,13 +192,13 @@ begin
                         o_und_ff                         <= i_und_ff;
                         o_pc_plus_8_ff                   <= i_pc_plus_8_ff;
                         o_mem_srcdest_index_ff           <= i_mem_srcdest_index_ff;
-                        o_mem_load_ff                    <= i_mem_load_ff;
+                        o_mem_load_ff                    <= i_mem_load_ff; 
                         o_mem_address_ff                 <= i_mem_address_ff;
-                        o_mem_unsigned_byte_enable_ff    <= i_mem_unsigned_byte_enable_ff;
-                        o_mem_signed_byte_enable_ff      <= i_mem_signed_byte_enable_ff;
-                        o_mem_signed_halfword_enable_ff  <= i_mem_signed_halfword_enable_ff;
+                        o_mem_unsigned_byte_enable_ff    <= i_mem_unsigned_byte_enable_ff;    
+                        o_mem_signed_byte_enable_ff      <= i_mem_signed_byte_enable_ff;      
+                        o_mem_signed_halfword_enable_ff  <= i_mem_signed_halfword_enable_ff;  
                         o_mem_unsigned_halfword_enable_ff<= i_mem_unsigned_halfword_enable_ff;
-                        o_mem_translate_ff               <= i_mem_translate_ff;
+                        o_mem_translate_ff               <= i_mem_translate_ff;  
                         o_data_wb_cyc_ff                 <= i_data_wb_cyc_ff;
                         o_data_wb_stb_ff                 <= i_data_wb_stb_ff;
                         o_data_wb_we_ff                  <= i_data_wb_we_ff;
@@ -235,7 +209,7 @@ begin
 end
 
 
-endmodule
+endmodule // zap_postalu_main.v
 
 // ----------------------------------------------------------------------------
 // END OF FILE

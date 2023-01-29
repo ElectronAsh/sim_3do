@@ -454,8 +454,8 @@ always @(posedge clk_25m or negedge reset_n)
 if (!reset_n) begin
 	revision <= 32'h02020000;		// Opera returns 0x02020000.
 	
-	//cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only.
-	cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !!
+	cstatbits[0] <= 1'b1;			// Set bit 0 (POR). fixel said to start with this bit set only. (Set, for normal BIOS boot?)
+	//cstatbits[6] <= 1'b1;			// Set bit 6 (DIPIR). TESTING !! (Set for CD ISO file boot).
 
 	dipir1 <= 32'h00000000;			// 0x8000 - active. 0x4000 - happened before reset. 0x00xx - device number of the DIPIR
 	dipir2 <= 32'h00004000;			// 0x4000==Opera.   (second DIPIR reg)
@@ -552,14 +552,15 @@ else begin
 	if ( hcnt==32'd0 && vcnt==(vint1&11'h7FF)) irq0_pend[1] <= 1'b1;	// vint1 is on irq0, bit 1.
 	
 
-	if (|irq1_pend) irq0_pend[31] <= 1'b1;	// If ANY irq1_pend bits are set, set bit 31 of irq0_pend.
+	if (|irq1_pend) irq0_pend[31] <= irq1_trig;	// If ANY irq1_pend bits are set (masked?), set bit 31 of irq0_pend.
 
 	//irq1_pend_prev <= irq1_pend;
 	// If irq1_pend has changed, and if ANY irq1_pend bits (bitwise OR) are high, set bit [31] of irq0_pend.
 	//if ( (irq1_pend_prev!=irq1_pend) && (|irq1_pend) ) irq0_pend[31] <= 1'b1;
 	
-	firq_n <= !(irq0_trig /*| irq1_trig*/);
-	
+	firq_n <= !(irq0_trig /*| irq1_trig*/);	// Seems that irq1_trig doesn't directly trigger the FIQ on the real 3DO??
+											// I tested the theory in Opera, and it still seems to run games OK.
+											// (using only irq0_trig to trigger FIQ meant that the BIOS and homebrew seemed to run better / further. ElectronAsh.)
 
 	hcnt <= hcnt + 1'd1;
 	if (hcnt==hcnt_max) begin
